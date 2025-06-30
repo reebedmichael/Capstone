@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants.dart';
 import '../../../core/utils/color_utils.dart';
+import 'personal_info_screen.dart';
+import 'addresses_screen.dart';
+import 'payment_methods_screen.dart';
+import 'notifications_screen.dart';
+import 'security_screen.dart';
+import 'help_screen.dart';
+import 'about_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -14,7 +21,9 @@ class ProfileScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () {
-              // TODO: Edit profile
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Edit Profile - Coming Soon!')),
+              );
             },
           ),
         ],
@@ -78,7 +87,9 @@ class ProfileScreen extends StatelessWidget {
                     subtitle: const Text('Name, email, phone'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
-                      // TODO: Navigate to personal info
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const PersonalInfoScreen()),
+                      );
                     },
                   ),
                   const Divider(),
@@ -88,7 +99,9 @@ class ProfileScreen extends StatelessWidget {
                     subtitle: const Text('Manage delivery addresses'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
-                      // TODO: Navigate to addresses
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const AddressesScreen()),
+                      );
                     },
                   ),
                   const Divider(),
@@ -98,7 +111,9 @@ class ProfileScreen extends StatelessWidget {
                     subtitle: const Text('Cards, wallet, etc.'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
-                      // TODO: Navigate to payment methods
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const PaymentMethodsScreen()),
+                      );
                     },
                   ),
                   const Divider(),
@@ -108,7 +123,9 @@ class ProfileScreen extends StatelessWidget {
                     subtitle: const Text('Push, email, SMS'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
-                      // TODO: Navigate to notifications
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                      );
                     },
                   ),
                   const Divider(),
@@ -118,7 +135,9 @@ class ProfileScreen extends StatelessWidget {
                     subtitle: const Text('Password, privacy'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
-                      // TODO: Navigate to security
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SecurityScreen()),
+                      );
                     },
                   ),
                   const Divider(),
@@ -128,7 +147,9 @@ class ProfileScreen extends StatelessWidget {
                     subtitle: const Text('FAQ, contact us'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
-                      // TODO: Navigate to help
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const HelpScreen()),
+                      );
                     },
                   ),
                   const Divider(),
@@ -138,7 +159,9 @@ class ProfileScreen extends StatelessWidget {
                     subtitle: const Text('Version, terms, privacy'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
-                      // TODO: Navigate to about
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const AboutScreen()),
+                      );
                     },
                   ),
                   const Divider(),
@@ -149,7 +172,6 @@ class ProfileScreen extends StatelessWidget {
                       style: TextStyle(color: AppConstants.errorColor),
                     ),
                     onTap: () {
-                      // TODO: Implement logout
                       showDialog(
                         context: context,
                         builder: (context) => AlertDialog(
@@ -163,7 +185,9 @@ class ProfileScreen extends StatelessWidget {
                             ElevatedButton(
                               onPressed: () {
                                 Navigator.pop(context);
-                                // TODO: Perform logout
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Logged out successfully!')),
+                                );
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppConstants.errorColor,

@@ -14,7 +14,9 @@ class MenuManagementScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () {
-              // TODO: Add new menu item
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Add New Menu Item - Coming Soon!')),
+              );
             },
           ),
         ],
@@ -46,14 +48,18 @@ class MenuManagementScreen extends StatelessWidget {
                                 prefixIcon: Icon(Icons.search),
                               ),
                               onChanged: (value) {
-                                // TODO: Implement search
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Searching for: $value')),
+                                );
                               },
                             ),
                           ),
                           const SizedBox(width: AppConstants.paddingMedium),
                           ElevatedButton.icon(
                             onPressed: () {
-                              // TODO: Add new item
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Add New Item - Coming Soon!')),
+                              );
                             },
                             icon: const Icon(Icons.add),
                             label: const Text('Add Item'),
@@ -81,13 +87,17 @@ class MenuManagementScreen extends StatelessWidget {
                                   IconButton(
                                     icon: const Icon(Icons.edit),
                                     onPressed: () {
-                                      // TODO: Edit item
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Editing Menu Item ${index + 1}')),
+                                      );
                                     },
                                   ),
                                   IconButton(
                                     icon: const Icon(Icons.delete),
                                     onPressed: () {
-                                      // TODO: Delete item
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Deleting Menu Item ${index + 1}')),
+                                      );
                                     },
                                   ),
                                 ],

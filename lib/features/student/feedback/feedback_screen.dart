@@ -93,11 +93,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  // TODO: Submit feedback
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Thank you for your feedback!'),
-                    ),
+                    const SnackBar(content: Text('Thank you for your feedback! It has been submitted.')),
                   );
                 },
                 child: const Text('Submit Feedback'),

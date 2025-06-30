@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants.dart';
 import '../../../core/utils/color_utils.dart';
+import 'order_detail_screen.dart';
 
 class OrdersScreen extends StatelessWidget {
   const OrdersScreen({super.key});
@@ -42,7 +43,11 @@ class OrdersScreen extends StatelessWidget {
               ),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
-                // TODO: View order details
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => OrderDetailScreen(orderId: 1000 + index),
+                  ),
+                );
               },
             ),
           );

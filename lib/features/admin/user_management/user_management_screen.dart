@@ -14,7 +14,9 @@ class UserManagementScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () {
-              // TODO: Add new user
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Add New User - Coming Soon!')),
+              );
             },
           ),
         ],
@@ -59,7 +61,9 @@ class UserManagementScreen extends StatelessWidget {
                             IconButton(
                               icon: const Icon(Icons.edit),
                               onPressed: () {
-                                // TODO: Edit user
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Editing User ${index + 1}')),
+                                );
                               },
                             ),
                           ],

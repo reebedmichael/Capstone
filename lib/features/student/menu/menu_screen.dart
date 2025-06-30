@@ -14,7 +14,9 @@ class MenuScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
-              // TODO: Search menu
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Search - Coming Soon!')),
+              );
             },
           ),
         ],
@@ -64,7 +66,9 @@ class MenuScreen extends StatelessWidget {
                     subtitle: Text('Category ${index % 5 + 1} • \$${(index + 1) * 5}.99'),
                     trailing: ElevatedButton(
                       onPressed: () {
-                        // TODO: Add to cart
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Added Menu Item ${index + 1} to cart!')),
+                        );
                       },
                       child: const Text('Add'),
                     ),

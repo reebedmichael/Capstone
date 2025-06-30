@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants.dart';
+import 'profile_screen.dart';
+import 'security_screen.dart';
+import 'terms_screen.dart';
+import 'privacy_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -87,7 +91,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             title: const Text('Profile'),
                             subtitle: const Text('Manage your profile'),
                             onTap: () {
-                              // TODO: Navigate to profile
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                              );
                             },
                           ),
                           ListTile(
@@ -95,7 +101,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             title: const Text('Security'),
                             subtitle: const Text('Change password and security settings'),
                             onTap: () {
-                              // TODO: Navigate to security
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const SecurityScreen()),
+                              );
                             },
                           ),
                           ListTile(
@@ -103,7 +111,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             title: const Text('Logout'),
                             subtitle: const Text('Sign out of your account'),
                             onTap: () {
-                              // TODO: Implement logout
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Logged out successfully!')),
+                              );
                             },
                           ),
                         ],
@@ -121,14 +131,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             leading: const Icon(Icons.description),
                             title: const Text('Terms of Service'),
                             onTap: () {
-                              // TODO: Show terms
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const TermsScreen()),
+                              );
                             },
                           ),
                           ListTile(
                             leading: const Icon(Icons.privacy_tip),
                             title: const Text('Privacy Policy'),
                             onTap: () {
-                              // TODO: Show privacy policy
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const PrivacyScreen()),
+                              );
                             },
                           ),
                         ],

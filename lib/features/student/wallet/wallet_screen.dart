@@ -14,7 +14,9 @@ class WalletScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () {
-              // TODO: Add money to wallet
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Add Money - Coming Soon!')),
+              );
             },
           ),
         ],
@@ -52,7 +54,9 @@ class WalletScreen extends StatelessWidget {
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () {
-                              // TODO: Add money
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Add Money - Coming Soon!')),
+                              );
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
@@ -65,7 +69,9 @@ class WalletScreen extends StatelessWidget {
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () {
-                              // TODO: Withdraw money
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Withdraw Money - Coming Soon!')),
+                              );
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
@@ -94,7 +100,9 @@ class WalletScreen extends StatelessWidget {
                 const Spacer(),
                 TextButton(
                   onPressed: () {
-                    // TODO: View all transactions
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('View All Transactions - Coming Soon!')),
+                    );
                   },
                   child: const Text('View All'),
                 ),

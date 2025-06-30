@@ -26,15 +26,15 @@ class OrderManagementScreen extends StatelessWidget {
             // Filter tabs
             Row(
               children: [
-                _buildFilterChip('All', true),
+                _buildFilterChip(context, 'All', true),
                 const SizedBox(width: AppConstants.paddingMedium),
-                _buildFilterChip('Pending', false),
+                _buildFilterChip(context, 'Pending', false),
                 const SizedBox(width: AppConstants.paddingMedium),
-                _buildFilterChip('Processing', false),
+                _buildFilterChip(context, 'Processing', false),
                 const SizedBox(width: AppConstants.paddingMedium),
-                _buildFilterChip('Completed', false),
+                _buildFilterChip(context, 'Completed', false),
                 const SizedBox(width: AppConstants.paddingMedium),
-                _buildFilterChip('Cancelled', false),
+                _buildFilterChip(context, 'Cancelled', false),
               ],
             ),
             const SizedBox(height: AppConstants.paddingLarge),
@@ -76,14 +76,18 @@ class OrderManagementScreen extends StatelessWidget {
                               IconButton(
                                 icon: const Icon(Icons.visibility),
                                 onPressed: () {
-                                  // TODO: View order details
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Viewing details for Order #${1000 + index}')),
+                                  );
                                 },
                               ),
                               if (status == 'Pending')
                                 IconButton(
                                   icon: const Icon(Icons.check),
                                   onPressed: () {
-                                    // TODO: Accept order
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Order #${1000 + index} accepted!')),
+                                    );
                                   },
                                 ),
                             ],
@@ -101,12 +105,14 @@ class OrderManagementScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFilterChip(String label, bool isSelected) {
+  Widget _buildFilterChip(BuildContext context, String label, bool isSelected) {
     return FilterChip(
       label: Text(label),
       selected: isSelected,
       onSelected: (selected) {
-        // TODO: Implement filter
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Filtered by: $label')),
+        );
       },
     );
   }

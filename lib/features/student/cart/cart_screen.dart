@@ -36,14 +36,18 @@ class CartScreen extends StatelessWidget {
                         IconButton(
                           icon: const Icon(Icons.remove),
                           onPressed: () {
-                            // TODO: Decrease quantity
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Decreased quantity for Item ${index + 1}')),
+                            );
                           },
                         ),
                         Text('${index + 1}'),
                         IconButton(
                           icon: const Icon(Icons.add),
                           onPressed: () {
-                            // TODO: Increase quantity
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Increased quantity for Item ${index + 1}')),
+                            );
                           },
                         ),
                       ],
@@ -90,7 +94,9 @@ class CartScreen extends StatelessWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      // TODO: Proceed to checkout
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Proceeding to checkout...')),
+                      );
                     },
                     child: const Text('Checkout'),
                   ),

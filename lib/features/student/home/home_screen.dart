@@ -2,43 +2,8 @@ import 'package:flutter/material.dart';
 import '../../../core/constants.dart';
 import '../../../core/utils/color_utils.dart';
 
-class StudentHomeScreen extends StatefulWidget {
+class StudentHomeScreen extends StatelessWidget {
   const StudentHomeScreen({super.key});
-
-  @override
-  State<StudentHomeScreen> createState() => _StudentHomeScreenState();
-}
-
-class _StudentHomeScreenState extends State<StudentHomeScreen> {
-  int _currentIndex = 0;
-
-  final List<BottomNavigationItem> _navigationItems = [
-    BottomNavigationItem(
-      icon: Icons.home,
-      label: 'Home',
-      route: '/home',
-    ),
-    BottomNavigationItem(
-      icon: Icons.restaurant_menu,
-      label: 'Menu',
-      route: '/menu',
-    ),
-    BottomNavigationItem(
-      icon: Icons.shopping_cart,
-      label: 'Cart',
-      route: '/cart',
-    ),
-    BottomNavigationItem(
-      icon: Icons.history,
-      label: 'Orders',
-      route: '/orders',
-    ),
-    BottomNavigationItem(
-      icon: Icons.account_circle,
-      label: 'Profile',
-      route: '/profile',
-    ),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -49,34 +14,18 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           IconButton(
             icon: const Icon(Icons.notifications),
             onPressed: () {
-              // TODO: Show notifications
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Notifications - Coming Soon!')),
+              );
             },
           ),
         ],
       ),
-      body: _buildBody(),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _currentIndex,
-        selectedItemColor: AppConstants.primaryColor,
-        unselectedItemColor: Colors.grey,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-          Navigator.pushNamed(context, _navigationItems[index].route);
-        },
-        items: _navigationItems.map((item) {
-          return BottomNavigationBarItem(
-            icon: Icon(item.icon),
-            label: item.label,
-          );
-        }).toList(),
-      ),
+      body: _buildBody(context),
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppConstants.paddingMedium),
       child: Column(
@@ -107,7 +56,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             ),
           ),
           const SizedBox(height: AppConstants.paddingLarge),
-          
           // Quick Actions
           Text(
             'Quick Actions',
@@ -120,25 +68,34 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             children: [
               Expanded(
                 child: _buildQuickActionCard(
+                  context,
                   'Browse Menu',
                   Icons.restaurant_menu,
                   AppConstants.primaryColor,
-                  () => Navigator.pushNamed(context, '/menu'),
+                  () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Use the Menu tab below to browse items!')),
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: AppConstants.paddingMedium),
               Expanded(
                 child: _buildQuickActionCard(
+                  context,
                   'My Orders',
                   Icons.history,
                   AppConstants.secondaryColor,
-                  () => Navigator.pushNamed(context, '/orders'),
+                  () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Use the Orders tab below to view your orders!')),
+                    );
+                  },
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppConstants.paddingLarge),
-          
           // Popular Items
           Text(
             'Popular Items',
@@ -204,7 +161,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             ),
           ),
           const SizedBox(height: AppConstants.paddingLarge),
-          
           // Recent Orders
           Text(
             'Recent Orders',
@@ -231,7 +187,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   subtitle: Text('Delivered • \$${(index + 1) * 8}.99'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () {
-                    Navigator.pushNamed(context, '/orders');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Use the Orders tab below to view your orders!')),
+                    );
                   },
                 );
               },
@@ -242,7 +200,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 
-  Widget _buildQuickActionCard(String title, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildQuickActionCard(BuildContext context, String title, IconData icon, Color color, VoidCallback onTap) {
     return Card(
       child: InkWell(
         onTap: onTap,

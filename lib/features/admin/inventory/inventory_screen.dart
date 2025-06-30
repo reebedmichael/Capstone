@@ -14,7 +14,9 @@ class InventoryScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.add),
             onPressed: () {
-              // TODO: Add new inventory item
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Add New Inventory Item - Coming Soon!')),
+              );
             },
           ),
         ],
@@ -46,14 +48,18 @@ class InventoryScreen extends StatelessWidget {
                                 prefixIcon: Icon(Icons.search),
                               ),
                               onChanged: (value) {
-                                // TODO: Implement search
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Searching inventory for: $value')),
+                                );
                               },
                             ),
                           ),
                           const SizedBox(width: AppConstants.paddingMedium),
                           ElevatedButton.icon(
                             onPressed: () {
-                              // TODO: Add new item
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Add New Item - Coming Soon!')),
+                              );
                             },
                             icon: const Icon(Icons.add),
                             label: const Text('Add Item'),
@@ -89,7 +95,9 @@ class InventoryScreen extends StatelessWidget {
                                   IconButton(
                                     icon: const Icon(Icons.edit),
                                     onPressed: () {
-                                      // TODO: Edit item
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Editing Inventory Item ${index + 1}')),
+                                      );
                                     },
                                   ),
                                 ],
