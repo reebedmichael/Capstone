@@ -1,5 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants.dart';
+import '../../../services/auth_service.dart';
+import '../../../models/user.dart';
+import '../../../services/notification_service.dart';
+import '../../../models/notification.dart';
+import '../menu/menu_screen.dart';
+import '../cart/cart_screen.dart';
+import '../orders/orders_screen.dart';
+import '../profile/profile_screen.dart';
+import '../notifications/notifications_screen.dart';
 import '../../../core/utils/color_utils.dart';
 
 class StudentHomeScreen extends StatefulWidget {
@@ -11,6 +20,21 @@ class StudentHomeScreen extends StatefulWidget {
 
 class _StudentHomeScreenState extends State<StudentHomeScreen> {
   int _currentIndex = 0;
+  final _notificationService = NotificationService();
+
+  final List<Widget> _screens = [
+    StudentHomeScreenContent(),
+    MenuScreen(),
+    CartScreen(),
+    OrdersScreen(),
+    ProfileScreen(),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationService.initialize();
+  }
 
   final List<BottomNavigationItem> _navigationItems = [
     BottomNavigationItem(
@@ -45,16 +69,58 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Spys'),
+        backgroundColor: AppConstants.primaryColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications),
-            onPressed: () {
-              // TODO: Show notifications
+          StreamBuilder<List<AppNotification>>(
+            stream: _notificationService.notificationStream,
+            builder: (context, snapshot) {
+              final unreadCount = _notificationService.unreadCount;
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications),
+                    onPressed: () {
+                      // Show notifications as a modal or overlay
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => NotificationsScreen()),
+                      );
+                    },
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: AppConstants.errorColor,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          unreadCount > 99 ? '99+' : unreadCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
             },
           ),
         ],
       ),
-      body: _buildBody(),
+      body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
@@ -64,7 +130,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           setState(() {
             _currentIndex = index;
           });
-          Navigator.pushNamed(context, _navigationItems[index].route);
         },
         items: _navigationItems.map((item) {
           return BottomNavigationBarItem(
@@ -75,192 +140,235 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       ),
     );
   }
+}
 
-  Widget _buildBody() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppConstants.paddingMedium),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Welcome Section
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(AppConstants.paddingLarge),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Welcome back!',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: AppConstants.paddingSmall),
-                  Text(
-                    'What would you like to order today?',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: setOpacity(Theme.of(context).colorScheme.onSurface, 0.7),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: AppConstants.paddingLarge),
-          
-          // Quick Actions
-          Text(
-            'Quick Actions',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: AppConstants.paddingMedium),
-          Row(
+// Extract the original home content to a separate widget
+class StudentHomeScreenContent extends StatelessWidget {
+  const StudentHomeScreenContent({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final authService = AuthService();
+    return StreamBuilder<User?>(
+      stream: authService.userStream,
+      builder: (context, snapshot) {
+        final user = snapshot.data;
+        return SingleChildScrollView(
+          child: Column(
             children: [
-              Expanded(
-                child: _buildQuickActionCard(
-                  'Browse Menu',
-                  Icons.restaurant_menu,
-                  AppConstants.primaryColor,
-                  () => Navigator.pushNamed(context, '/menu'),
+              // Welcome Header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppConstants.paddingLarge),
+                decoration: BoxDecoration(
+                  color: AppConstants.primaryColor,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(AppConstants.borderRadiusLarge),
+                    bottomRight: Radius.circular(AppConstants.borderRadiusLarge),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welkom, ${user?.name ?? 'Gebruiker'}!',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: AppConstants.paddingSmall),
+                    Text(
+                      'Wat gaan jy vandag eet?',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: setOpacity(Colors.white, 0.9),
+                      ),
+                    ),
+                    const SizedBox(height: AppConstants.paddingMedium),
+                    // Quick Balance Display
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppConstants.paddingMedium,
+                        vertical: AppConstants.paddingSmall,
+                      ),
+                      decoration: BoxDecoration(
+                        color: setOpacity(Colors.white, 0.2),
+                        borderRadius: BorderRadius.circular(AppConstants.borderRadiusLarge),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.account_balance_wallet, color: Colors.white, size: 20),
+                          const SizedBox(width: AppConstants.paddingSmall),
+                          Text(
+                            'Saldo: R${user?.walletBalance.toStringAsFixed(2) ?? '0.00'}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: AppConstants.paddingMedium),
-              Expanded(
-                child: _buildQuickActionCard(
-                  'My Orders',
-                  Icons.history,
-                  AppConstants.secondaryColor,
-                  () => Navigator.pushNamed(context, '/orders'),
+              
+              const SizedBox(height: AppConstants.paddingLarge),
+              
+              // Promotional Banner
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: AppConstants.paddingMedium),
+                height: 120,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppConstants.accentColor, setOpacity(AppConstants.accentColor, 0.8)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
+                ),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      right: -20,
+                      top: -10,
+                      child: Icon(
+                        Icons.local_dining,
+                        size: 100,
+                        color: setOpacity(Colors.white, 0.2),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(AppConstants.paddingMedium),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Probeer ons Maandag Burger!',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: AppConstants.paddingSmall),
+                          Text(
+                            '20% afslag - Net vir vandag!',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              color: setOpacity(Colors.white, 0.9),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              
+              const SizedBox(height: AppConstants.paddingLarge),
+              
+              // Quick Action Cards
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppConstants.paddingMedium),
+                child: GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 2,
+                  crossAxisSpacing: AppConstants.paddingMedium,
+                  mainAxisSpacing: AppConstants.paddingMedium,
+                  childAspectRatio: 1.1,
+                  children: [
+                    _buildQuickActionCard(
+                      context: context,
+                      title: 'Spyskaart',
+                      subtitle: 'Kyk wat beskikbaar is',
+                      icon: Icons.restaurant_menu,
+                      color: AppConstants.primaryColor,
+                      onTap: () => Navigator.pushNamed(context, '/menu'),
+                    ),
+                    _buildQuickActionCard(
+                      context: context,
+                      title: 'My Bestellings',
+                      subtitle: 'Kyk jou geskiedenis',
+                      icon: Icons.history,
+                      color: AppConstants.secondaryColor,
+                      onTap: () => Navigator.pushNamed(context, '/orders'),
+                    ),
+                    _buildQuickActionCard(
+                      context: context,
+                      title: 'Beursie',
+                      subtitle: 'Laai geld op',
+                      icon: Icons.account_balance_wallet,
+                      color: AppConstants.successColor,
+                      onTap: () => Navigator.pushNamed(context, '/wallet'),
+                    ),
+                    _buildQuickActionCard(
+                      context: context,
+                      title: 'Profiel',
+                      subtitle: 'Wysig besonderhede',
+                      icon: Icons.person,
+                      color: AppConstants.warningColor,
+                      onTap: () => Navigator.pushNamed(context, '/profile'),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const SizedBox(height: AppConstants.paddingLarge),
             ],
           ),
-          const SizedBox(height: AppConstants.paddingLarge),
-          
-          // Popular Items
-          Text(
-            'Popular Items',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: AppConstants.paddingMedium),
-          SizedBox(
-            height: 200,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: 10,
-              itemBuilder: (context, index) {
-                return Container(
-                  width: 160,
-                  margin: const EdgeInsets.only(right: AppConstants.paddingMedium),
-                  child: Card(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: setOpacity(AppConstants.primaryColor, 0.1),
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(AppConstants.borderRadiusMedium),
-                              ),
-                            ),
-                            child: Center(
-                              child: Icon(
-                                Icons.restaurant,
-                                size: 48,
-                                color: AppConstants.primaryColor,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(AppConstants.paddingMedium),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Item ${index + 1}',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              Text(
-                                '\$${(index + 1) * 5}.99',
-                                style: TextStyle(
-                                  color: AppConstants.primaryColor,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: AppConstants.paddingLarge),
-          
-          // Recent Orders
-          Text(
-            'Recent Orders',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: AppConstants.paddingMedium),
-          Card(
-            child: ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: 3,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: setOpacity(AppConstants.primaryColor, 0.1),
-                    child: Icon(
-                      Icons.shopping_bag,
-                      color: AppConstants.primaryColor,
-                    ),
-                  ),
-                  title: Text('Order #${1000 + index}'),
-                  subtitle: Text('Delivered • \$${(index + 1) * 8}.99'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.pushNamed(context, '/orders');
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildQuickActionCard(String title, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildQuickActionCard({
+    required BuildContext context,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
     return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
-        child: Padding(
-          padding: const EdgeInsets.all(AppConstants.paddingLarge),
+        child: Container(
+          padding: const EdgeInsets.all(AppConstants.paddingMedium),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                size: 48,
-                color: color,
+              Container(
+                padding: const EdgeInsets.all(AppConstants.paddingMedium),
+                decoration: BoxDecoration(
+                  color: setOpacity(color, 0.1),
+                  borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
+                ),
+                child: Icon(
+                  icon,
+                  size: 32,
+                  color: color,
+                ),
               ),
               const SizedBox(height: AppConstants.paddingMedium),
               Text(
                 title,
-                style: const TextStyle(
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppConstants.paddingSmall),
+              Text(
+                subtitle,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey[600],
                 ),
                 textAlign: TextAlign.center,
               ),

@@ -1,110 +1,144 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants.dart';
-import '../../../core/utils/color_utils.dart';
+import 'package:spys/l10n/app_localizations.dart';
 
-class InventoryScreen extends StatelessWidget {
+class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Inventory Management'),
+  State<InventoryScreen> createState() => _InventoryScreenState();
+}
+
+class _InventoryScreenState extends State<InventoryScreen> {
+  List<Map<String, dynamic>> voorraad = [
+    {'naam': 'Hoender', 'hoeveelheid': 20, 'laasteByvoeg': '2024-06-01'},
+    {'naam': 'Beesvleis', 'hoeveelheid': 10, 'laasteByvoeg': '2024-06-02'},
+  ];
+
+  void _showForm({Map<String, dynamic>? item, int? index}) {
+    final naamController = TextEditingController(text: item?['naam'] ?? '');
+    final hoeveelheidController = TextEditingController(text: item?['hoeveelheid']?.toString() ?? '');
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(item == null ? AppLocalizations.of(context)!.addInventory : AppLocalizations.of(context)!.editInventory),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: naamController,
+                decoration: InputDecoration(labelText: AppLocalizations.of(context)!.name, border: const OutlineInputBorder()),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: hoeveelheidController,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(labelText: AppLocalizations.of(context)!.quantity, border: const OutlineInputBorder()),
+              ),
+            ],
+          ),
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(AppLocalizations.of(context)!.cancel)),
+          ElevatedButton(
             onPressed: () {
-              // TODO: Add new inventory item
+              if (naamController.text.isEmpty || hoeveelheidController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.nameAndQuantityRequired)));
+                return;
+              }
+              setState(() {
+                if (item == null) {
+                  voorraad.add({
+                    'naam': naamController.text,
+                    'hoeveelheid': int.tryParse(hoeveelheidController.text) ?? 0,
+                    'laasteByvoeg': DateTime.now().toString().split(' ')[0],
+                  });
+                } else if (index != null) {
+                  voorraad[index] = {
+                    'naam': naamController.text,
+                    'hoeveelheid': int.tryParse(hoeveelheidController.text) ?? 0,
+                    'laasteByvoeg': DateTime.now().toString().split(' ')[0],
+                  };
+                }
+              });
+              Navigator.pop(context);
+              // TODO: Backend integration for add/edit
             },
+            child: Text(AppLocalizations.of(context)!.save),
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(AppConstants.paddingLarge),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Inventory',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+    );
+  }
+
+  void _deleteItem(int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(AppLocalizations.of(context)!.deleteInventory),
+        content: Text('Is jy seker jy wil "${voorraad[index]['naam']}" verwyder?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(AppLocalizations.of(context)!.cancel)),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                voorraad.removeAt(index);
+              });
+              Navigator.pop(context);
+              // TODO: Backend integration for delete
+            },
+            child: Text(AppLocalizations.of(context)!.delete),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(loc?.inventory ?? 'Inventory', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              ElevatedButton.icon(
+                onPressed: () => _showForm(),
+                icon: const Icon(Icons.add),
+                label: Text(loc?.add ?? 'Add'),
               ),
-            ),
-            const SizedBox(height: AppConstants.paddingLarge),
-            Expanded(
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppConstants.paddingLarge),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              decoration: const InputDecoration(
-                                labelText: 'Search inventory...',
-                                prefixIcon: Icon(Icons.search),
-                              ),
-                              onChanged: (value) {
-                                // TODO: Implement search
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: AppConstants.paddingMedium),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              // TODO: Add new item
-                            },
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add Item'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppConstants.paddingLarge),
-                      Expanded(
-                        child: ListView.builder(
-                          itemCount: 15,
-                          itemBuilder: (context, index) {
-                            final stockLevel = (index + 1) * 5;
-                            final isLowStock = stockLevel < 10;
-                            return ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: setOpacity(AppConstants.primaryColor, 0.1),
-                                child: Icon(
-                                  Icons.inventory,
-                                  color: AppConstants.primaryColor,
-                                ),
-                              ),
-                              title: Text('Item ${index + 1}'),
-                              subtitle: Text('Category ${index % 4 + 1} • Stock: $stockLevel units'),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (isLowStock)
-                                    Chip(
-                                      label: const Text('Low Stock'),
-                                      backgroundColor: setOpacity(AppConstants.warningColor, 0.1),
-                                      labelStyle: const TextStyle(color: AppConstants.warningColor),
-                                    ),
-                                  IconButton(
-                                    icon: const Icon(Icons.edit),
-                                    onPressed: () {
-                                      // TODO: Edit item
-                                    },
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ListView.separated(
+              itemCount: voorraad.length,
+              separatorBuilder: (_, __) => const Divider(),
+              itemBuilder: (context, i) {
+                final item = voorraad[i];
+                return Card(
+                  child: ListTile(
+                    title: Text(item['naam'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('${loc?.quantity ?? 'Quantity'}: ${item['hoeveelheid']}\n${loc?.lastAdded ?? 'Last Added'}: ${item['laasteByvoeg']}'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(icon: const Icon(Icons.edit), onPressed: () => _showForm(item: item, index: i)),
+                        IconButton(icon: const Icon(Icons.delete), onPressed: () => _deleteItem(i)),
+                      ],
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+          Text(loc?.backendIntegrationInventory ?? 'Backend integration for inventory (TODO)', style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
+        ],
       ),
     );
   }

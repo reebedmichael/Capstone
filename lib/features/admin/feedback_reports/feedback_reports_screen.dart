@@ -1,173 +1,78 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants.dart';
-import '../../../core/utils/color_utils.dart';
 
 class FeedbackReportsScreen extends StatelessWidget {
   const FeedbackReportsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Feedback & Reports'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(AppConstants.paddingLarge),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Feedback & Reports',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+    final feedback = [
+      {'gebruiker': 'Jan Smit', 'sterre': 5, 'kommentaar': 'Uitstekende diens!', 'datum': '2024-06-01'},
+      {'gebruiker': 'Anna Jacobs', 'sterre': 4, 'kommentaar': 'Lekker kos.', 'datum': '2024-06-02'},
+      {'gebruiker': 'Piet Pienaar', 'sterre': 3, 'kommentaar': 'Kon vinniger wees.', 'datum': '2024-06-03'},
+    ];
+    final weekStats = [3, 5, 2, 4, 6, 1, 2];
+    final days = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Sa', 'So'];
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Terugvoer', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ListView.separated(
+              itemCount: feedback.length,
+              separatorBuilder: (_, __) => const Divider(),
+              itemBuilder: (context, i) {
+                final item = feedback[i];
+                return Card(
+                  child: ListTile(
+                    title: Text(item['gebruiker'].toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('${item['kommentaar'] ?? ''}\n${item['datum'] ?? ''}'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: List.generate(5, (s) => Icon(
+                        s < (item['sterre'] is int ? item['sterre'] as int : int.tryParse(item['sterre'].toString()) ?? 0)
+                            ? Icons.star
+                            : Icons.star_border,
+                        color: Colors.amber,
+                        size: 20,
+                      )),
+                    ),
+                  ),
+                );
+              },
             ),
-            const SizedBox(height: AppConstants.paddingLarge),
-            Expanded(
-              child: Row(
-                children: [
-                  // Feedback Section
+          ),
+          const SizedBox(height: 32),
+          const Text('Weeklikse Terugvoer Stats', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 120,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (int i = 0; i < weekStats.length; i++)
                   Expanded(
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppConstants.paddingLarge),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Recent Feedback',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: AppConstants.paddingMedium),
-                            Expanded(
-                              child: ListView.builder(
-                                itemCount: 10,
-                                itemBuilder: (context, index) {
-                                  return Card(
-                                    margin: const EdgeInsets.only(bottom: AppConstants.paddingMedium),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(AppConstants.paddingMedium),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Text(
-                                                'User ${index + 1}',
-                                                style: const TextStyle(fontWeight: FontWeight.bold),
-                                              ),
-                                              const Spacer(),
-                                              Row(
-                                                children: List.generate(5, (starIndex) {
-                                                  return Icon(
-                                                    starIndex < 4 ? Icons.star : Icons.star_border,
-                                                    color: AppConstants.accentColor,
-                                                    size: 16,
-                                                  );
-                                                }),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: AppConstants.paddingSmall),
-                                          Text('Great food quality and fast delivery!'),
-                                          Text(
-                                            '2 hours ago',
-                                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                              color: setOpacity(Theme.of(context).colorScheme.onSurface, 0.7),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Container(
+                          height: (weekStats[i] is num ? weekStats[i].toInt() : int.tryParse(weekStats[i].toString()) ?? 0) * 15.0,
+                          width: 18,
+                          color: Theme.of(context).primaryColor,
                         ),
-                      ),
+                        const SizedBox(height: 4),
+                        Text(days[i]),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: AppConstants.paddingLarge),
-                  // Reports Section
-                  Expanded(
-                    child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppConstants.paddingLarge),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Analytics',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: AppConstants.paddingMedium),
-                            Expanded(
-                              child: Column(
-                                children: [
-                                  _buildAnalyticsCard('Average Rating', '4.8★', Icons.star),
-                                  const SizedBox(height: AppConstants.paddingMedium),
-                                  _buildAnalyticsCard('Total Reviews', '1,234', Icons.rate_review),
-                                  const SizedBox(height: AppConstants.paddingMedium),
-                                  _buildAnalyticsCard('Response Rate', '98%', Icons.reply),
-                                  const SizedBox(height: AppConstants.paddingMedium),
-                                  _buildAnalyticsCard('Satisfaction', '95%', Icons.sentiment_satisfied),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAnalyticsCard(String title, String value, IconData icon) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppConstants.paddingMedium),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: AppConstants.primaryColor,
-              size: 32,
-            ),
-            const SizedBox(width: AppConstants.paddingMedium),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppConstants.primaryColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+          const Text('// TODO: Vervang met regte chart widget en backend data', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
+        ],
       ),
     );
   }

@@ -1,77 +1,98 @@
 import 'package:flutter/material.dart';
-import '../../../core/constants.dart';
-import '../../../core/utils/color_utils.dart';
 
-class UserManagementScreen extends StatelessWidget {
+class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('User Management'),
+  State<UserManagementScreen> createState() => _UserManagementScreenState();
+}
+
+class _UserManagementScreenState extends State<UserManagementScreen> {
+  List<Map<String, dynamic>> users = [
+    {'naam': 'Jan Smit', 'rol': 'Admin', 'aktief': true, 'laasteLogin': 'Vandag 08:00'},
+    {'naam': 'Piet Pienaar', 'rol': 'Superadmin', 'aktief': false, 'laasteLogin': 'Gister 17:30'},
+    {'naam': 'Anna Jacobs', 'rol': 'Admin', 'aktief': true, 'laasteLogin': 'Vandag 09:15'},
+  ];
+
+  void _approveUser(int index) {
+    setState(() {
+      users[index]['aktief'] = true;
+    });
+    // TODO: Backend integration for approve
+  }
+
+  void _disableUser(int index) {
+    setState(() {
+      users[index]['aktief'] = false;
+    });
+    // TODO: Backend integration for disable
+  }
+
+  void _deleteUser(int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Verwyder gebruiker'),
+        content: Text('Is jy seker jy wil "${users[index]['naam']}" verwyder?'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Kanselleer')),
+          ElevatedButton(
             onPressed: () {
-              // TODO: Add new user
+              setState(() {
+                users.removeAt(index);
+              });
+              Navigator.pop(context);
+              // TODO: Backend integration for delete
             },
+            child: const Text('Verwyder'),
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(AppConstants.paddingLarge),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Users',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: AppConstants.paddingLarge),
-            Expanded(
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppConstants.paddingLarge),
-                  child: ListView.builder(
-                    itemCount: 20,
-                    itemBuilder: (context, index) {
-                      final userType = index % 3 == 0 ? 'Student' : 'Staff';
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: setOpacity(AppConstants.primaryColor, 0.1),
-                          child: Icon(
-                            Icons.person,
-                            color: AppConstants.primaryColor,
-                          ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Gebruikers', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ListView.separated(
+              itemCount: users.length,
+              separatorBuilder: (_, __) => const Divider(),
+              itemBuilder: (context, i) {
+                final user = users[i];
+                return Card(
+                  child: ListTile(
+                    leading: Icon(user['rol'] == 'Superadmin' ? Icons.verified_user : Icons.person, color: user['rol'] == 'Superadmin' ? Colors.orange : Colors.blue),
+                    title: Text(user['naam'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('Rol: ${user['rol']}\nStatus: ${user['aktief'] ? 'Aktief' : 'Geblok'}\nLaaste login: ${user['laasteLogin']}'),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(user['aktief'] ? Icons.block : Icons.check_circle, color: user['aktief'] ? Colors.red : Colors.green),
+                          tooltip: user['aktief'] ? 'Disable' : 'Approve',
+                          onPressed: () => user['aktief'] ? _disableUser(i) : _approveUser(i),
                         ),
-                        title: Text('User ${index + 1}'),
-                        subtitle: Text('$userType • user${index + 1}@example.com'),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Chip(
-                              label: Text(userType),
-                              backgroundColor: setOpacity(AppConstants.primaryColor, 0.1),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.edit),
-                              onPressed: () {
-                                // TODO: Edit user
-                              },
-                            ),
-                          ],
+                        IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () => _deleteUser(i),
                         ),
-                      );
-                    },
+                      ],
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 8),
+          const Text('// TODO: Backend integration for user management', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
+        ],
       ),
     );
   }

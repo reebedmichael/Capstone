@@ -1,165 +1,173 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants.dart';
+import '../../../services/auth_service.dart';
+import '../about/about_screen.dart';
+import '../help/help_screen.dart';
+import '../terms/terms_screen.dart';
+import 'package:provider/provider.dart';
+import '../../../core/utils/locale_provider.dart';
+import 'package:spys/l10n/app_localizations.dart';
 
-class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+class AdminSettingsScreen extends StatefulWidget {
+  final void Function(int) onNavItemSelected;
+  const AdminSettingsScreen({super.key, required this.onNavItemSelected});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  State<AdminSettingsScreen> createState() => _AdminSettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
+  final _authService = AuthService();
   bool _darkMode = false;
-  bool _notifications = true;
-  bool _emailAlerts = true;
+  String _language = 'Afrikaans';
+  bool _pushNotifications = true;
+  bool _emailNotifications = false;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(AppConstants.paddingLarge),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Settings',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: AppConstants.paddingLarge),
-            Expanded(
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppConstants.paddingLarge),
-                  child: ListView(
-                    children: [
-                      _buildSettingsSection(
-                        'Appearance',
-                        [
-                          SwitchListTile(
-                            title: const Text('Dark Mode'),
-                            subtitle: const Text('Enable dark theme'),
-                            value: _darkMode,
-                            onChanged: (value) {
-                              setState(() {
-                                _darkMode = value;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                      const Divider(),
-                      _buildSettingsSection(
-                        'Notifications',
-                        [
-                          SwitchListTile(
-                            title: const Text('Push Notifications'),
-                            subtitle: const Text('Receive push notifications'),
-                            value: _notifications,
-                            onChanged: (value) {
-                              setState(() {
-                                _notifications = value;
-                              });
-                            },
-                          ),
-                          SwitchListTile(
-                            title: const Text('Email Alerts'),
-                            subtitle: const Text('Receive email notifications'),
-                            value: _emailAlerts,
-                            onChanged: (value) {
-                              setState(() {
-                                _emailAlerts = value;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                      const Divider(),
-                      _buildSettingsSection(
-                        'Account',
-                        [
-                          ListTile(
-                            leading: const Icon(Icons.person),
-                            title: const Text('Profile'),
-                            subtitle: const Text('Manage your profile'),
-                            onTap: () {
-                              // TODO: Navigate to profile
-                            },
-                          ),
-                          ListTile(
-                            leading: const Icon(Icons.security),
-                            title: const Text('Security'),
-                            subtitle: const Text('Change password and security settings'),
-                            onTap: () {
-                              // TODO: Navigate to security
-                            },
-                          ),
-                          ListTile(
-                            leading: const Icon(Icons.logout),
-                            title: const Text('Logout'),
-                            subtitle: const Text('Sign out of your account'),
-                            onTap: () {
-                              // TODO: Implement logout
-                            },
-                          ),
-                        ],
-                      ),
-                      const Divider(),
-                      _buildSettingsSection(
-                        'About',
-                        [
-                          ListTile(
-                            leading: const Icon(Icons.info),
-                            title: const Text('Version'),
-                            subtitle: const Text('1.0.0'),
-                          ),
-                          ListTile(
-                            leading: const Icon(Icons.description),
-                            title: const Text('Terms of Service'),
-                            onTap: () {
-                              // TODO: Show terms
-                            },
-                          ),
-                          ListTile(
-                            leading: const Icon(Icons.privacy_tip),
-                            title: const Text('Privacy Policy'),
-                            onTap: () {
-                              // TODO: Show privacy policy
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSettingsSection(String title, List<Widget> children) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final loc = AppLocalizations.of(context);
+    return ListView(
+      padding: const EdgeInsets.all(AppConstants.paddingMedium),
       children: [
-        Padding(
-          padding: const EdgeInsets.all(AppConstants.paddingMedium),
-          child: Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppConstants.primaryColor,
+        Card(
+          child: SwitchListTile(
+            title: Text(loc?.dark_theme ?? 'Dark Theme', style: Theme.of(context).textTheme.titleMedium),
+            value: _darkMode,
+            onChanged: (val) {
+              setState(() {
+                _darkMode = val;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(val ? (loc?.dark_theme ?? 'Dark Theme') : (loc?.light_theme ?? 'Light Theme'))),
+              );
+              // TODO: Backend integration for theme
+            },
+            secondary: const Icon(Icons.brightness_6),
+          ),
+        ),
+        const Divider(),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.language),
+            title: Text(loc?.language ?? 'Language', style: Theme.of(context).textTheme.titleMedium),
+            trailing: DropdownButton<String>(
+              value: _language,
+              items: [
+                DropdownMenuItem(value: 'Afrikaans', child: Text(loc?.afrikaans ?? 'Afrikaans')),
+                DropdownMenuItem(value: 'English', child: Text(loc?.english ?? 'English')),
+              ],
+              onChanged: (val) {
+                setState(() {
+                  _language = val ?? 'Afrikaans';
+                });
+                final provider = Provider.of<LocaleProvider>(context, listen: false);
+                provider.setLocale(Locale(_language == (loc?.english ?? 'English') ? 'en' : 'af'));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('${loc?.language ?? 'Language'}: ${_language == 'English' ? (loc?.english ?? 'English') : (loc?.afrikaans ?? 'Afrikaans')}')),
+                );
+                // TODO: Backend integration for language
+              },
             ),
           ),
         ),
-        ...children,
+        const Divider(),
+        Card(
+          child: SwitchListTile(
+            title: Text('Push Notifications', style: Theme.of(context).textTheme.titleMedium),
+            value: _pushNotifications,
+            onChanged: (val) {
+              setState(() {
+                _pushNotifications = val;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Push notifications ${val ? 'enabled' : 'disabled'} (mock)')),
+              );
+              // TODO: Backend integration for push notifications
+            },
+            secondary: const Icon(Icons.notifications_active),
+          ),
+        ),
+        const Divider(),
+        Card(
+          child: SwitchListTile(
+            title: Text('Email Notifications', style: Theme.of(context).textTheme.titleMedium),
+            value: _emailNotifications,
+            onChanged: (val) {
+              setState(() {
+                _emailNotifications = val;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Email notifications ${val ? 'enabled' : 'disabled'} (mock)')),
+              );
+              // TODO: Backend integration for email notifications
+            },
+            secondary: const Icon(Icons.email),
+          ),
+        ),
+        const Divider(),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.logout, color: AppConstants.errorColor),
+            title: Text('Logout', style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppConstants.errorColor)),
+            onTap: _showLogoutDialog,
+          ),
+        ),
+        const SizedBox(height: 32),
+        // --- Info Section ---
+        Card(
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: Text('About Spys Admin', style: Theme.of(context).textTheme.titleMedium),
+                onTap: () => widget.onNavItemSelected(7),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.help_outline),
+                title: Text('Help & FAQ', style: Theme.of(context).textTheme.titleMedium),
+                onTap: () => widget.onNavItemSelected(8),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.privacy_tip_outlined),
+                title: Text('Terms & Privacy', style: Theme.of(context).textTheme.titleMedium),
+                onTap: () => widget.onNavItemSelected(9),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text('// TODO: Backend integration for settings', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
       ],
+    );
+  }
+
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Teken uit'),
+        content: const Text('Is jy seker jy wil uitteken?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Kanselleer'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _authService.logout();
+              Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppConstants.errorColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Teken uit'),
+          ),
+        ],
+      ),
     );
   }
 } 
