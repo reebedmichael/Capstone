@@ -9,15 +9,128 @@ class UserManagementScreen extends StatefulWidget {
 
 class _UserManagementScreenState extends State<UserManagementScreen> {
   List<Map<String, dynamic>> users = [
-    {'naam': 'Jan Smit', 'rol': 'Admin', 'aktief': true, 'laasteLogin': 'Vandag 08:00'},
-    {'naam': 'Piet Pienaar', 'rol': 'Superadmin', 'aktief': false, 'laasteLogin': 'Gister 17:30'},
-    {'naam': 'Anna Jacobs', 'rol': 'Admin', 'aktief': true, 'laasteLogin': 'Vandag 09:15'},
+    {'naam': 'Jan Smit', 'email': 'jan@spys.co.za', 'rol': 'Admin', 'aktief': true, 'laasteLogin': 'Vandag 08:00', 'geregistreer': '2024-01-15'},
+    {'naam': 'Piet Pienaar', 'email': 'piet@spys.co.za', 'rol': 'Superadmin', 'aktief': false, 'laasteLogin': 'Gister 17:30', 'geregistreer': '2024-01-10'},
+    {'naam': 'Anna Jacobs', 'email': 'anna@spys.co.za', 'rol': 'Admin', 'aktief': true, 'laasteLogin': 'Vandag 09:15', 'geregistreer': '2024-02-01'},
   ];
+
+  void _showEditUserDialog({Map<String, dynamic>? user, int? index}) {
+    final naamController = TextEditingController(text: user?['naam'] ?? '');
+    final emailController = TextEditingController(text: user?['email'] ?? '');
+    String selectedRole = user?['rol'] ?? 'Admin';
+    bool isActive = user?['aktief'] ?? true;
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(user == null ? 'Voeg Gebruiker By' : 'Wysig Gebruiker'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: naamController,
+                  decoration: const InputDecoration(
+                    labelText: 'Naam',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'E-pos',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: selectedRole,
+                  decoration: const InputDecoration(
+                    labelText: 'Rol',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: ['Admin', 'Superadmin'].map((role) =>
+                    DropdownMenuItem(value: role, child: Text(role))
+                  ).toList(),
+                  onChanged: (value) {
+                    setDialogState(() {
+                      selectedRole = value ?? 'Admin';
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                SwitchListTile(
+                  title: const Text('Aktief'),
+                  value: isActive,
+                  onChanged: (value) {
+                    setDialogState(() {
+                      isActive = value;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Kanselleer'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (naamController.text.isEmpty || emailController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Naam en e-pos is vereist')),
+                  );
+                  return;
+                }
+
+                setState(() {
+                  if (user == null) {
+                    // Add new user
+                    users.add({
+                      'naam': naamController.text,
+                      'email': emailController.text,
+                      'rol': selectedRole,
+                      'aktief': isActive,
+                      'laasteLogin': 'Nog nie ingeteken nie',
+                      'geregistreer': DateTime.now().toString().split(' ')[0],
+                    });
+                  } else if (index != null) {
+                    // Edit existing user
+                    users[index] = {
+                      ...users[index],
+                      'naam': naamController.text,
+                      'email': emailController.text,
+                      'rol': selectedRole,
+                      'aktief': isActive,
+                    };
+                  }
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(user == null ? 'Gebruiker bygevoeg' : 'Gebruiker gewysig')),
+                );
+                // TODO: Backend integration for add/edit user
+              },
+              child: const Text('Stoor'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _approveUser(int index) {
     setState(() {
       users[index]['aktief'] = true;
     });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${users[index]['naam']} is goedgekeur')),
+    );
     // TODO: Backend integration for approve
   }
 
@@ -25,6 +138,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     setState(() {
       users[index]['aktief'] = false;
     });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${users[index]['naam']} is gedeaktiveer')),
+    );
     // TODO: Backend integration for disable
   }
 
@@ -38,13 +154,18 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Kanselleer')),
           ElevatedButton(
             onPressed: () {
+              final userName = users[index]['naam'];
               setState(() {
                 users.removeAt(index);
               });
               Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('$userName is verwyder')),
+              );
               // TODO: Backend integration for delete
             },
-            child: const Text('Verwyder'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Verwyder', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -58,7 +179,21 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Gebruikers', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Gebruikers', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              ElevatedButton.icon(
+                onPressed: () => _showEditUserDialog(),
+                icon: const Icon(Icons.person_add),
+                label: const Text('Voeg Gebruiker By'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
           Expanded(
             child: ListView.separated(
@@ -67,21 +202,68 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               itemBuilder: (context, i) {
                 final user = users[i];
                 return Card(
+                  elevation: 2,
                   child: ListTile(
-                    leading: Icon(user['rol'] == 'Superadmin' ? Icons.verified_user : Icons.person, color: user['rol'] == 'Superadmin' ? Colors.orange : Colors.blue),
+                    leading: CircleAvatar(
+                      backgroundColor: user['rol'] == 'Superadmin' ? const Color(0xFFBF360C) : const Color(0xFFE64A19),
+                      child: Icon(
+                        user['rol'] == 'Superadmin' ? Icons.verified_user : Icons.person,
+                        color: Colors.white,
+                      ),
+                    ),
                     title: Text(user['naam'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('Rol: ${user['rol']}\nStatus: ${user['aktief'] ? 'Aktief' : 'Geblok'}\nLaaste login: ${user['laasteLogin']}'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: Icon(user['aktief'] ? Icons.block : Icons.check_circle, color: user['aktief'] ? Colors.red : Colors.green),
-                          tooltip: user['aktief'] ? 'Disable' : 'Approve',
-                          onPressed: () => user['aktief'] ? _disableUser(i) : _approveUser(i),
+                    subtitle: Text(
+                      'E-pos: ${user['email']}\n'
+                      'Rol: ${user['rol']}\n'
+                      'Status: ${user['aktief'] ? 'Aktief' : 'Geblok'}\n'
+                      'Laaste login: ${user['laasteLogin']}\n'
+                      'Geregistreer: ${user['geregistreer']}'
+                    ),
+                    isThreeLine: true,
+                    trailing: PopupMenuButton<String>(
+                      onSelected: (value) {
+                        switch (value) {
+                          case 'edit':
+                            _showEditUserDialog(user: user, index: i);
+                            break;
+                          case 'toggle':
+                            user['aktief'] ? _disableUser(i) : _approveUser(i);
+                            break;
+                          case 'delete':
+                            _deleteUser(i);
+                            break;
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 20),
+                              SizedBox(width: 8),
+                              Text('Wysig'),
+                            ],
+                          ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () => _deleteUser(i),
+                        PopupMenuItem(
+                          value: 'toggle',
+                          child: Row(
+                            children: [
+                              Icon(user['aktief'] ? Icons.block : Icons.check_circle, size: 20),
+                              const SizedBox(width: 8),
+                              Text(user['aktief'] ? 'Deaktiveer' : 'Aktiveer'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 20, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('Verwyder', style: TextStyle(color: Colors.red)),
+                            ],
+                          ),
                         ),
                       ],
                     ),

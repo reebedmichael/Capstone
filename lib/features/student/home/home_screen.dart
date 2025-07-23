@@ -23,11 +23,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   final _notificationService = NotificationService();
 
   final List<Widget> _screens = [
-    StudentHomeScreenContent(),
-    MenuScreen(),
-    CartScreen(),
-    OrdersScreen(),
-    ProfileScreen(),
+    const StudentHomeScreenContent(),
+    const MenuScreen(),
+    const CartScreen(),
+    const OrdersScreen(),
+    const ProfileScreen(),
   ];
 
   @override
@@ -85,7 +85,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       // Show notifications as a modal or overlay
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => NotificationsScreen()),
+                        MaterialPageRoute(builder: (context) => const NotificationsScreen()),
                       );
                     },
                   ),
@@ -160,9 +160,9 @@ class StudentHomeScreenContent extends StatelessWidget {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppConstants.paddingLarge),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppConstants.primaryColor,
-                  borderRadius: const BorderRadius.only(
+                  borderRadius: BorderRadius.only(
                     bottomLeft: Radius.circular(AppConstants.borderRadiusLarge),
                     bottomRight: Radius.circular(AppConstants.borderRadiusLarge),
                   ),
@@ -343,34 +343,45 @@ class StudentHomeScreenContent extends StatelessWidget {
           padding: const EdgeInsets.all(AppConstants.paddingMedium),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.all(AppConstants.paddingMedium),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: setOpacity(color, 0.1),
                   borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
                 ),
                 child: Icon(
                   icon,
-                  size: 32,
+                  size: 28,
                   color: color,
                 ),
               ),
-              const SizedBox(height: AppConstants.paddingMedium),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+              const SizedBox(height: 12),
+              Flexible(
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: AppConstants.paddingSmall),
-              Text(
-                subtitle,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[600],
+              const SizedBox(height: 6),
+              Flexible(
+                child: Text(
+                  subtitle,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey[600],
+                    fontSize: 11,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                textAlign: TextAlign.center,
               ),
             ],
           ),

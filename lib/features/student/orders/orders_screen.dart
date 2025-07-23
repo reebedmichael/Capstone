@@ -24,6 +24,10 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
     _tabController = TabController(length: 2, vsync: this);
     final user = _authService.currentUser;
     _orderService.initialize(user?.id ?? 'demo_user');
+    // Trigger initial data load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _orderService.notifyListeners();
+    });
   }
 
   @override
@@ -248,7 +252,7 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                   ),
                   child: Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.location_on,
                         color: AppConstants.successColor,
                         size: 16,
@@ -257,7 +261,7 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                       Expanded(
                         child: Text(
                           '${order.pickupLocation} • Gereed tot ${_formatTime(order.pickupTime!)}',
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: AppConstants.successColor,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -280,7 +284,7 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                   ),
                   child: Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.warning,
                         color: AppConstants.warningColor,
                         size: 16,
@@ -289,7 +293,7 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                       Expanded(
                         child: Text(
                           'Allergieë: ${order.allergiesWarning.join(', ')}',
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: AppConstants.warningColor,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -306,7 +310,7 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                 const SizedBox(height: AppConstants.paddingSmall),
                 Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.star,
                       color: AppConstants.warningColor,
                       size: 16,
@@ -331,7 +335,7 @@ class _OrdersScreenState extends State<OrdersScreen> with SingleTickerProviderSt
                       size: 16,
                     ),
                     const SizedBox(width: AppConstants.paddingSmall),
-                    Text(
+                    const Text(
                       'Gee terugvoer',
                       style: TextStyle(
                         color: AppConstants.primaryColor,

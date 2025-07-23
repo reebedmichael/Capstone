@@ -11,13 +11,13 @@ class TermsScreen extends StatelessWidget {
         title: const Text('Bepalings & Privaatheid'),
         backgroundColor: AppConstants.primaryColor,
         foregroundColor: Colors.white,
-        leading: BackButton(),
+        leading: const BackButton(),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(AppConstants.paddingLarge),
+      body: const Padding(
+        padding: EdgeInsets.all(AppConstants.paddingLarge),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
+          children: [
             Text('Bepalings van Diens', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 0.2)),
             SizedBox(height: 16),
             Text('TODO: Volledige bepalings en privaatheidsbeleid hier.', style: TextStyle(fontSize: 15, fontStyle: FontStyle.italic, color: Colors.grey)),

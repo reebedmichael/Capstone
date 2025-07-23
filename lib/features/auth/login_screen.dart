@@ -211,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                     child: Text(
                       AppLocalizations.of(context)!.forgotPassword,
-                      style: TextStyle(color: AppConstants.primaryColor),
+                      style: const TextStyle(color: AppConstants.primaryColor),
                     ),
                   ),
                 ),
@@ -263,7 +263,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                       child: Text(
                         AppLocalizations.of(context)!.register,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: AppConstants.primaryColor,
                           fontWeight: FontWeight.bold,
                         ),
@@ -286,7 +286,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       Text(
                         AppLocalizations.of(context)!.demoAccounts,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           color: AppConstants.primaryColor,
                         ),

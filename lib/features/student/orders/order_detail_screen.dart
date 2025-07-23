@@ -287,7 +287,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             const SizedBox(height: AppConstants.paddingMedium),
             Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.location_on,
                   color: AppConstants.primaryColor,
                 ),
@@ -306,7 +306,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               const SizedBox(height: AppConstants.paddingMedium),
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.access_time,
                     color: AppConstants.primaryColor,
                   ),
@@ -331,7 +331,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.check_circle,
                       color: AppConstants.successColor,
                     ),
@@ -339,7 +339,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     Expanded(
                       child: Text(
                         '${AppLocalizations.of(context)!.yourOrderIsReadyForPickup}. ${AppLocalizations.of(context)!.showYourQRCodeAtTheCounter}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: AppConstants.successColor,
                           fontWeight: FontWeight.w600,
                         ),
@@ -373,7 +373,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           children: [
             Row(
               children: [
-                Icon(
+                const Icon(
                   Icons.warning,
                   color: AppConstants.warningColor,
                 ),
@@ -390,7 +390,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             const SizedBox(height: AppConstants.paddingMedium),
             Text(
               AppLocalizations.of(context)!.allergiesWarningDescription,
-              style: TextStyle(color: AppConstants.warningColor),
+              style: const TextStyle(color: AppConstants.warningColor),
             ),
             const SizedBox(height: AppConstants.paddingSmall),
             Wrap(
@@ -460,16 +460,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             child: OutlinedButton.icon(
               onPressed: () => _cancelOrder(),
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppConstants.errorColor),
+                side: const BorderSide(color: AppConstants.errorColor),
                 padding: const EdgeInsets.symmetric(vertical: AppConstants.paddingMedium),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
                 ),
               ),
-              icon: Icon(Icons.cancel, color: AppConstants.errorColor),
+              icon: const Icon(Icons.cancel, color: AppConstants.errorColor),
               label: Text(
                 AppLocalizations.of(context)!.cancelOrderButton,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: AppConstants.errorColor,
@@ -586,7 +586,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               color: setOpacity(AppConstants.primaryColor, 0.1),
               borderRadius: BorderRadius.circular(AppConstants.borderRadiusSmall),
             ),
-            child: Icon(
+            child: const Icon(
               Icons.restaurant,
               color: AppConstants.primaryColor,
             ),
@@ -801,7 +801,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 controller: commentController,
                 decoration: InputDecoration(
                   labelText: AppLocalizations.of(context)!.commentOptional,
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
                 ),
                 maxLines: 3,
               ),

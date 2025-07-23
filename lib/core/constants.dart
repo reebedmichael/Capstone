@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 
 class AppConstants {
-  // Colors
-  static const Color primaryColor = Color(0xFF1976D2);
-  static const Color secondaryColor = Color(0xFF42A5F5);
-  static const Color accentColor = Color(0xFFFF6B35);
-  static const Color backgroundColor = Color(0xFFF5F5F5);
-  static const Color surfaceColor = Colors.white;
+  // Dark Orange Color Scheme - Enhanced
+  static const Color primaryColor = Color(0xFFBF360C); // Deep Dark Orange
+  static const Color secondaryColor = Color(0xFFFF5722); // Orange Red
+  static const Color accentColor = Color(0xFFE64A19); // Dark Orange
+  static const Color backgroundColor = Color(0xFFFBE9E7); // Light Orange Background
+  static const Color surfaceColor = Color(0xFFFFF3E0); // Very Light Orange
   static const Color errorColor = Color(0xFFD32F2F);
-  static const Color successColor = Color(0xFF388E3C);
-  static const Color warningColor = Color(0xFFF57C00);
+  static const Color successColor = Color(0xFF2E7D32);
+  static const Color warningColor = Color(0xFFFF6F00); // Orange Warning
+  static const Color darkColor = Color(0xFF3E2723); // Dark Brown
+  static const Color lightColor = Color(0xFFFFF8E1); // Very Light Orange
 
   // Text Styles
   static const String fontFamily = 'Roboto';

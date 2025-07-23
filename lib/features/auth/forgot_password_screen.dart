@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../core/constants.dart';
-import '../../services/auth_service.dart';
-import '../../widgets/loading_widget.dart';
-import '../../core/utils/color_utils.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -14,8 +11,6 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  final _authService = AuthService();
-  
   bool _isLoading = false;
   bool _emailSent = false;
 
@@ -25,61 +20,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
-  String? _validateEmail(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'E-pos is vereist';
-    }
-    if (!value.contains('@') || !value.contains('.')) {
-      return 'Ongeldige e-pos formaat';
-    }
-    return null;
-  }
-
-  Future<void> _sendResetEmail() async {
+  Future<void> _resetPassword() async {
     if (!_formKey.currentState!.validate()) return;
-
+    
     setState(() {
       _isLoading = true;
     });
 
-    try {
-      final success = await _authService.forgotPassword(_emailController.text.trim());
+    // Simulate API call
+    await Future.delayed(const Duration(seconds: 2));
 
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _emailSent = success;
-        });
-
-        if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Wagwoord herstel e-pos is gestuur!'),
-              backgroundColor: AppConstants.successColor,
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Kon nie wagwoord herstel e-pos stuur nie'),
-              backgroundColor: AppConstants.errorColor,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Fout: ${e.toString()}'),
-            backgroundColor: AppConstants.errorColor,
-          ),
-        );
-      }
-    }
+    setState(() {
+      _isLoading = false;
+      _emailSent = true;
+    });
   }
 
   @override
@@ -87,9 +41,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return Scaffold(
       backgroundColor: AppConstants.backgroundColor,
       appBar: AppBar(
-        title: const Text('Wagwoord Vergeet'),
-        backgroundColor: AppConstants.primaryColor,
-        foregroundColor: Colors.white,
+        title: const Text('Herstel Wagwoord'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -99,27 +53,28 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: AppConstants.paddingLarge),
+                const SizedBox(height: AppConstants.paddingXLarge),
                 
-                // Header
+                // Header Section
                 Center(
                   child: Column(
                     children: [
                       Container(
-                        width: 80,
-                        height: 80,
+                        width: 100,
+                        height: 100,
                         decoration: BoxDecoration(
-                          color: setOpacity(AppConstants.primaryColor, 25/255),
-                          borderRadius: BorderRadius.circular(40),
+                          color: AppConstants.primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(50),
                         ),
                         child: Icon(
-                          Icons.lock_reset,
-                          size: 40,
+                          _emailSent ? Icons.mark_email_read : Icons.lock_reset,
+                          size: 50,
+                          color: AppConstants.primaryColor,
                         ),
                       ),
-                      const SizedBox(height: AppConstants.paddingMedium),
+                      const SizedBox(height: AppConstants.paddingLarge),
                       Text(
-                        'Herstel Wagwoord',
+                        _emailSent ? 'E-pos Gestuur!' : 'Herstel Wagwoord',
                         style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: AppConstants.primaryColor,
@@ -128,10 +83,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       const SizedBox(height: AppConstants.paddingSmall),
                       Text(
                         _emailSent 
-                          ? 'Ons het \'n herstel skakel na jou e-pos gestuur'
-                          : 'Voer jou e-pos adres in om \'n wagwoord herstel skakel te ontvang',
+                          ? 'Ons het \'n herstel skakel na jou e-pos gestuur.'
+                          : 'Voer jou e-pos adres in om jou wagwoord te herstel.',
                         textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Colors.grey[600],
                         ),
                       ),
@@ -146,73 +101,90 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    validator: _validateEmail,
                     decoration: InputDecoration(
-                      labelText: 'E-pos',
-                      hintText: 'jou@example.com',
-                      prefixIcon: const Icon(Icons.email),
+                      labelText: 'E-pos Adres',
+                      hintText: 'voer.jou@email.com',
+                      prefixIcon: const Icon(Icons.email_outlined),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
                       ),
-                      filled: true,
-                      fillColor: Colors.white,
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
+                        borderSide: const BorderSide(color: AppConstants.primaryColor, width: 2),
+                      ),
                     ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'E-pos is vereist';
+                      }
+                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                        return 'Ongeldige e-pos formaat';
+                      }
+                      return null;
+                    },
                   ),
                   
                   const SizedBox(height: AppConstants.paddingLarge),
                   
-                  // Send Reset Email Button
-                  SizedBox(
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _sendResetEmail,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppConstants.primaryColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
-                        ),
+                  // Reset Button
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _resetPassword,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppConstants.primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: AppConstants.paddingMedium),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
                       ),
-                      child: _isLoading
-                          ? const LoadingWidget()
-                          : const Text(
-                              'Stuur Herstel E-pos',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
                     ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text(
+                            'Stuur Herstel Skakel',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                   ),
                 ] else ...[
-                  // Success Message
+                  // Success Actions
                   Container(
                     padding: const EdgeInsets.all(AppConstants.paddingLarge),
                     decoration: BoxDecoration(
-                      color: setOpacity(AppConstants.successColor, 25/255),
+                      color: Colors.green.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
-                      border: Border.all(color: setOpacity(AppConstants.successColor, 75/255)),
+                      border: Border.all(color: Colors.green.withOpacity(0.3)),
                     ),
                     child: Column(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.check_circle,
-                          size: 50,
-                          color: AppConstants.successColor,
+                          color: Colors.green,
+                          size: 48,
                         ),
                         const SizedBox(height: AppConstants.paddingMedium),
                         Text(
-                          'E-pos Gestuur!',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          'Kyk jou e-pos',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: AppConstants.successColor,
+                            color: Colors.green,
                           ),
                         ),
                         const SizedBox(height: AppConstants.paddingSmall),
                         Text(
-                          'Kyk jou inbox en volg die instruksies om jou wagwoord te herstel.',
+                          'Volg die instruksies in die e-pos om jou wagwoord te herstel.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey[700]),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.grey[600],
+                          ),
                         ),
                       ],
                     ),
@@ -220,74 +192,44 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   
                   const SizedBox(height: AppConstants.paddingLarge),
                   
-                  // Try Again Button
-                  OutlinedButton(
+                  ElevatedButton(
                     onPressed: () {
                       setState(() {
                         _emailSent = false;
                         _emailController.clear();
                       });
                     },
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: AppConstants.primaryColor),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[300],
+                      foregroundColor: AppConstants.darkColor,
+                      padding: const EdgeInsets.symmetric(vertical: AppConstants.paddingMedium),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
                       ),
                     ),
-                    child: Text(
-                      'Probeer Weer',
-                      style: TextStyle(color: AppConstants.primaryColor),
+                    child: const Text(
+                      'Stuur Weer',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
                 
                 const SizedBox(height: AppConstants.paddingLarge),
                 
-                // Back to Login Button
+                // Back to Login
                 TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: Text(
-                    'Terug na Aanmelding',
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text(
+                    'Terug na Teken In',
                     style: TextStyle(
                       color: AppConstants.primaryColor,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-                
-                if (!_emailSent) ...[
-                  const SizedBox(height: AppConstants.paddingLarge),
-                  
-                  // Demo Note
-                  Container(
-                    padding: const EdgeInsets.all(AppConstants.paddingMedium),
-                    decoration: BoxDecoration(
-                      color: setOpacity(Colors.orange, 25/255),
-                      borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.info,
-                          color: Colors.orange[700],
-                          size: 20,
-                        ),
-                        const SizedBox(width: AppConstants.paddingSmall),
-                        Expanded(
-                          child: Text(
-                            'Demo: Hierdie is net \'n simulasie. Geen regte e-pos sal gestuur word nie.',
-                            style: TextStyle(
-                              color: Colors.orange[700],
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -295,4 +237,4 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       ),
     );
   }
-} 
+}

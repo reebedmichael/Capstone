@@ -94,7 +94,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         CircleAvatar(
                           radius: 50,
                           backgroundColor: setOpacity(AppConstants.primaryColor, 0.1),
-                          child: Icon(
+                          child: const Icon(
                             Icons.person,
                             size: 50,
                             color: AppConstants.primaryColor,

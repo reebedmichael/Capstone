@@ -95,7 +95,7 @@ class _CartScreenState extends State<CartScreen> {
           ),
           const SizedBox(height: AppConstants.paddingLarge),
           Text(
-            AppLocalizations.of(context)!.yourCartIsEmpty,
+            AppLocalizations.of(context)?.yourCartIsEmpty ?? 'Jou mandjie is leeg.',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
               color: Colors.grey[600],
@@ -103,7 +103,7 @@ class _CartScreenState extends State<CartScreen> {
           ),
           const SizedBox(height: AppConstants.paddingSmall),
           Text(
-            AppLocalizations.of(context)!.addItemsFromMenu,
+            AppLocalizations.of(context)?.addItemsFromMenu ?? 'Voeg items by vanaf die spyskaart.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Colors.grey[500],
             ),
@@ -122,7 +122,7 @@ class _CartScreenState extends State<CartScreen> {
               ),
             ),
             icon: const Icon(Icons.restaurant_menu),
-            label: Text(AppLocalizations.of(context)!.viewMenu),
+            label: Text(AppLocalizations.of(context)?.viewMenu ?? 'Bekyk Spyskaart'),
           ),
         ],
       ),
@@ -148,7 +148,7 @@ class _CartScreenState extends State<CartScreen> {
                 color: setOpacity(AppConstants.primaryColor, 0.1),
                 borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.restaurant,
                 size: 40,
                 color: AppConstants.primaryColor,
@@ -230,7 +230,7 @@ class _CartScreenState extends State<CartScreen> {
                         cartItem.quantity + 1,
                       );
                     },
-                    icon: Icon(
+                    icon: const Icon(
                       Icons.add,
                       color: AppConstants.primaryColor,
                     ),
@@ -361,7 +361,7 @@ class _CartScreenState extends State<CartScreen> {
                 const SizedBox(height: AppConstants.paddingSmall),
                 Text(
                   AppLocalizations.of(context)!.shortfall,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: AppConstants.errorColor,
                     fontWeight: FontWeight.w600,
                   ),

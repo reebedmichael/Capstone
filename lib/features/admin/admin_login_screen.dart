@@ -38,12 +38,12 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                   // Superadmin approval status (mock)
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Row(
+                    child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.verified_user, color: Colors.orange, size: 20),
+                      children: [
+                        Icon(Icons.verified_user, color: Color(0xFFE64A19), size: 20),
                         SizedBox(width: 8),
-                        Text('Superadmin approval: Pending (mock)', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+                        Text('Superadmin approval: Pending (mock)', style: TextStyle(color: Color(0xFFE64A19), fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),
@@ -151,34 +151,34 @@ class AdminRegisterScreen extends StatelessWidget {
                   // Superadmin approval status (mock)
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Row(
+                    child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(Icons.verified_user, color: Colors.orange, size: 20),
+                      children: [
+                        Icon(Icons.verified_user, color: Color(0xFFE64A19), size: 20),
                         SizedBox(width: 8),
-                        Text('Superadmin approval: Pending (mock)', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+                        Text('Superadmin approval: Pending (mock)', style: TextStyle(color: Color(0xFFE64A19), fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),
                   const Text('Admin Register', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                   const SizedBox(height: AppConstants.paddingLarge),
-                  TextField(
-                    decoration: const InputDecoration(
+                  const TextField(
+                    decoration: InputDecoration(
                       labelText: 'E-pos',
                       border: OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: AppConstants.paddingMedium),
-                  TextField(
-                    decoration: const InputDecoration(
+                  const TextField(
+                    decoration: InputDecoration(
                       labelText: 'Wagwoord',
                       border: OutlineInputBorder(),
                     ),
                     obscureText: true,
                   ),
                   const SizedBox(height: AppConstants.paddingMedium),
-                  TextField(
-                    decoration: const InputDecoration(
+                  const TextField(
+                    decoration: InputDecoration(
                       labelText: 'Bevestig wagwoord',
                       border: OutlineInputBorder(),
                     ),

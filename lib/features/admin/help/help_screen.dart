@@ -10,9 +10,7 @@ class AdminHelpScreen extends StatefulWidget {
 class _AdminHelpScreenState extends State<AdminHelpScreen> {
   final _scrollController = ScrollController();
 
-  void _scrollToTop() {
-    _scrollController.animateTo(0, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
-  }
+
 
   void _contactSupport() {
     showDialog(

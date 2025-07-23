@@ -435,7 +435,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     },
                     child: Text(
                       AppLocalizations.of(context)!.readTermsAndConditions,
-                      style: TextStyle(color: AppConstants.primaryColor),
+                      style: const TextStyle(color: AppConstants.primaryColor),
                     ),
                   ),
                   controlAffinity: ListTileControlAffinity.leading,
@@ -483,7 +483,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       },
                       child: Text(
                         AppLocalizations.of(context)!.signIn,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: AppConstants.primaryColor,
                           fontWeight: FontWeight.bold,
                         ),

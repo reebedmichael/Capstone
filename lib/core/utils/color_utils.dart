@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 Color setOpacity(Color color, double opacity) =>
     Color.fromARGB(
       (opacity * 255).round(),
-      color.r.round(),
-      color.g.round(),
-      color.b.round(),
+      color.red,
+      color.green,
+      color.blue,
     ); 

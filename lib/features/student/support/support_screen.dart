@@ -23,7 +23,7 @@ class SupportScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(AppConstants.paddingLarge),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
+                gradient: const LinearGradient(
                   colors: [AppConstants.primaryColor, AppConstants.secondaryColor],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -32,7 +32,7 @@ class SupportScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.support_agent,
                     size: 60,
                     color: Colors.white,
@@ -113,7 +113,7 @@ class SupportScreen extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.access_time,
                           color: AppConstants.primaryColor,
                           size: 24,
@@ -138,14 +138,14 @@ class SupportScreen extends StatelessWidget {
                         color: setOpacity(AppConstants.warningColor, 0.1),
                         borderRadius: BorderRadius.circular(AppConstants.borderRadiusSmall),
                       ),
-                      child: Row(
+                      child: const Row(
                         children: [
                           Icon(
                             Icons.info,
                             color: AppConstants.warningColor,
                             size: 20,
                           ),
-                          const SizedBox(width: AppConstants.paddingSmall),
+                          SizedBox(width: AppConstants.paddingSmall),
                           Expanded(
                             child: Text(
                               'Noodgevalle kan 24/7 gekontak word via WhatsApp',
@@ -178,7 +178,7 @@ class SupportScreen extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.help,
                           color: AppConstants.primaryColor,
                           size: 24,

@@ -273,7 +273,7 @@ class _MenuScreenState extends State<MenuScreen> {
             ),
             child: Stack(
               children: [
-                Center(
+                const Center(
                   child: Icon(
                     Icons.restaurant,
                     size: 50,
@@ -288,7 +288,7 @@ class _MenuScreenState extends State<MenuScreen> {
                     spacing: 4,
                     children: [
                       if (item.isVegan) _buildDietaryBadge('Vegan', Colors.green),
-                      if (item.isVegetarian && !item.isVegan) _buildDietaryBadge('Vegetaries', Colors.orange),
+                      if (item.isVegetarian && !item.isVegan) _buildDietaryBadge('Vegetaries', const Color(0xFFE64A19)),
                       if (item.isGlutenFree) _buildDietaryBadge('Glutenvry', Colors.blue),
                     ],
                   ),
@@ -361,14 +361,14 @@ class _MenuScreenState extends State<MenuScreen> {
                       color: setOpacity(AppConstants.errorColor, 0.1),
                       borderRadius: BorderRadius.circular(AppConstants.borderRadiusSmall),
                     ),
-                    child: Row(
+                    child: const Row(
                       children: [
                         Icon(
                           Icons.warning,
                           color: AppConstants.errorColor,
                           size: 16,
                         ),
-                        const SizedBox(width: AppConstants.paddingSmall),
+                        SizedBox(width: AppConstants.paddingSmall),
                         Expanded(
                           child: Text(
                             'Let op: Bevat allergieë wat jy geïdentifiseer het',

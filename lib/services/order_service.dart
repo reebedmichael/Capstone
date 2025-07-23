@@ -123,6 +123,10 @@ class OrderService {
     _ordersController.add(_orders);
   }
 
+  void notifyListeners() {
+    _ordersController.add(_orders);
+  }
+
   Future<Order> createOrder({
     required String userId,
     required List<CartItem> cartItems,

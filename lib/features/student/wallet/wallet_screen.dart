@@ -66,7 +66,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 ),
                 child: Column(
                   children: [
-                    Row(
+                    const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
@@ -74,8 +74,8 @@ class _WalletScreenState extends State<WalletScreen> {
                           color: Colors.white,
                           size: 24,
                         ),
-                        const SizedBox(width: AppConstants.paddingSmall),
-                        const Text(
+                        SizedBox(width: AppConstants.paddingSmall),
+                        Text(
                           'Huidige Saldo',
                           style: TextStyle(
                             color: Colors.white,

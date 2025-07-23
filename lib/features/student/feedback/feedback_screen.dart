@@ -144,7 +144,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                             ],
                           ),
                           const SizedBox(height: AppConstants.paddingSmall),
-                          Text('Great food quality and fast delivery!'),
+                          const Text('Great food quality and fast delivery!'),
                           Text(
                             '${index + 1} days ago',
                             style: Theme.of(context).textTheme.bodySmall?.copyWith(
