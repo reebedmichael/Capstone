@@ -1,0 +1,8 @@
+# melos_managed_dependency_overrides: spys_ui_shared,spys_api_client,spys_core
+dependency_overrides:
+  spys_ui_shared:
+    path: ../../packages/spys_ui_shared
+  spys_api_client:
+    path: ../../packages/spys_api_client
+  spys_core:
+    path: ../../packages/spys_core

@@ -30,6 +30,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  spys_core:
+    path: ../../packages/spys_core
+  spys_api_client:
+    path: ../../packages/spys_api_client
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

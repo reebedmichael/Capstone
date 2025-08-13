@@ -1,0 +1,22 @@
+{
+  "folders": [
+    {
+      "path": "apps/mobile"
+    },
+    {
+      "path": "apps/admin_web"
+    },
+    {
+      "path": "packages/spys_ui_shared"
+    },
+    {
+      "path": "packages/spys_core"
+    },
+    {
+      "path": "packages/spys_api_client"
+    }
+  ],
+  "settings": {
+    "dart.lineLength": 100
+  }
+}

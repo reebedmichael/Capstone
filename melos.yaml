@@ -1,0 +1,29 @@
+name: spys_workspace
+
+packages:
+  - apps/**
+  - packages/**
+
+# You can run any of these with: melos run <script-name>
+scripts:
+  bootstrap: melos bootstrap
+
+  pub_get: melos exec -- "flutter pub get || dart pub get"
+  clean: melos exec -- "flutter clean || true"
+
+  analyze: melos exec -- flutter analyze
+  test: melos exec --fail-fast -- "flutter test || dart test"
+  format: melos exec -- dart format .
+
+  # App-specific helpers
+  run:mobile: |
+    cd apps/mobile && flutter run
+  run:admin_web: |
+    cd apps/admin_web && flutter run -d chrome
+
+  build:web: |
+    cd apps/admin_web && flutter build web --release
+
+  # Example: update a dependency across all packages
+  # melos run upgrade:riverpod
+  upgrade:riverpod: melos exec -- "dart pub add hooks_riverpod@^2.6.1"

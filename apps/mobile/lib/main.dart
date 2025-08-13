@@ -42,7 +42,6 @@ class MyHomePage extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         itemCount: screens.length,
         itemBuilder: (context, index) {
-          
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: ElevatedButton(
@@ -50,9 +49,7 @@ class MyHomePage extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => TemplateScreen(
-                      screenTitle: screens[index],
-                    ),
+                    builder: (_) => TemplateScreen(screenTitle: screens[index]),
                   ),
                 );
               },
@@ -75,10 +72,7 @@ class TemplateScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(screenTitle)),
       body: Center(
-        child: Text(
-          screenTitle,
-          style: const TextStyle(fontSize: 24),
-        ),
+        child: Text(screenTitle, style: const TextStyle(fontSize: 24)),
       ),
     );
   }

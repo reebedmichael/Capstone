@@ -1,8 +1,11 @@
-/// Support for doing something awesome.
-///
-/// More dartdocs go here.
-library;
+import 'dart:async';
 
-export 'src/spys_api_client_base.dart';
+class SpysApiClient {
+  final String baseUrl;
+  const SpysApiClient({required this.baseUrl});
 
-// TODO: Export any libraries intended for clients of this package.
+  Future<String> getServerStatus() async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    return 'OK from $baseUrl';
+  }
+}
