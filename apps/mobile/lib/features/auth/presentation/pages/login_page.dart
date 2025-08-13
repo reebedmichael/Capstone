@@ -62,6 +62,8 @@ class LoginPage extends ConsumerWidget {
                       Future.delayed(const Duration(seconds: 2), () {
                         ref.read(loginLoadingProvider.notifier).state = false;
                         debugPrint('Quick login with demo credentials');
+                        if (!context.mounted) return;
+                        context.go('/home');
                       });
                     },
                   ),
