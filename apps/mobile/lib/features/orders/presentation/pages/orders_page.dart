@@ -22,7 +22,7 @@ class _OrdersPageState extends State<OrdersPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool refreshing = false;
-  int _bottomIndex = 1;
+  final int _bottomIndex = 1;
 
   List<Map<String, dynamic>> orders = [
     {
