@@ -87,7 +87,7 @@ class _WalletPageState extends State<WalletPage>
           Container(
             color: AppColors.primary,
             padding: const EdgeInsets.only(
-                top: 40, left: 16, right: 16, bottom: 16),
+                top: 20, left: 16, right: 16, bottom: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -95,12 +95,6 @@ class _WalletPageState extends State<WalletPage>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                    ),
                     Text('Beursie',
                         style: AppTypography.titleLarge
                             .copyWith(color: Colors.white)),
