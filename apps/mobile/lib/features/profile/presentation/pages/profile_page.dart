@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../app/presentation/widgets/app_bottom_nav.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -406,18 +407,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
 
       // Bottom Navigation
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 3,
-        onTap: (index) {},
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Tuis"),
-          BottomNavigationBarItem(icon: Icon(Icons.receipt), label: "Bestellings"),
-          BottomNavigationBarItem(icon: Icon(Icons.account_balance_wallet), label: "Beursie"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profiel"),
-          BottomNavigationBarItem(icon: Icon(Icons.more_horiz), label: "Meer"),
-        ],
-      ),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 3),
     );
   }
 
