@@ -42,6 +42,9 @@ dependencies:
   go_router: ^16.1.0
   spys_ui_shared:
     path: ../../packages/spys_ui_shared
+  flutter_feather_icons: ^2.0.0+1
+  fluttertoast: ^8.2.12
+  google_fonts: ^6.3.0
 
 dev_dependencies:
   flutter_test:
