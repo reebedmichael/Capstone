@@ -12,11 +12,13 @@ import '../widgets/auth_header.dart';
 import '../widgets/email_field.dart';
 import '../widgets/password_field.dart';
 
-class LoginPage extends ConsumerWidget {
+class LoginPage extends ConsumerWidget 
+{
   const LoginPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context, WidgetRef ref) 
+  {
     final isLoading = ref.watch(loginLoadingProvider);
     final isFormValid = ref.watch(loginFormValidProvider);
     
