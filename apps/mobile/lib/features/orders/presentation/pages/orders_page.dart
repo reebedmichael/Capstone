@@ -1,4 +1,5 @@
 import 'package:capstone_mobile/features/app/presentation/widgets/app_bottom_nav.dart';
+import 'package:capstone_mobile/features/feedback/presentation/pages/feedback_page.dart';
 import 'package:capstone_mobile/features/home/presentation/pages/home_page.dart';
 import 'package:capstone_mobile/features/qr/presentation/pages/qr_page.dart';
 import 'package:flutter/material.dart';
@@ -570,20 +571,6 @@ class _OrdersPageState extends State<OrdersPage>
               const Divider(height: 20),
               Row(
                 children: [
-                  // Expanded(
-                  //   child: ElevatedButton.icon(
-                  //     label: const Text('Wys QR Kode'),
-                  //     onPressed: () {
-                  //       // Navigate to the QR Code page
-                  //       Navigator.push(
-                  //         context,
-                  //         MaterialPageRoute(
-                  //           builder: (context) => QrPage(order: order),
-                  //         ),
-                  //       );
-                  //     },
-                  //   ),
-                  // ),
                   Expanded(
                     child: ElevatedButton.icon(
                       label: const Text('Wys QR Kode'),
