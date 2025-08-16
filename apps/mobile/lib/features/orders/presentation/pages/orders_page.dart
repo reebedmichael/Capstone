@@ -1,8 +1,10 @@
 import 'package:capstone_mobile/features/app/presentation/widgets/app_bottom_nav.dart';
+import 'package:capstone_mobile/features/home/presentation/pages/home_page.dart';
 import 'package:capstone_mobile/features/qr/presentation/pages/qr_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 const List<String> FEEDBACK_OPTIONS = [
@@ -454,11 +456,22 @@ class _OrdersPageState extends State<OrdersPage>
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(
+                        width: 8,
+                      ), //////////////////////////////////////////
                       Expanded(
-                        child: Text(
-                          food['name'] ?? '',
-                          style: const TextStyle(fontSize: 14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              food['name'] ?? '',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                            Text(
+                              '${item['quantity']} x \R${food['price']}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ],
                         ),
                       ),
                       Text(
@@ -557,17 +570,45 @@ class _OrdersPageState extends State<OrdersPage>
               const Divider(height: 20),
               Row(
                 children: [
+                  // Expanded(
+                  //   child: ElevatedButton.icon(
+                  //     label: const Text('Wys QR Kode'),
+                  //     onPressed: () {
+                  //       // Navigate to the QR Code page
+                  //       Navigator.push(
+                  //         context,
+                  //         MaterialPageRoute(
+                  //           builder: (context) => QrPage(order: order),
+                  //         ),
+                  //       );
+                  //     },
+                  //   ),
+                  // ),
                   Expanded(
                     child: ElevatedButton.icon(
                       label: const Text('Wys QR Kode'),
-                      onPressed: () {
-                        // Navigate to the QR Code page
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => QrPage(order: order),
-                          ),
-                        );
+                      onPressed: () async {
+                        // open QrPage and wait for a result (the updated order)
+                        final updatedOrder =
+                            await Navigator.push<Map<String, dynamic>>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => QrPage(order: order),
+                              ),
+                            );
+
+                        // if the QR page returned an updated order, merge it into the list
+                        if (updatedOrder != null) {
+                          final idx = orders.indexWhere(
+                            (o) => o['id'] == updatedOrder['id'],
+                          );
+                          if (idx != -1) {
+                            setState(() {
+                              // merge fields from updatedOrder into existing order entry
+                              orders[idx] = {...orders[idx], ...updatedOrder};
+                            });
+                          }
+                        }
                       },
                     ),
                   ),
@@ -613,9 +654,7 @@ class _OrdersPageState extends State<OrdersPage>
             const SizedBox(height: 16),
             if (activeTab)
               ElevatedButton(
-                onPressed: () {
-                  Fluttertoast.showToast(msg: 'Begin bestel (dummy)');
-                },
+                onPressed: () => context.go('/home'),
                 child: const Text('Begin Bestel'),
               ),
           ],

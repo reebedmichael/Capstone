@@ -51,7 +51,7 @@ class _QrPageState extends State<QrPage> {
   void _startCountdown() {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       final orderTime = widget.order!['orderDate'] as DateTime;
-      final pickupEnd = orderTime.add(const Duration(hours: 1));
+      final pickupEnd = orderTime.add(const Duration(hours: 5));
       final now = DateTime.now();
 
       if (now.isAfter(pickupEnd)) {
@@ -69,15 +69,21 @@ class _QrPageState extends State<QrPage> {
     });
   }
 
-  // void _copyQR() {
-  //   Fluttertoast.showToast(msg: 'QR kode gekopieer: $qrCode');
-  // }
-
   void _simulateScan() {
     setState(() => isScanned = true);
+
+    // Update the order status locally and return it to the caller
+    if (widget.order != null) {
+      widget.order!['status'] = 'Afgehaal';
+      // you can also add a timestamp or other fields if desired:
+      widget.order!['orderDate'] = DateTime.now();
+    }
+
     Fluttertoast.showToast(msg: 'Bestelling suksesvol afgehaal!');
+
+    // wait a moment so user sees the success UI, then pop with the updated order
     Future.delayed(const Duration(seconds: 2), () {
-      Navigator.pop(context);
+      Navigator.pop(context, widget.order);
     });
   }
 
@@ -230,9 +236,9 @@ class _QrPageState extends State<QrPage> {
                 children: [
                   Text('Bestelling #: ${widget.order!['id']}'),
                   Text('Totaal: R${widget.order!['total']}'),
-                  Text('Afhaallocasie: ${widget.order!['pickupLocation']}'),
+                  Text('Afhaal lokasie: ${widget.order!['pickupLocation']}'),
                   Text(
-                    'Bestelling Tyd: ${(widget.order!['orderDate'] as DateTime).hour.toString().padLeft(2, '0')}:${(widget.order!['orderDate'] as DateTime).minute.toString().padLeft(2, '0')}',
+                    'Gereed vir afhaal Tyd: ${(widget.order!['orderDate'] as DateTime).hour.toString().padLeft(2, '0')}:${(widget.order!['orderDate'] as DateTime).minute.toString().padLeft(2, '0')}',
                   ),
                 ],
               ),
