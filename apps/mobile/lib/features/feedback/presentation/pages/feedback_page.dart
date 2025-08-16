@@ -29,7 +29,11 @@ class FeedbackPage extends StatelessWidget {
                 Spacing.vGap16,
                 Text('Gee Terugvoer', style: AppTypography.headlineMedium),
                 Spacing.vGap16,
-                const Card(child: ListTile(title: Text('Kies items om terugvoer te gee'))),
+                const Card(
+                  child: ListTile(
+                    title: Text('Kies items om terugvoer te gee'),
+                  ),
+                ),
               ],
             ),
           ),

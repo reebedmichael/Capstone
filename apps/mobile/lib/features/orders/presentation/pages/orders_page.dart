@@ -56,6 +56,24 @@ class _OrdersPageState extends State<OrdersPage>
       'feedback': null,
     },
     {
+      'id': '255',
+      'status': 'In voorbereiding',
+      'orderDate': DateTime.now().subtract(const Duration(hours: 1)),
+      'pickupLocation': 'Kafetaria',
+      'total': 75.00,
+      'items': [
+        {
+          'quantity': 1,
+          'foodItem': {
+            'name': 'Pizza',
+            'price': 75.00,
+            'imageUrl': 'https://via.placeholder.com/150',
+          },
+        },
+      ],
+      'feedback': null,
+    },
+    {
       'id': '456',
       'status': 'Afgehaal',
       'orderDate': DateTime.now().subtract(const Duration(days: 1)),
@@ -160,8 +178,8 @@ class _OrdersPageState extends State<OrdersPage>
   }
 
   bool canCancelOrder(Map<String, dynamic> order) {
-    return order['status'] == 'Wag vir afhaal' &&
-        order['status'] != 'In voorbereiding' &&
+    return order['status'] != 'Wag vir afhaal' &&
+        order['status'] == 'In voorbereiding' &&
         order['status'] != 'Afgehaal';
   }
 
@@ -567,10 +585,11 @@ class _OrdersPageState extends State<OrdersPage>
             ],
 
             // Order Actions
-            if (order['status'] == 'Wag vir afhaal') ...[
-              const Divider(height: 20),
-              Row(
-                children: [
+            // if (order['status'] == 'Wag vir afhaal') ...[
+            const Divider(height: 20),
+            Row(
+              children: [
+                if (order['status'] == 'Wag vir afhaal')
                   Expanded(
                     child: ElevatedButton.icon(
                       label: const Text('Wys QR Kode'),
@@ -599,19 +618,19 @@ class _OrdersPageState extends State<OrdersPage>
                       },
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  if (canCancelOrder(order))
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(FeatherIcons.alertCircle, size: 16),
-                        label: const Text('Kanselleer'),
-                        onPressed: () => handleCancelOrder(order['id']),
-                      ),
+                const SizedBox(width: 8),
+                if (canCancelOrder(order))
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(FeatherIcons.alertCircle, size: 16),
+                      label: const Text('Kanselleer'),
+                      onPressed: () => handleCancelOrder(order['id']),
                     ),
-                ],
-              ),
-            ],
+                  ),
+              ],
+            ),
           ],
+          //],
         ),
       ),
     );
