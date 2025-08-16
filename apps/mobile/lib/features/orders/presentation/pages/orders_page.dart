@@ -1,4 +1,5 @@
 import 'package:capstone_mobile/features/app/presentation/widgets/app_bottom_nav.dart';
+import 'package:capstone_mobile/features/qr/presentation/pages/qr_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -335,7 +336,7 @@ class _OrdersPageState extends State<OrdersPage>
                 return _buildOrderCard(order);
               },
             ),
-      bottomNavigationBar: const AppBottomNav(currentIndex: 0),
+      bottomNavigationBar: const AppBottomNav(currentIndex: 1),
     );
   }
 
@@ -560,7 +561,13 @@ class _OrdersPageState extends State<OrdersPage>
                     child: ElevatedButton.icon(
                       label: const Text('Wys QR Kode'),
                       onPressed: () {
-                        Fluttertoast.showToast(msg: 'QR-kode skerm (dummy)');
+                        // Navigate to the QR Code page
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => QrPage(order: order),
+                          ),
+                        );
                       },
                     ),
                   ),
