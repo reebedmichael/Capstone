@@ -4,40 +4,40 @@ import '../../../../shared/constants/strings_af.dart';
 import '../../../../shared/utils/validators.dart';
 import '../../providers/auth_form_providers.dart';
 
-class EmailField extends ConsumerWidget {
+class CellphoneField extends ConsumerWidget {
   final String? errorText;
   
-  const EmailField({
+  const CellphoneField({
     super.key,
     this.errorText,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final emailError = ref.watch(emailErrorProvider);
+    final cellphoneError = ref.watch(cellphoneErrorProvider);
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         TextField(
           onChanged: (value) {
-            ref.read(emailProvider.notifier).state = value;
-            // Clear error when user starts typing
-            final error = Validators.validateEmail(value);
-            ref.read(emailErrorProvider.notifier).state = error;
+            ref.read(cellphoneProvider.notifier).state = value;
+
+            final error = Validators.validateCellphone(value);
+            ref.read(cellphoneErrorProvider.notifier).state = error;
           },
           onSubmitted: (value) {
             // Validate on submit
-            final error = Validators.validateEmail(value);
-            ref.read(emailErrorProvider.notifier).state = error;
+            final error = Validators.validateCellphone(value);
+            ref.read(cellphoneErrorProvider.notifier).state = error;
           },
           decoration: InputDecoration(
-            labelText: StringsAf.emailLabel,
-            hintText: 'voorbeeld@email.com',
-            prefixIcon: const Icon(Icons.email_outlined),
-            errorText: errorText ?? emailError,
+            labelText: StringsAf.cellphoneLabel,
+            hintText: '012 345 6789',
+            prefixIcon: const Icon(Icons.phone),
+            errorText: errorText ?? cellphoneError,
           ),
-          keyboardType: TextInputType.emailAddress,
+          keyboardType: TextInputType.phone,
           textInputAction: TextInputAction.next,
           autocorrect: false,
           enableSuggestions: false,

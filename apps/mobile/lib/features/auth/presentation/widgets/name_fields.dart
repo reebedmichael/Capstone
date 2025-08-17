@@ -19,10 +19,9 @@ class NameFields extends ConsumerWidget {
           child: TextField(
             onChanged: (value) {
               ref.read(firstNameProvider.notifier).state = value;
-              // Clear error when user starts typing
-              if (firstNameError != null) {
-                ref.read(firstNameErrorProvider.notifier).state = null;
-              }
+
+              final error = Validators.validateRequired(value);
+              ref.read(firstNameErrorProvider.notifier).state = error;
             },
             onSubmitted: (value) {
               // Validate on submit
@@ -44,10 +43,9 @@ class NameFields extends ConsumerWidget {
           child: TextField(
             onChanged: (value) {
               ref.read(lastNameProvider.notifier).state = value;
-              // Clear error when user starts typing
-              if (lastNameError != null) {
-                ref.read(lastNameErrorProvider.notifier).state = null;
-              }
+              
+              final error = Validators.validateRequired(value);
+              ref.read(lastNameErrorProvider.notifier).state = error;
             },
             onSubmitted: (value) {
               // Validate on submit
