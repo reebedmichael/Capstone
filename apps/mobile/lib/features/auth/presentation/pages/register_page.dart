@@ -12,6 +12,8 @@ import '../../providers/auth_form_providers.dart';
 import '../widgets/name_fields.dart';
 import '../widgets/email_field.dart';
 import '../widgets/cellphone_field.dart';
+import '../widgets/role_dropdown.dart';
+import '../widgets/location_dropdown.dart';
 import '../widgets/password_field.dart';
 
 class RegisterPage extends ConsumerWidget {
@@ -88,27 +90,27 @@ class RegisterPage extends ConsumerWidget {
                           textAlign: TextAlign.center,
                         ),
                         Spacing.vGap24,
-                        
                         // Name fields
                         const NameFields(),
                         Spacing.vGap16,
-                        
                         // Email field
                         const EmailField(),
                         Spacing.vGap16,
-
                         // Cellphone field
                         const CellphoneField(),
                         Spacing.vGap16,
-                        
+                        // Role dropdown
+                        const RoleDropdown(),
+                        Spacing.vGap16,
+                        // Location dropdown
+                        const LocationDropdown(),
+                        Spacing.vGap16,
                         // Password field
                         const PasswordField(),
                         Spacing.vGap16,
-                        
                         // Confirm password field
                         const PasswordField(isConfirmPassword: true),
                         Spacing.vGap24,
-                        
                         // Create account button
                         SpysPrimaryButton(
                           text: StringsAf.signUpCta,

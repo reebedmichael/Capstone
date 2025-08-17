@@ -12,6 +12,8 @@ class StringsAf {
   static const String lastNameLabel = "Van";
   static const String emailLabel = "E-pos adres";
   static const String cellphoneLabel = "Selfoon Nommer";
+  static const String roleLabel = "Tipe Gebruiker";
+  static const String locationLabel = "Afhaal Punt";
   static const String passwordLabel = "Wagwoord";
   static const String confirmPasswordLabel = "Bevestig wagwoord";
   
