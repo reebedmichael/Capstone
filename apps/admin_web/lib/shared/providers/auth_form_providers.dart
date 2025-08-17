@@ -8,6 +8,9 @@ final cellphoneProvider = StateProvider<String>((ref) => '');
 final passwordProvider = StateProvider<String>((ref) => '');
 final confirmPasswordProvider = StateProvider<String>((ref) => '');
 final walletBalanceProvider = StateProvider<double>((ref) => 0.0);
+final accountStatusProvider = StateProvider<String>((ref) => '');
+final accountCreatedDateProvider = StateProvider<DateTime>((ref) => DateTime.now());
+final accountLastActiveProvider = StateProvider<DateTime>((ref) => DateTime.now());
 
 // UI state providers
 final passwordVisibleProvider = StateProvider<bool>((ref) => false);
