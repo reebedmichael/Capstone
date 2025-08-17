@@ -8,11 +8,12 @@ class StringsAf {
   static const String registerTitle = "Registreer";
   
   // Form labels
-  static const String emailLabel = "E-pos adres";
-  static const String passwordLabel = "Wagwoord";
-  static const String confirmPasswordLabel = "Bevestig wagwoord";
   static const String firstNameLabel = "Voornaam";
   static const String lastNameLabel = "Van";
+  static const String emailLabel = "E-pos adres";
+  static const String cellphoneLabel = "Selfoon Nommer";
+  static const String passwordLabel = "Wagwoord";
+  static const String confirmPasswordLabel = "Bevestig wagwoord";
   
   // Action buttons
   static const String signInCta = "Teken in";
@@ -30,8 +31,9 @@ class StringsAf {
   static const String termsNote = "Deur voort te gaan aanvaar jy ons Bepalings & Voorwaardes en Privaatheidsbeleid.";
   
   // Error messages
-  static const String errEmailInvalid = "Voer 'n geldige e-pos adres in";
   static const String errRequired = "Hierdie veld is verplig";
+  static const String errEmailInvalid = "Voer 'n geldige e-pos adres in";
+  static const String errCellphoneInvalid = "Voer 'n geldige selfoon nommer in";
   static const String errPwdShort = "Wagwoord moet ten minste 6 karakters wees";
   static const String errPwdStrong = "Wagwoord moet min. 8 karakters wees en 'n syfer of spesiale karakter bevat";
   static const String errPwdMismatch = "Wagwoorde stem nie ooreen nie";

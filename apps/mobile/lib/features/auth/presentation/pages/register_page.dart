@@ -11,15 +11,14 @@ import '../../providers/auth_form_providers.dart';
 
 import '../widgets/name_fields.dart';
 import '../widgets/email_field.dart';
+import '../widgets/cellphone_field.dart';
 import '../widgets/password_field.dart';
-import '../widgets/terms_and_privacy_note.dart';
 
 class RegisterPage extends ConsumerWidget {
   const RegisterPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isLoading = ref.watch(registerLoadingProvider);
     final isFormValid = ref.watch(registerFormValidProvider);
     
     return Scaffold(
@@ -97,6 +96,10 @@ class RegisterPage extends ConsumerWidget {
                         // Email field
                         const EmailField(),
                         Spacing.vGap16,
+
+                        // Cellphone field
+                        const CellphoneField(),
+                        Spacing.vGap16,
                         
                         // Password field
                         const PasswordField(),
@@ -106,23 +109,14 @@ class RegisterPage extends ConsumerWidget {
                         const PasswordField(isConfirmPassword: true),
                         Spacing.vGap24,
                         
-                        // Terms and privacy note
-                        const TermsAndPrivacyNote(),
-                        Spacing.vGap24,
-                        
                         // Create account button
                         SpysPrimaryButton(
                           text: StringsAf.signUpCta,
-                          isLoading: isLoading,
-                          onPressed: isFormValid ? () {
-                            // Simulate registration
-                            ref.read(registerLoadingProvider.notifier).state = true;
-                            
-                            // Simulate API call delay
-                            Future.delayed(const Duration(seconds: 2), () {
-                              ref.read(registerLoadingProvider.notifier).state = false;
-                              debugPrint('Registration attempted with email: ${ref.read(emailProvider)}');
-                            });
+                          onPressed: isFormValid ? () 
+                          {
+                            debugPrint('Registration attempted with email: ${ref.read(emailProvider)}');
+
+                            context.go("/home");
                           } : null,
                         ),
                       ],

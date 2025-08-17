@@ -32,18 +32,17 @@ class PasswordField extends ConsumerWidget {
       children: [
         TextField(
           onChanged: (value) {
+            String? error;
             if (isConfirmPassword) {
               ref.read(confirmPasswordProvider.notifier).state = value;
-              // Clear error when user starts typing
-              if (confirmPasswordError != null) {
-                ref.read(confirmPasswordErrorProvider.notifier).state = null;
-              }
+
+              error = Validators.validateConfirmPassword(value, password);
+              ref.read(confirmPasswordErrorProvider.notifier).state = error;
             } else {
               ref.read(passwordProvider.notifier).state = value;
-              // Clear error when user starts typing
-              if (passwordError != null) {
-                ref.read(passwordErrorProvider.notifier).state = null;
-              }
+              
+              error = Validators.validatePasswordRegister(value);
+              ref.read(passwordErrorProvider.notifier).state = error;
             }
           },
           onSubmitted: (value) {
