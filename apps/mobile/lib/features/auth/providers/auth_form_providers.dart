@@ -23,6 +23,7 @@ final cellphoneErrorProvider = StateProvider<String?>((ref) => null);
 final passwordErrorProvider = StateProvider<String?>((ref) => null);
 final confirmPasswordErrorProvider = StateProvider<String?>((ref) => null);
 
+
 // Form validity providers - Login
 final loginFormValidProvider = Provider<bool>((ref) {
   final email = ref.watch(emailProvider);

@@ -45,7 +45,7 @@ class LoginPage extends ConsumerWidget
                 // Header with Logo and Brand
                 const AuthHeader(
                   title: StringsAf.loginTitle,
-                  subtitle: StringsAf.appSubtitle,
+                  subtitle: StringsAf.appTitle,
                 ),
                 
                 // Quick Login Button (Demo)
@@ -61,7 +61,9 @@ class LoginPage extends ConsumerWidget
                       
                       // Simulate login
                       ref.read(loginLoadingProvider.notifier).state = true;
-                      Future.delayed(const Duration(seconds: 2), () {
+
+                      Future.delayed(const Duration(seconds: 2), () 
+                      {
                         ref.read(loginLoadingProvider.notifier).state = false;
                         debugPrint('Quick login with demo credentials');
                         if (!context.mounted) return;
@@ -71,14 +73,6 @@ class LoginPage extends ConsumerWidget
                   ),
                 ),
                 
-                // Demo credentials hint
-                Text(
-                  'Demo: jan.smit@universiteit.ac.za',
-                  style: AppTypography.caption.copyWith(
-                    color: AppColors.onSurfaceVariant,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
                 
                 Spacing.vGap24,
                 
@@ -115,7 +109,7 @@ class LoginPage extends ConsumerWidget
                       children: [
                         // Form Title
                         Text(
-                          'Teken In',
+                          'Teken In Met Jou Rekening',
                           style: AppTypography.headlineMedium,
                           textAlign: TextAlign.center,
                         ),

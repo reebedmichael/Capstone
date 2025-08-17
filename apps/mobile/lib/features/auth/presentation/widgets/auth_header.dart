@@ -58,7 +58,7 @@ class AuthHeader extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
         if (subtitle != null) ...[
-          Spacing.vGap8,
+          Spacing.vGap4,
           Text(
             subtitle!,
             style: AppTypography.bodyMedium.copyWith(

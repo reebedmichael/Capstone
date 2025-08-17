@@ -47,7 +47,15 @@ class RegisterPage extends ConsumerWidget {
                 Row(
                   children: [
                     IconButton(
-                      onPressed: () => context.go('/auth/login'),
+                      onPressed: () {
+                        ref.read(emailProvider.notifier).state = '';
+                        ref.read(passwordProvider.notifier).state = '';
+
+                        ref.read(emailErrorProvider.notifier).state = null;
+                        ref.read(passwordErrorProvider.notifier).state = null;
+
+                        context.go('/auth/login');
+                      },
                       icon: const Icon(Icons.arrow_back),
                       style: IconButton.styleFrom(
                         backgroundColor: AppColors.primary.withValues(alpha: 0.1),
