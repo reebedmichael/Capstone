@@ -111,8 +111,10 @@ class RegistreerAdminPage extends ConsumerWidget {
                     // Submit button
                     SpysPrimaryButton(
                       text: "Doen Aansoek",
-                      onPressed: isFormValid ? () {
-                        context.go("/home");
+                      onPressed: isFormValid ? () 
+                      {
+                        //Wag vir goedkering
+                        context.go("/wag_goedkeuring");
                       } : null,
                     ),
 
@@ -132,7 +134,7 @@ class RegistreerAdminPage extends ConsumerWidget {
                         ),
                         Spacing.vGap8,
                         TextButton(
-                          onPressed: () => context.go('/auth/login'),
+                          onPressed: () => context.go('/teken_in'),
                           child: Text(
                             StringsAfAdmin.goLogin,
                             style: AppTypography.linkText.copyWith(color: AppColors.secondary),

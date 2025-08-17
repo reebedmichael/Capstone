@@ -16,7 +16,7 @@ class StringsAfAdmin {
 	static const profiel = 'Profiel';
 
   // App branding
-  static const String appTitle = "Spys";
+  static const String appTitle = "Spys Admin";
   static const String appSubtitle = "Universiteit Voedsel Bestelling";
   
   // Page titles
