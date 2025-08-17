@@ -52,19 +52,6 @@ class AllowancePage extends StatelessWidget {
       }
     }
 
-    String statusText(String status) {
-      switch (status) {
-        case 'received':
-          return 'Ontvang';
-        case 'pending':
-          return 'Hangende';
-        case 'failed':
-          return 'Gefaal';
-        default:
-          return 'Onbekend';
-      }
-    }
-
     Color statusColor(String status) {
       switch (status) {
         case 'received':
@@ -79,7 +66,15 @@ class AllowancePage extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Maandelikse Toelae")),
+      appBar: AppBar(
+        title: const Text("Maandelikse Toelae"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            context.go('/settings');
+          },
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(

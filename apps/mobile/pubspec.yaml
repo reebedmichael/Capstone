@@ -45,6 +45,7 @@ dependencies:
   flutter_feather_icons: ^2.0.0+1
   fluttertoast: ^8.2.12
   google_fonts: ^6.3.0
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
