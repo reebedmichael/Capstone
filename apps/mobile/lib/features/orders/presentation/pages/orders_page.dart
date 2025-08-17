@@ -8,13 +8,6 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-const List<String> FEEDBACK_OPTIONS = [
-  'Baie lekker!',
-  'Goed',
-  'Reguit',
-  'Moet verbeter',
-];
-
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});
 
@@ -97,10 +90,6 @@ class _OrdersPageState extends State<OrdersPage>
     },
   ];
 
-  // For detailed feedback dialog
-  String _selectedFeedback = '';
-  String _feedbackOrderId = '';
-
   @override
   void initState() {
     super.initState();
@@ -178,9 +167,7 @@ class _OrdersPageState extends State<OrdersPage>
   }
 
   bool canCancelOrder(Map<String, dynamic> order) {
-    return order['status'] != 'Wag vir afhaal' &&
-        order['status'] == 'In voorbereiding' &&
-        order['status'] != 'Afgehaal';
+    return order['status'] == 'In voorbereiding';
   }
 
   Color _statusColor(String status) {
@@ -215,93 +202,6 @@ class _OrdersPageState extends State<OrdersPage>
       default:
         return const Icon(FeatherIcons.package, size: 16);
     }
-  }
-
-  void _toggleLikeFeedback(String orderId) {
-    final idx = orders.indexWhere((o) => o['id'] == orderId);
-    if (idx == -1) return;
-    final currentlyLiked = orders[idx]['feedback']?['liked'] ?? false;
-    setState(() {
-      if (currentlyLiked) {
-        orders[idx]['feedback'] = null;
-        Fluttertoast.showToast(msg: 'Terugvoer verwyder');
-      } else {
-        orders[idx]['feedback'] = {'liked': true, 'date': DateTime.now()};
-        Fluttertoast.showToast(msg: 'Dankie vir jou terugvoer!');
-      }
-    });
-  }
-
-  void _openDetailedFeedback(String orderId) {
-    _selectedFeedback = '';
-    _feedbackOrderId = orderId;
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Kies Gedetailleerde Terugvoer'),
-        content: StatefulBuilder(
-          builder: (context, setLocalState) {
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  value: _selectedFeedback.isEmpty ? null : _selectedFeedback,
-                  items: FEEDBACK_OPTIONS
-                      .map((o) => DropdownMenuItem(value: o, child: Text(o)))
-                      .toList(),
-                  onChanged: (v) =>
-                      setLocalState(() => _selectedFeedback = v ?? ''),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(
-                      vertical: 12,
-                      horizontal: 8,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Kanselleer'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _selectedFeedback.isEmpty
-                            ? null
-                            : () {
-                                final idx = orders.indexWhere(
-                                  (o) => o['id'] == _feedbackOrderId,
-                                );
-                                if (idx != -1) {
-                                  setState(() {
-                                    orders[idx]['feedback'] = {
-                                      'liked': true,
-                                      'selectedFeedback': _selectedFeedback,
-                                      'date': DateTime.now(),
-                                    };
-                                  });
-                                }
-                                Navigator.pop(context);
-                                Fluttertoast.showToast(
-                                  msg: 'Gedetailleerde terugvoer gestuur!',
-                                );
-                              },
-                        child: const Text('Stuur'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
   }
 
   @override
@@ -475,9 +375,7 @@ class _OrdersPageState extends State<OrdersPage>
                           ),
                         ),
                       ),
-                      const SizedBox(
-                        width: 8,
-                      ), //////////////////////////////////////////
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -487,7 +385,7 @@ class _OrdersPageState extends State<OrdersPage>
                               style: const TextStyle(fontSize: 14),
                             ),
                             Text(
-                              '${item['quantity']} x \R${food['price']}',
+                              '${item['quantity']} x R${food['price']}',
                               style: const TextStyle(fontSize: 12),
                             ),
                           ],
@@ -506,86 +404,22 @@ class _OrdersPageState extends State<OrdersPage>
             // Feedback for completed orders
             if (order['status'] == 'Afgehaal') ...[
               const Divider(height: 20),
-              Container(
-                padding: const EdgeInsets.only(top: 8),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Terugvoer:',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            // Like button
-                            IconButton(
-                              onPressed: () => _toggleLikeFeedback(order['id']),
-                              icon: Icon(
-                                orders.firstWhere(
-                                          (o) => o['id'] == order['id'],
-                                        )['feedback']?['liked'] ==
-                                        true
-                                    ? Icons.thumb_up
-                                    : Icons.thumb_up_off_alt,
-                              ),
-                            ),
-
-                            // Add detailed feedback if none
-                            if (order['feedback'] == null ||
-                                order['feedback']?['selectedFeedback'] == null)
-                              OutlinedButton.icon(
-                                onPressed: () =>
-                                    _openDetailedFeedback(order['id']),
-                                icon: const Icon(FeatherIcons.plus, size: 16),
-                                label: const Text('Voeg terugvoer by'),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-
-                    if (order['feedback'] != null &&
-                        order['feedback']?['selectedFeedback'] != null) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.primary.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.primary.withOpacity(0.2),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(FeatherIcons.checkCircle, size: 16),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                order['feedback']['selectedFeedback'] ?? '',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+              FeedbackPage(
+                order: order,
+                onFeedbackUpdated: (updatedOrder) {
+                  final idx = orders.indexWhere(
+                    (o) => o['id'] == updatedOrder['id'],
+                  );
+                  if (idx != -1) {
+                    setState(() {
+                      orders[idx] = updatedOrder;
+                    });
+                  }
+                },
               ),
             ],
 
             // Order Actions
-            // if (order['status'] == 'Wag vir afhaal') ...[
             const Divider(height: 20),
             Row(
               children: [
@@ -594,7 +428,6 @@ class _OrdersPageState extends State<OrdersPage>
                     child: ElevatedButton.icon(
                       label: const Text('Wys QR Kode'),
                       onPressed: () async {
-                        // open QrPage and wait for a result (the updated order)
                         final updatedOrder =
                             await Navigator.push<Map<String, dynamic>>(
                               context,
@@ -603,14 +436,12 @@ class _OrdersPageState extends State<OrdersPage>
                               ),
                             );
 
-                        // if the QR page returned an updated order, merge it into the list
                         if (updatedOrder != null) {
                           final idx = orders.indexWhere(
                             (o) => o['id'] == updatedOrder['id'],
                           );
                           if (idx != -1) {
                             setState(() {
-                              // merge fields from updatedOrder into existing order entry
                               orders[idx] = {...orders[idx], ...updatedOrder};
                             });
                           }
@@ -630,7 +461,6 @@ class _OrdersPageState extends State<OrdersPage>
               ],
             ),
           ],
-          //],
         ),
       ),
     );

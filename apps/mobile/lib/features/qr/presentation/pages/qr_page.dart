@@ -82,7 +82,7 @@ class _QrPageState extends State<QrPage> {
     Fluttertoast.showToast(msg: 'Bestelling suksesvol afgehaal!');
 
     // wait a moment so user sees the success UI, then pop with the updated order
-    Future.delayed(const Duration(seconds: 2), () {
+    Future.delayed(const Duration(seconds: 1), () {
       Navigator.pop(context, widget.order);
     });
   }

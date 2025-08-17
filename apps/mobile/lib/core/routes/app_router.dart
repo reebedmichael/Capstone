@@ -20,21 +20,51 @@ class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: '/auth/login',
     routes: [
-      GoRoute(path: '/welcome', builder: (context, state) => const WelcomePage()),
-      GoRoute(path: '/auth/login', builder: (context, state) => const LoginPage()),
-      GoRoute(path: '/auth/register', builder: (context, state) => const RegisterPage()),
+      GoRoute(
+        path: '/welcome',
+        builder: (context, state) => const WelcomePage(),
+      ),
+      GoRoute(
+        path: '/auth/login',
+        builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: '/auth/register',
+        builder: (context, state) => const RegisterPage(),
+      ),
       GoRoute(path: '/home', builder: (context, state) => const HomePage()),
       GoRoute(path: '/orders', builder: (context, state) => const OrdersPage()),
       GoRoute(path: '/wallet', builder: (context, state) => const WalletPage()),
-      GoRoute(path: '/profile', builder: (context, state) => const ProfilePage()),
-      GoRoute(path: '/settings', builder: (context, state) => const SettingsPage()),
-      GoRoute(path: '/notifications', builder: (context, state) => const NotificationsPage()),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const ProfilePage(),
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsPage(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationsPage(),
+      ),
       GoRoute(path: '/help', builder: (context, state) => const HelpPage()),
       GoRoute(path: '/qr', builder: (context, state) => const QrPage()),
-      GoRoute(path: '/feedback', builder: (context, state) => const FeedbackPage()),
+      GoRoute(
+        path: '/feedback',
+        builder: (context, state) => FeedbackPage(
+          order: const {},
+          onFeedbackUpdated: (Map<String, dynamic> updatedOrder) {},
+        ),
+      ),
       GoRoute(path: '/cart', builder: (context, state) => const CartPage()),
-      GoRoute(path: '/food-detail', builder: (context, state) => const FoodDetailPage()),
-      GoRoute(path: '/allowance', builder: (context, state) => const AllowancePage()),
+      GoRoute(
+        path: '/food-detail',
+        builder: (context, state) => const FoodDetailPage(),
+      ),
+      GoRoute(
+        path: '/allowance',
+        builder: (context, state) => const AllowancePage(),
+      ),
     ],
     errorBuilder: (context, state) => Scaffold(
       body: Center(
@@ -43,11 +73,20 @@ class AppRouter {
           children: [
             const Icon(Icons.error_outline, size: 64, color: Colors.red),
             const SizedBox(height: 16),
-            Text('404 - Bladsy nie gevind nie', style: Theme.of(context).textTheme.headlineSmall),
+            Text(
+              '404 - Bladsy nie gevind nie',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
             const SizedBox(height: 8),
-            Text('Die bladsy wat jy soek bestaan nie.', style: Theme.of(context).textTheme.bodyMedium),
+            Text(
+              'Die bladsy wat jy soek bestaan nie.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
             const SizedBox(height: 24),
-            ElevatedButton(onPressed: () => context.go('/auth/login'), child: const Text('Gaan terug na Teken In')),
+            ElevatedButton(
+              onPressed: () => context.go('/auth/login'),
+              child: const Text('Gaan terug na Teken In'),
+            ),
           ],
         ),
       ),
