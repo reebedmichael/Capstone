@@ -1,73 +1,33 @@
+import 'package:capstone_mobile/features/auth/providers/auth_form_providers.dart';
+import 'package:capstone_mobile/shared/constants/spacing.dart';
+import 'package:capstone_mobile/shared/widgets/spys_primary_button.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../app/presentation/widgets/app_bottom_nav.dart';
 
-class ProfilePage extends StatefulWidget {
+import '../../../auth/presentation/widgets/name_fields.dart';
+import '../../../auth/presentation/widgets/email_field.dart';
+import '../../../auth/presentation/widgets/cellphone_field.dart';
+import '../../../auth/presentation/widgets/role_dropdown.dart';
+import '../../../auth/presentation/widgets/location_dropdown.dart';
+import '../../../auth/presentation/widgets/password_field.dart';
+
+class ProfilePage extends ConsumerWidget 
+{
   const ProfilePage({super.key});
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final name = ref.watch(firstNameProvider);
+    final surname = ref.watch(lastNameProvider);
+    final email = ref.watch(emailProvider);
+    final role = ref.watch(roleProvider).toString();
+    final walletBalance = ref.watch(walletBalanceProvider);
 
-class _ProfilePageState extends State<ProfilePage> {
-  bool isEditing = false;
-  bool isLoading = false;
+    final isFormValid = ref.watch(registerFormValidProvider);
 
-  // Dummy user data
-  String name = 'Jan';
-  String surname = 'Jansen';
-  String email = 'jan@example.com';
-  String phone = '0821234567';
-  String userType = 'Student';
-  String pickupLocation = 'Kampus Sentraal';
-  double walletBalance = 250.75;
-
-  // Form controllers
-  late TextEditingController nameController;
-  late TextEditingController surnameController;
-  late TextEditingController emailController;
-  late TextEditingController phoneController;
-
-  @override
-  void initState() {
-    super.initState();
-    nameController = TextEditingController(text: name);
-    surnameController = TextEditingController(text: surname);
-    emailController = TextEditingController(text: email);
-    phoneController = TextEditingController(text: phone);
-  }
-
-  @override
-  void dispose() {
-    nameController.dispose();
-    surnameController.dispose();
-    emailController.dispose();
-    phoneController.dispose();
-    super.dispose();
-  }
-
-  void handleSave() {
-    setState(() {
-      name = nameController.text;
-      surname = surnameController.text;
-      email = emailController.text;
-      phone = phoneController.text;
-      isEditing = false;
-    });
-  }
-
-  void handleCancel() {
-    setState(() {
-      nameController.text = name;
-      surnameController.text = surname;
-      emailController.text = email;
-      phoneController.text = phone;
-      isEditing = false;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final initials = "${name[0]}${surname[0]}".toUpperCase();
+    final initials = "${name}${surname}".toUpperCase();
 
     return Scaffold(
       body: SafeArea(
@@ -81,30 +41,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 color: Theme.of(context).colorScheme.surface,
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text(
                     "My Profiel",
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  Row(
-                    children: [
-                      if (!isEditing)
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () => setState(() => isEditing = true),
-                        )
-                      else ...[
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: handleCancel,
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.save, color: Colors.green),
-                          onPressed: handleSave,
-                        ),
-                      ]
-                    ],
                   )
                 ],
               ),
@@ -150,7 +91,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
-                                      userType,
+                                      role,
                                       style: const TextStyle(fontSize: 12),
                                     ),
                                   ),
@@ -183,95 +124,38 @@ class _ProfilePageState extends State<ProfilePage> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 16),
+                        Spacing.vGap20,
 
-                            // Name
-                            _buildField(
-                                label: "Naam",
-                                controller: nameController,
-                                enabled: isEditing),
+                        const NameFields(),
+                        Spacing.vGap16,
+                        // Email field
+                        const EmailField(),
+                        Spacing.vGap16,
+                        // Cellphone field
+                        const CellphoneField(),
+                        Spacing.vGap16,
+                        // Role dropdown
+                        const RoleDropdown(),
+                        Spacing.vGap16,
+                        // Location dropdown
+                        const LocationDropdown(),
+                        Spacing.vGap16,
+                        // Password field
+                        const PasswordField(),
+                        Spacing.vGap16,
+                        // Confirm password field
+                        const PasswordField(isConfirmPassword: true),
+                        Spacing.vGap24,
 
-                            const SizedBox(height: 12),
+                        SpysPrimaryButton(
+                          text: "Stoor",
+                          onPressed: isFormValid ? () 
+                          {
+                            //Opdateer nuwe gebruiker inligting
+                          } : null,
+                        )
 
-                            // Surname
-                            _buildField(
-                                label: "Van",
-                                controller: surnameController,
-                                enabled: isEditing),
-
-                            const SizedBox(height: 12),
-
-                            // Email
-                            _buildField(
-                                label: "E-pos Adres",
-                                controller: emailController,
-                                enabled: isEditing,
-                                icon: Icons.mail),
-
-                            const SizedBox(height: 12),
-
-                            // Phone
-                            _buildField(
-                                label: "Selfoon Nommer",
-                                controller: phoneController,
-                                enabled: isEditing,
-                                icon: Icons.phone),
-
-                            const SizedBox(height: 12),
-
-                            // User type
-                            isEditing
-                                ? DropdownButtonFormField<String>(
-                                    value: userType,
-                                    decoration: const InputDecoration(
-                                      labelText: "Gebruiker Tipe",
-                                    ),
-                                    items: const [
-                                      DropdownMenuItem(
-                                          value: "Student",
-                                          child: Text("Student")),
-                                      DropdownMenuItem(
-                                          value: "Personeel",
-                                          child: Text("Personeel")),
-                                      DropdownMenuItem(
-                                          value: "Ander", child: Text("Ander")),
-                                    ],
-                                    onChanged: (val) =>
-                                        setState(() => userType = val ?? ""),
-                                  )
-                                : ListTile(
-                                    leading: const Icon(Icons.badge),
-                                    title: Text(userType),
-                                  ),
-
-                            const SizedBox(height: 12),
-
-                            // Pickup location
-                            isEditing
-                                ? DropdownButtonFormField<String>(
-                                    value: pickupLocation,
-                                    decoration: const InputDecoration(
-                                      labelText: "Haalpunt",
-                                    ),
-                                    items: const [
-                                      DropdownMenuItem(
-                                          value: "Kampus Sentraal",
-                                          child: Text("Kampus Sentraal")),
-                                      DropdownMenuItem(
-                                          value: "Biblioteek",
-                                          child: Text("Biblioteek")),
-                                      DropdownMenuItem(
-                                          value: "Kafeteria",
-                                          child: Text("Kafeteria")),
-                                    ],
-                                    onChanged: (val) => setState(
-                                        () => pickupLocation = val ?? ""),
-                                  )
-                                : ListTile(
-                                    leading: const Icon(Icons.location_on),
-                                    title: Text(pickupLocation),
-                                  ),
-                          ],
+                        ],
                         ),
                       ),
                     ),
@@ -286,15 +170,14 @@ class _ProfilePageState extends State<ProfilePage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
-                              children: const [
-                                Icon(Icons.settings, size: 20),
+                              children: [
                                 SizedBox(width: 8),
                                 Text(
                                   "Rekening Instellings",
                                   style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold),
-                                ),
+                                )
                               ],
                             ),
                             const SizedBox(height: 16),
@@ -334,7 +217,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                             color: Colors.blue),
                                       ),
                                       TextButton(
-                                        onPressed: () {},
+                                        onPressed: () {
+                                          context.go('/wallet');
+                                        },
                                         child: const Text("Bestuur"),
                                       )
                                     ],
@@ -352,7 +237,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                   child: OutlinedButton.icon(
                                     icon: const Icon(Icons.settings),
                                     label: const Text("Instellings"),
-                                    onPressed: () {},
+                                    onPressed: () {
+                                      context.go('/settings');
+                                    },
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -360,7 +247,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                   child: OutlinedButton.icon(
                                     icon: const Icon(Icons.help),
                                     label: const Text("Help"),
-                                    onPressed: () {},
+                                    onPressed: () {
+                                      context.go('/help');
+                                    },
                                   ),
                                 ),
                               ],
@@ -375,7 +264,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                 "Teken Uit",
                                 style: TextStyle(color: Colors.red),
                               ),
-                              onPressed: () {},
+                              onPressed: () {
+                                context.go('/auth/login');
+                              },
                               style: OutlinedButton.styleFrom(
                                 side: const BorderSide(color: Colors.red),
                               ),
@@ -383,21 +274,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           ],
                         ),
                       ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Edit Mode Notice
-                    if (isEditing)
-                      Card(
-                        color: Colors.amber.shade50,
-                        child: ListTile(
-                          leading: const Icon(Icons.info, color: Colors.orange),
-                          title: const Text(
-                            "Wysig Modus: Maak jou veranderings en druk Stoor.",
-                          ),
-                        ),
-                      ),
+                    )
                   ],
                 ),
               ),
@@ -408,23 +285,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
       // Bottom Navigation
       bottomNavigationBar: const AppBottomNav(currentIndex: 3),
-    );
-  }
-
-  Widget _buildField({
-    required String label,
-    required TextEditingController controller,
-    bool enabled = false,
-    IconData? icon,
-  }) {
-    return TextField(
-      controller: controller,
-      enabled: enabled,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: icon != null ? Icon(icon) : null,
-        border: const OutlineInputBorder(),
-      ),
     );
   }
 }

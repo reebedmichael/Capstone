@@ -7,6 +7,7 @@ final emailProvider = StateProvider<String>((ref) => '');
 final cellphoneProvider = StateProvider<String>((ref) => '');
 final passwordProvider = StateProvider<String>((ref) => '');
 final confirmPasswordProvider = StateProvider<String>((ref) => '');
+final walletBalanceProvider = StateProvider<double>((ref) => 0.0);
 
 // UI state providers
 final passwordVisibleProvider = StateProvider<bool>((ref) => false);
