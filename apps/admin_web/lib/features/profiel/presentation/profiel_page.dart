@@ -8,9 +8,7 @@ import '../../../shared/providers/auth_form_providers.dart';
 import '../../../shared/widgets/name_fields.dart';
 import '../../../shared/widgets/email_field.dart';
 import '../../../shared/widgets/cellphone_field.dart';
-import '../../../shared/widgets/role_dropdown.dart';
 import '../../../shared/widgets/location_dropdown.dart';
-import '../../../shared/widgets/password_field.dart';
 
 class ProfielPage extends ConsumerWidget {
   const ProfielPage({super.key});
@@ -20,7 +18,6 @@ class ProfielPage extends ConsumerWidget {
     final name = ref.watch(firstNameProvider);
     final surname = ref.watch(lastNameProvider);
     final email = ref.watch(emailProvider);
-    final role = ref.watch(roleProvider).toString();
     final status = ref.watch(accountStatusProvider); // e.g. "aktief", "wag_goedkeuring"
     final createdDate = ref.watch(accountCreatedDateProvider);
     final lastActive = ref.watch(accountLastActiveProvider);
@@ -90,7 +87,7 @@ class ProfielPage extends ConsumerWidget {
                                     spacing: 8,
                                     children: [
                                       Chip(
-                                        label: Text(role),
+                                        label: Text("Ekstern"),//TODO: wys gebruiker se eintlike rol, dalk ook tipe admin hulle is
                                         avatar: const Icon(Icons.shield, size: 16),
                                       ),
                                       Chip(
@@ -143,7 +140,7 @@ class ProfielPage extends ConsumerWidget {
                               ],
                             ),
                             const SizedBox(height: 12),
-                            Text("Huidige Rol: $role",
+                            Text("Huidige Rol: Ekstern",//TODO: wys gebruiker se eintlike rol, dalk ook tipe admin hulle is
                                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                             const SizedBox(height: 4),
                             Text(
@@ -186,14 +183,8 @@ class ProfielPage extends ConsumerWidget {
                             Spacing.vGap16,
                             const CellphoneField(),
                             Spacing.vGap16,
-                            const RoleDropdown(),
-                            Spacing.vGap16,
                             const LocationDropdown(),
                             Spacing.vGap16,
-                            const PasswordField(),
-                            Spacing.vGap16,
-                            const PasswordField(isConfirmPassword: true),
-                            Spacing.vGap24,
 
                             SpysPrimaryButton(
                               text: "Stoor",
@@ -221,7 +212,7 @@ class ProfielPage extends ConsumerWidget {
                             const SizedBox(height: 12),
                             _buildActivityRow("Rekening geskep:", createdDate.toString().split(' ').first),
                             _buildActivityRow("Laaste aktiwiteit:", lastActive?.toString().split(' ').first ?? "Onbekend"),
-                            _buildActivityRow("Rol:", role),
+                            _buildActivityRow("Rol:", "Esktern"),//TODO: wys gebruiker se eintlike rol, dalk ook tipe admin hulle is
                           ],
                         ),
                       ),
