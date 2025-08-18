@@ -121,6 +121,10 @@ class TekenInPage extends ConsumerWidget
                             Future.delayed(const Duration(seconds: 2), () {
                               ref.read(loginLoadingProvider.notifier).state = false;
                               debugPrint('Login attempted with email: ${ref.read(emailProvider)}');
+                              if (context.mounted)
+                              {
+                                context.go("/dashboard");
+                              }
                             });
                           } : null,
                         ),
@@ -156,7 +160,7 @@ class TekenInPage extends ConsumerWidget
 
                               //context.go('/dashboard');
                               //temp net om my(Jacques) se goed te toets
-                              context.go('/profiel');
+                              context.go('/dashboard');
                             });
                           },
                         ),
