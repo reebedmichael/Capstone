@@ -1,26 +1,11 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-
-class KositemTemplate {
-  final String id;
-  final String naam;
-  final List<String> bestanddele;
-  final List<String> allergene;
-  final double prys;
-  final String kategorie;
-  final Uint8List? prent;
-
-  KositemTemplate({
-    required this.id,
-    required this.naam,
-    required this.bestanddele,
-    required this.allergene,
-    required this.prys,
-    required this.kategorie,
-    this.prent,
-  });
-}
+import '../widgets/kos_item_templaat.dart';
+import '../widgets/kos_templaat_card.dart';
+import '../widgets/kositem_empty_state.dart';
+import '../widgets/kositem_form_modal.dart';
+import '../widgets/delete_modal.dart';
 
 class KositemTemplaatPage extends StatefulWidget {
   const KositemTemplaatPage({super.key});
@@ -62,7 +47,6 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
       allergene: ["Melk"],
       prys: 30.00,
       kategorie: "Drankie",
-      prent: null,
     ),
   ];
 
@@ -184,7 +168,7 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
       suksesBoodskap = "Templaat '${template.naam}' is verwyder";
     });
 
-    Future.delayed(const Duration(seconds: 3), () {
+    Future.delayed(const Duration(seconds: 1), () {
       setState(() {
         suksesBoodskap = '';
       });
@@ -221,7 +205,12 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
               _buildFeedbackMessage(foutBoodskap, Colors.red, Icons.error),
             Expanded(
               child: templates.isEmpty
-                  ? _buildEmptyState()
+                  ? KositemEmptyState(
+                      onCreate: () {
+                        resetVorm();
+                        setState(() => toonVormModal = true);
+                      },
+                    )
                   : GridView.builder(
                       gridDelegate:
                           const SliverGridDelegateWithMaxCrossAxisExtent(
@@ -231,14 +220,51 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
                             childAspectRatio: 0.70,
                           ),
                       itemCount: templates.length,
-                      itemBuilder: (context, index) =>
-                          _buildTemplateCard(templates[index]),
+                      itemBuilder: (context, index) {
+                        final template = templates[index];
+                        return KositemTemplateCard(
+                          template: template,
+                          onEdit: () {
+                            laaiTemplateInVorm(template);
+                            setState(() => toonVormModal = true);
+                          },
+                          onDelete: () async {
+                            final bevestig = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => DeleteModal(
+                                onCancel: () => Navigator.pop(context, false),
+                                onConfirm: () => Navigator.pop(context, true),
+                              ),
+                            );
+                            if (bevestig == true) verwyderTemplate(template);
+                          },
+                        );
+                      },
                     ),
             ),
           ],
         ),
       ),
-      bottomSheet: toonVormModal ? _buildModalForm() : null,
+      bottomSheet: toonVormModal
+          ? KositemFormModal(
+              formKey: _formKey,
+              naamController: naamController,
+              prysController: prysController,
+              bestanddeleController: bestanddeleController,
+              allergeneController: allergeneController,
+              selectedCategory: selectedCategory,
+              selectedImage: selectedImage,
+              isLoading: isLoading,
+              onCancel: () {
+                setState(() => toonVormModal = false);
+                resetVorm();
+              },
+              onSave: stoorTemplate,
+              onPickImage: kiesPrent,
+              onCategoryChanged: (newVal) =>
+                  setState(() => selectedCategory = newVal),
+            )
+          : null,
     );
   }
 
@@ -253,285 +279,6 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
           const SizedBox(width: 8),
           Expanded(child: Text(message)),
         ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.file_copy, size: 64, color: Colors.grey),
-          const SizedBox(height: 16),
-          const Text('Geen Templates Nog Nie', style: TextStyle(fontSize: 20)),
-          const SizedBox(height: 8),
-          const Text(
-            'Skep jou eerste kositem templaat om vinniger nuwe items te kan byvoeg.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 8),
-          ElevatedButton.icon(
-            onPressed: () {
-              resetVorm();
-              setState(() => toonVormModal = true);
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Skep Nuwe Templaat'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTemplateCard(KositemTemplate template) {
-    return Card(
-      elevation: 3,
-      child: Column(
-        children: [
-          if (template.prent != null)
-            SizedBox(
-              height: 150,
-              width: double.infinity,
-              child: Image.memory(template.prent!, fit: BoxFit.cover),
-            ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: ListView(
-                physics: const BouncingScrollPhysics(),
-                children: [
-                  Text(
-                    template.naam,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text('Kategorie: ${template.kategorie}'),
-                  const SizedBox(height: 8),
-                  Text('Prys: R${template.prys.toStringAsFixed(2)}'),
-                  const SizedBox(height: 8),
-                  const Text("Bestanddele:"),
-                  Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
-                    children: template.bestanddele
-                        .map(
-                          (b) => Chip(
-                            label: Text(b),
-                            backgroundColor: Colors.blue[100],
-                          ),
-                        )
-                        .toList(),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text("Allergene:"),
-                  Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
-                    children: template.allergene
-                        .map(
-                          (a) => Chip(
-                            label: Text(a),
-                            backgroundColor: Colors.red[100],
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton.icon(
-                  onPressed: () {
-                    laaiTemplateInVorm(template);
-                    setState(() => toonVormModal = true);
-                  },
-                  icon: const Icon(Icons.edit),
-                  label: const Text('Wysig'),
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final bevestig = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text("Bevestig verwydering"),
-                      content: Text(
-                        "Is jy seker jy wil '${template.naam}' verwyder?",
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text("Kanselleer"),
-                        ),
-                        ElevatedButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                          ),
-                          child: const Text("Verwyder"),
-                        ),
-                      ],
-                    ),
-                  );
-
-                  if (bevestig == true) {
-                    verwyderTemplate(template);
-                  }
-                },
-                icon: const Icon(Icons.delete_outline),
-                label: const Text("Verwyder"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.shade100,
-                  foregroundColor: Colors.red.shade900,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildModalForm() {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.8,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-        boxShadow: [BoxShadow(blurRadius: 10, color: Colors.black26)],
-      ),
-      child: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: naamController,
-                      decoration: const InputDecoration(
-                        labelText: 'Kos Item Naam *',
-                      ),
-                      validator: (value) => value == null || value.isEmpty
-                          ? 'Naam is verpligtend'
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: TextFormField(
-                      controller: prysController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Prys (R) *',
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Prys is verpligtend';
-                        }
-                        if (double.tryParse(value) == null ||
-                            double.parse(value) <= 0) {
-                          return 'Ongeldige prys';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              DropdownButtonFormField<String>(
-                value: selectedCategory,
-                onChanged: (newValue) =>
-                    setState(() => selectedCategory = newValue),
-                decoration: const InputDecoration(labelText: 'Kategorie *'),
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Kategorie is verpligtend'
-                    : null,
-                items:
-                    [
-                          'Hoofgereg',
-                          'Ontbyt',
-                          'Versnappering',
-                          'Ligte ete',
-                          'Drankie',
-                        ]
-                        .map(
-                          (val) =>
-                              DropdownMenuItem(value: val, child: Text(val)),
-                        )
-                        .toList(),
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: bestanddeleController,
-                decoration: const InputDecoration(
-                  labelText: 'Bestanddele *',
-                  hintText: 'Skei met kommas, bv. Brood, Botter, Konfyt',
-                ),
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Bestanddele is verpligtend'
-                    : null,
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: allergeneController,
-                decoration: const InputDecoration(
-                  labelText: 'Allergene',
-                  hintText: 'Skei met kommas, bv. Gluten, Melk, Eiers',
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: kiesPrent,
-                    icon: const Icon(Icons.upload),
-                    label: const Text('Kies Prent'),
-                  ),
-                  const SizedBox(width: 16),
-                  if (selectedImage != null)
-                    SizedBox(
-                      width: 80,
-                      height: 80,
-                      child: Image.memory(selectedImage!, fit: BoxFit.cover),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        setState(() => toonVormModal = false);
-                        resetVorm();
-                      },
-                      child: const Text('Kanselleer'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: stoorTemplate,
-                      child: Text(isLoading ? 'Stoor...' : 'Stoor'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
