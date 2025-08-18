@@ -5,6 +5,7 @@ import '../widgets/kos_item_templaat.dart';
 import '../widgets/kos_templaat_card.dart';
 import '../widgets/kositem_empty_state.dart';
 import '../widgets/kositem_form_modal.dart';
+import '../widgets/delete_modal.dart';
 
 class KositemTemplaatPage extends StatefulWidget {
   const KositemTemplaatPage({super.key});
@@ -167,7 +168,7 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
       suksesBoodskap = "Templaat '${template.naam}' is verwyder";
     });
 
-    Future.delayed(const Duration(seconds: 3), () {
+    Future.delayed(const Duration(seconds: 1), () {
       setState(() {
         suksesBoodskap = '';
       });
@@ -230,26 +231,9 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
                           onDelete: () async {
                             final bevestig = await showDialog<bool>(
                               context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text("Bevestig verwydering"),
-                                content: Text(
-                                  "Is jy seker jy wil '${template.naam}' verwyder?",
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, false),
-                                    child: const Text("Kanselleer"),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, true),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.red,
-                                    ),
-                                    child: const Text("Verwyder"),
-                                  ),
-                                ],
+                              builder: (context) => DeleteModal(
+                                onCancel: () => Navigator.pop(context, false),
+                                onConfirm: () => Navigator.pop(context, true),
                               ),
                             );
                             if (bevestig == true) verwyderTemplate(template);

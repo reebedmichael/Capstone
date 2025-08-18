@@ -33,112 +33,149 @@ class KositemFormModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.8,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-        boxShadow: [BoxShadow(blurRadius: 10, color: Colors.black26)],
-      ),
-      child: SingleChildScrollView(
+    return Dialog(
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.9,
+        height: MediaQuery.of(context).size.height * 0.85,
+        padding: const EdgeInsets.all(16),
         child: Form(
           key: formKey,
           child: Column(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: naamController,
-                      decoration: const InputDecoration(
-                        labelText: 'Kos Item Naam *',
+              Text('Kos Item', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 16),
+
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      // Naam + Prys
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: naamController,
+                              decoration: const InputDecoration(
+                                labelText: 'Kos Item Naam *',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (value) =>
+                                  value == null || value.isEmpty
+                                  ? 'Naam is verpligtend'
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: prysController,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'Prys (R) *',
+                                border: OutlineInputBorder(),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Prys is verpligtend';
+                                }
+                                if (double.tryParse(value) == null ||
+                                    double.parse(value) <= 0) {
+                                  return 'Ongeldige prys';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
                       ),
-                      validator: (value) => value == null || value.isEmpty
-                          ? 'Naam is verpligtend'
-                          : null,
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: TextFormField(
-                      controller: prysController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Prys (R) *',
+                      const SizedBox(height: 16),
+
+                      // Kategorie
+                      DropdownButtonFormField<String>(
+                        value: selectedCategory,
+                        onChanged: onCategoryChanged,
+                        decoration: const InputDecoration(
+                          labelText: 'Kategorie *',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) => value == null || value.isEmpty
+                            ? 'Kategorie is verpligtend'
+                            : null,
+                        items:
+                            [
+                                  'Hoofgereg',
+                                  'Ontbyt',
+                                  'Versnappering',
+                                  'Ligte ete',
+                                  'Drankie',
+                                ]
+                                .map(
+                                  (val) => DropdownMenuItem(
+                                    value: val,
+                                    child: Text(val),
+                                  ),
+                                )
+                                .toList(),
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty)
-                          return 'Prys is verpligtend';
-                        if (double.tryParse(value) == null ||
-                            double.parse(value) <= 0) {
-                          return 'Ongeldige prys';
-                        }
-                        return null;
-                      },
-                    ),
+                      const SizedBox(height: 16),
+
+                      // Bestanddele
+                      TextFormField(
+                        controller: bestanddeleController,
+                        decoration: const InputDecoration(
+                          labelText: 'Bestanddele *',
+                          hintText:
+                              'Skei met kommas, bv. Brood, Botter, Konfyt',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) => value == null || value.isEmpty
+                            ? 'Bestanddele is verpligtend'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Allergene
+                      TextFormField(
+                        controller: allergeneController,
+                        decoration: const InputDecoration(
+                          labelText: 'Allergene',
+                          hintText: 'Skei met kommas, bv. Gluten, Melk, Eiers',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Image Picker
+                      Row(
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: onPickImage,
+                            icon: const Icon(Icons.upload),
+                            label: const Text('Kies Prent'),
+                          ),
+                          const SizedBox(width: 16),
+                          if (selectedImage != null)
+                            SizedBox(
+                              width: 80,
+                              height: 80,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.memory(
+                                  selectedImage!,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              DropdownButtonFormField<String>(
-                value: selectedCategory,
-                onChanged: onCategoryChanged,
-                decoration: const InputDecoration(labelText: 'Kategorie *'),
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Kategorie is verpligtend'
-                    : null,
-                items:
-                    [
-                          'Hoofgereg',
-                          'Ontbyt',
-                          'Versnappering',
-                          'Ligte ete',
-                          'Drankie',
-                        ]
-                        .map(
-                          (val) =>
-                              DropdownMenuItem(value: val, child: Text(val)),
-                        )
-                        .toList(),
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: bestanddeleController,
-                decoration: const InputDecoration(
-                  labelText: 'Bestanddele *',
-                  hintText: 'Skei met kommas, bv. Brood, Botter, Konfyt',
-                ),
-                validator: (value) => value == null || value.isEmpty
-                    ? 'Bestanddele is verpligtend'
-                    : null,
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: allergeneController,
-                decoration: const InputDecoration(
-                  labelText: 'Allergene',
-                  hintText: 'Skei met kommas, bv. Gluten, Melk, Eiers',
                 ),
               ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: onPickImage,
-                    icon: const Icon(Icons.upload),
-                    label: const Text('Kies Prent'),
-                  ),
-                  const SizedBox(width: 16),
-                  if (selectedImage != null)
-                    SizedBox(
-                      width: 80,
-                      height: 80,
-                      child: Image.memory(selectedImage!, fit: BoxFit.cover),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 20),
+
+              const SizedBox(height: 16),
+
+              // Action buttons
               Row(
                 children: [
                   Expanded(

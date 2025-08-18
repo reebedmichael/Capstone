@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../widgets/kos_item_templaat.dart';
 import '../widgets/week_templaat_card.dart';
 import '../widgets/week_form_modal.dart';
-import '../widgets/week_delete_modal.dart';
+import '../widgets/delete_modal.dart';
 import '../widgets/week_load_modal.dart';
 
 class WeekTemplaatPage extends StatefulWidget {
