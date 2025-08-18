@@ -2,129 +2,124 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
 class AppTypography {
-  // Display styles
+  static const String fontFamily = 'Inter';
+
+  // New scale
   static const TextStyle displayLarge = TextStyle(
-    fontSize: 32,
-    fontWeight: FontWeight.bold,
+    fontSize: 21,
+    height: 1.3,
+    fontWeight: FontWeight.w500,
     color: AppColors.onSurface,
-    letterSpacing: -0.5,
+    fontFamily: fontFamily,
   );
-  
-  static const TextStyle displayMedium = TextStyle(
-    fontSize: 28,
-    fontWeight: FontWeight.w600,
-    color: AppColors.onSurface,
-    letterSpacing: -0.25,
-  );
-  
-  static const TextStyle displaySmall = TextStyle(
-    fontSize: 24,
-    fontWeight: FontWeight.w600,
-    color: AppColors.onSurface,
-  );
-  
-  // Headline styles
-  static const TextStyle headlineLarge = TextStyle(
-    fontSize: 22,
-    fontWeight: FontWeight.w600,
-    color: AppColors.onSurface,
-  );
-  
+
   static const TextStyle headlineMedium = TextStyle(
-    fontSize: 20,
+    fontSize: 17.5,
+    height: 1.35,
     fontWeight: FontWeight.w500,
     color: AppColors.onSurface,
+    fontFamily: fontFamily,
   );
-  
-  static const TextStyle headlineSmall = TextStyle(
-    fontSize: 18,
-    fontWeight: FontWeight.w500,
-    color: AppColors.onSurface,
-  );
-  
-  // Title styles
+
   static const TextStyle titleLarge = TextStyle(
-    fontSize: 16,
+    fontSize: 15.75,
+    height: 1.4,
     fontWeight: FontWeight.w500,
     color: AppColors.onSurface,
+    fontFamily: fontFamily,
   );
-  
-  static const TextStyle titleMedium = TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.w500,
-    color: AppColors.onSurface,
-  );
-  
-  static const TextStyle titleSmall = TextStyle(
-    fontSize: 12,
-    fontWeight: FontWeight.w500,
-    color: AppColors.onSurfaceVariant,
-  );
-  
-  // Body styles
+
   static const TextStyle bodyLarge = TextStyle(
-    fontSize: 16,
-    fontWeight: FontWeight.normal,
+    fontSize: 14,
+    height: 1.5,
+    fontWeight: FontWeight.w400,
     color: AppColors.onSurface,
+    fontFamily: fontFamily,
   );
-  
+
   static const TextStyle bodyMedium = TextStyle(
     fontSize: 14,
-    fontWeight: FontWeight.normal,
+    height: 1.5,
+    fontWeight: FontWeight.w500,
     color: AppColors.onSurface,
+    fontFamily: fontFamily,
   );
-  
-  static const TextStyle bodySmall = TextStyle(
-    fontSize: 12,
-    fontWeight: FontWeight.normal,
-    color: AppColors.onSurfaceVariant,
-  );
-  
-  // Label styles
+
   static const TextStyle labelLarge = TextStyle(
     fontSize: 14,
+    height: 1.2,
     fontWeight: FontWeight.w500,
     color: AppColors.onSurface,
+    fontFamily: fontFamily,
   );
-  
+
+  // Compatibility aliases mapped to closest new styles
+  static const TextStyle displayMedium = headlineMedium;
+  static const TextStyle displaySmall = titleLarge;
+  static const TextStyle headlineLarge = displayLarge;
+  static const TextStyle headlineSmall = titleLarge;
+  static const TextStyle titleMedium = bodyMedium;
+  static const TextStyle titleSmall = TextStyle(
+    fontSize: 12,
+    height: 1.4,
+    fontWeight: FontWeight.w500,
+    color: AppColors.onSurface,
+    fontFamily: fontFamily,
+  );
+  static const TextStyle bodySmall = TextStyle(
+    fontSize: 12,
+    height: 1.45,
+    fontWeight: FontWeight.w400,
+    color: AppColors.onSurface,
+    fontFamily: fontFamily,
+  );
   static const TextStyle labelMedium = TextStyle(
     fontSize: 12,
+    height: 1.2,
     fontWeight: FontWeight.w500,
-    color: AppColors.onSurfaceVariant,
+    color: AppColors.onSurface,
+    fontFamily: fontFamily,
   );
-  
   static const TextStyle labelSmall = TextStyle(
     fontSize: 10,
+    height: 1.2,
     fontWeight: FontWeight.w500,
-    color: AppColors.onSurfaceVariant,
+    color: AppColors.onSurface,
+    fontFamily: fontFamily,
   );
-  
-  // Special styles
+
+  // Supplementary
   static const TextStyle caption = TextStyle(
     fontSize: 12,
-    fontWeight: FontWeight.normal,
-    color: AppColors.onSurfaceVariant,
+    height: 1.4,
+    fontWeight: FontWeight.w400,
+    color: AppColors.onSurface,
+    fontFamily: fontFamily,
   );
-  
+
   static const TextStyle overline = TextStyle(
     fontSize: 10,
+    height: 1.2,
     fontWeight: FontWeight.w500,
-    color: AppColors.onSurfaceVariant,
-    letterSpacing: 1.5,
+    color: AppColors.onSurface,
+    letterSpacing: 1.0,
+    fontFamily: fontFamily,
   );
-  
-  // Error text style
+
   static const TextStyle errorText = TextStyle(
     fontSize: 12,
-    fontWeight: FontWeight.normal,
+    height: 1.4,
+    fontWeight: FontWeight.w400,
     color: AppColors.error,
+    fontFamily: fontFamily,
   );
-  
-  // Link text style
+
   static const TextStyle linkText = TextStyle(
     fontSize: 14,
+    height: 1.3,
     fontWeight: FontWeight.w500,
     color: AppColors.primary,
     decoration: TextDecoration.underline,
+    fontFamily: fontFamily,
   );
 }
