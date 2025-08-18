@@ -47,6 +47,7 @@ dependencies:
     path: ../../packages/spys_ui_shared
   image_picker: ^1.2.0
   file_picker: ^10.3.1
+  flutter_lucide: ^1.6.2
 
 dev_dependencies:
   flutter_test:
