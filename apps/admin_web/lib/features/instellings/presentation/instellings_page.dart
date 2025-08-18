@@ -10,7 +10,7 @@ class InstellingsPage extends StatelessWidget {
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
               border: Border(
@@ -23,18 +23,26 @@ class InstellingsPage extends StatelessWidget {
                   onPressed: () {},
                   icon: const Icon(Icons.arrow_back),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Instellings",
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Instellings",
                         style: Theme.of(context)
                             .textTheme
-                            .headlineSmall
-                            ?.copyWith(color: Theme.of(context).primaryColor)),
-                    Text("Bestuur jou rekening en stelsel voorkeure",
-                        style: Theme.of(context).textTheme.bodySmall),
-                  ],
-                )
+                            .headlineMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Bestuur jou rekening en stelsel voorkeure",
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -45,11 +53,6 @@ class InstellingsPage extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  // Success Alert (stub)
-                  _buildSuccessAlert(context),
-
-                  const SizedBox(height: 16),
-
                   // Tema Instellings
                   _buildCard(
                     context,
@@ -62,13 +65,23 @@ class InstellingsPage extends StatelessWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: const [
-                            Text("Donker Modus",
-                                style: TextStyle(fontWeight: FontWeight.w600)),
-                            Text("Skakel tussen lig en donker tema",
-                                style: TextStyle(fontSize: 12)),
+                            Text(
+                              "Donker Modus",
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 16),
+                            ),
+                            Text(
+                              "Skakel tussen lig en donker tema",
+                              style: TextStyle(fontSize: 12),
+                            ),
                           ],
                         ),
-                        Switch(value: false, onChanged: (_) {}),
+                        Switch(
+                          value: false, 
+                          onChanged: (_) {
+                            // 🔹 Koppel aan app state vir donker/lig modus
+                          },
+                        ),
                       ],
                     ),
                   ),
@@ -85,7 +98,8 @@ class InstellingsPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text("Stelsel Taal",
-                            style: TextStyle(fontWeight: FontWeight.w600)),
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600, fontSize: 16)),
                         const SizedBox(height: 8),
                         DropdownButtonFormField<String>(
                           value: "afrikaans",
@@ -95,7 +109,9 @@ class InstellingsPage extends StatelessWidget {
                             DropdownMenuItem(
                                 value: "engels", child: Text("Engels")),
                           ],
-                          onChanged: (_) {},
+                          onChanged: (_) {
+                            // 🔹 Koppel aan app state vir taal
+                          },
                           decoration: const InputDecoration(
                             border: OutlineInputBorder(),
                             contentPadding:
@@ -113,30 +129,27 @@ class InstellingsPage extends StatelessWidget {
 
                   const SizedBox(height: 16),
 
-                  // Wagwoord Verander
+                  // Wagwoord herstel
                   _buildCard(
                     context,
-                    icon: Icons.lock,
-                    title: "Verander Wagwoord",
+                    icon: Icons.lock_reset,
+                    title: "Wagwoord herstel",
                     description:
-                        "Opdateer jou rekening wagwoord vir beter sekuriteit",
-                    child: Column(
-                      children: [
-                        _buildPasswordField("Huidige Wagwoord"),
-                        const SizedBox(height: 12),
-                        _buildPasswordField("Nuwe Wagwoord"),
-                        const SizedBox(height: 12),
-                        _buildPasswordField("Bevestig Nuwe Wagwoord"),
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton(
-                            onPressed: () {},
-                            child: const Text("Verander Wagwoord"),
-                          ),
-                        )
-                      ],
+                        "Klik hieronder om ‘n herstel e-pos vir jou wagwoord te ontvang",
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  "Herstel e-pos is gestuur (later Supabase koppel)"),
+                            ),
+                          );
+                        },
+                        child: const Text("Stuur herstel e-pos"),
+                      ),
                     ),
                   ),
 
@@ -177,8 +190,6 @@ class InstellingsPage extends StatelessWidget {
     );
   }
 
-  // --- Helper Widgets ---
-
   Widget _buildCard(BuildContext context,
       {IconData? icon,
       required String title,
@@ -206,20 +217,6 @@ class InstellingsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildPasswordField(String label) {
-    return TextField(
-      obscureText: true,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        suffixIcon: IconButton(
-          onPressed: () {},
-          icon: const Icon(Icons.visibility_off),
-        ),
-      ),
-    );
-  }
-
   Widget _buildInfoTile(BuildContext context,
       {required IconData icon, required Color color, required String text}) {
     return Container(
@@ -234,7 +231,8 @@ class InstellingsPage extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 20),
           const SizedBox(width: 8),
-          Expanded(child: Text(text, style: Theme.of(context).textTheme.bodySmall)),
+          Expanded(
+              child: Text(text, style: Theme.of(context).textTheme.bodySmall)),
         ],
       ),
     );
