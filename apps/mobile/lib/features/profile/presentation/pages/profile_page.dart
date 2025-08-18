@@ -11,7 +11,6 @@ import '../../../auth/presentation/widgets/email_field.dart';
 import '../../../auth/presentation/widgets/cellphone_field.dart';
 import '../../../auth/presentation/widgets/role_dropdown.dart';
 import '../../../auth/presentation/widgets/location_dropdown.dart';
-import '../../../auth/presentation/widgets/password_field.dart';
 
 class ProfilePage extends ConsumerWidget 
 {
@@ -140,12 +139,6 @@ class ProfilePage extends ConsumerWidget
                         // Location dropdown
                         const LocationDropdown(),
                         Spacing.vGap16,
-                        // Password field
-                        const PasswordField(),
-                        Spacing.vGap16,
-                        // Confirm password field
-                        const PasswordField(isConfirmPassword: true),
-                        Spacing.vGap24,
 
                         SpysPrimaryButton(
                           text: "Stoor",
