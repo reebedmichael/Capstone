@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 class KositemTemplate {
   final String id;
   final String naam;
@@ -5,7 +7,7 @@ class KositemTemplate {
   final List<String> allergene;
   final double prys;
   final String kategorie;
-  final String? prent;
+  final Uint8List? prent;
 
   KositemTemplate({
     required this.id,
