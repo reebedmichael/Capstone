@@ -75,7 +75,7 @@ class HeaderWidget extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: onOpenSend,
                   icon: const Icon(Icons.send),
-                  label: const Text('Stuur vir Goedkeuring'),
+                  label: const Text('Goedkeuring'),
                 ),
             ],
           ),
