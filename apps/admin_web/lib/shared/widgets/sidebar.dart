@@ -1,16 +1,18 @@
 import 'package:capstone_admin/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../providers/auth_providers.dart';
 
-class Sidebar extends StatefulWidget {
+class Sidebar extends ConsumerStatefulWidget {
   final bool isCollapsed;
   const Sidebar({super.key, required this.isCollapsed});
 
   @override
-  State<Sidebar> createState() => _SidebarState();
+  ConsumerState<Sidebar> createState() => _SidebarState();
 }
 
-class _SidebarState extends State<Sidebar> {
+class _SidebarState extends ConsumerState<Sidebar> {
   bool spyskaartExpanded = false;
 
   @override
@@ -69,6 +71,7 @@ class _SidebarState extends State<Sidebar> {
       _NavEntry('Instellings', Icons.settings_outlined, '/instellings'),
       _NavEntry('Hulp', Icons.help_outline, '/hulp'),
       _NavEntry('Profiel', Icons.person_outline, '/profiel'),
+      _NavEntry('Teken Uit', Icons.logout, '/logout'),
     ];
 
     return SafeArea(
@@ -148,7 +151,7 @@ class _SidebarState extends State<Sidebar> {
                         color: isSelected
                             ? AppColors.primary
                             : isHovered
-                            ? Colors.grey.withOpacity(0.08)
+                            ? Colors.grey.withValues(alpha: 0.08)
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -239,13 +242,19 @@ class _SidebarState extends State<Sidebar> {
           onExit: (_) => setStateHover(() => isHovered = false),
           cursor: SystemMouseCursors.click,
           child: GestureDetector(
-            onTap: () => context.go(e.path),
+            onTap: () {
+              if (e.path == '/logout') {
+                _handleLogout();
+              } else {
+                context.go(e.path);
+              }
+            },
             child: Container(
               decoration: BoxDecoration(
                 color: isSelected
                     ? AppColors.primary
                     : isHovered
-                    ? Colors.grey.withOpacity(0.08)
+                    ? Colors.grey.withValues(alpha: 0.08)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -293,6 +302,25 @@ class _SidebarState extends State<Sidebar> {
         );
       },
     );
+  }
+
+  void _handleLogout() async {
+    try {
+      final authService = ref.read(authServiceProvider);
+      await authService.signOut();
+      if (mounted) {
+        context.go('/teken_in');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fout met teken uit: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 
