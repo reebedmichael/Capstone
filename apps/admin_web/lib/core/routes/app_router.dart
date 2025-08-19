@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../shared/widgets/page_scaffold.dart';
+import '../../shared/widgets/auth_guard.dart';
 import 'package:capstone_admin/features/auth/presentation/teken_in_page.dart';
 import 'package:capstone_admin/features/auth/presentation/registreer_admin_page.dart';
 import 'package:capstone_admin/features/auth/presentation/wag_vir_goedkeuring_page.dart';
@@ -34,6 +35,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: _builder(const RegistreerAdminPage()),
       ),
       GoRoute(
+        path: '/logout',
+        name: 'logout',
+        redirect: (context, state) => '/teken_in',
+      ),
+      GoRoute(
         path: '/wag_goedkeuring',
         name: 'wag_goedkeuring',
         builder: _builder(const WagVirGoedkeuringPage()),
@@ -41,63 +47,67 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/dashboard',
         name: 'dashboard',
-        builder: _builder(const DashboardPage()),
+        builder: _builder(const AuthGuard(child: DashboardPage())),
       ),
       GoRoute(
         path: '/spyskaart',
         name: 'spyskaart',
-        builder: _builder(const SpyskaartBestuurPage()),
+        builder: _builder(const AuthGuard(child: SpyskaartBestuurPage())),
       ),
       GoRoute(
         path: '/week_spyskaart',
         name: 'week_spyskaart',
-        builder: _builder(const WeekSpyskaartPage()),
+        builder: _builder(const AuthGuard(child: WeekSpyskaartPage())),
       ),
       GoRoute(
         path: '/templates/kositem',
         name: 'templates_kositem',
-        builder: _builder(const KositemTemplaatPage()),
+        builder: _builder(const AuthGuard(child: KositemTemplaatPage())),
       ),
       GoRoute(
         path: '/templates/week',
         name: 'templates_week',
-        builder: _builder(const WeekTemplaatPage()),
+        builder: _builder(const AuthGuard(child: WeekTemplaatPage())),
       ),
       GoRoute(
         path: '/bestellings',
         name: 'bestellings',
-        builder: _builder(const BestellingBestuurPage()),
+        builder: _builder(const AuthGuard(child: BestellingBestuurPage())),
       ),
       GoRoute(
         path: '/gebruikers',
         name: 'gebruikers',
-        builder: _builder(const GebruikersBestuurPage()),
+        builder: _builder(const AuthGuard(child: GebruikersBestuurPage())),
       ),
       GoRoute(
         path: '/kennisgewings',
         name: 'kennisgewings',
-        builder: _builder(const KennisgewingsPage()),
+        builder: _builder(const AuthGuard(child: KennisgewingsPage())),
       ),
       GoRoute(
         path: '/verslae',
         name: 'verslae',
-        builder: _builder(const VerslaePage()),
+        builder: _builder(const AuthGuard(child: VerslaePage())),
       ),
       GoRoute(
         path: '/instellings',
         name: 'instellings',
-        builder: _builder(const InstellingsPage()),
+        builder: _builder(const AuthGuard(child: InstellingsPage())),
       ),
-      GoRoute(path: '/hulp', name: 'hulp', builder: _builder(const HulpPage())),
+      GoRoute(
+        path: '/hulp', 
+        name: 'hulp', 
+        builder: _builder(const AuthGuard(child: HulpPage()))
+      ),
       GoRoute(
         path: '/profiel',
         name: 'profiel',
-        builder: _builder(const ProfielPage()),
+        builder: _builder(const AuthGuard(child: ProfielPage())),
       ),
       GoRoute(
         path: '/db-test',
         name: 'db_test',
-        builder: _builder(const DbTestPage()),
+        builder: _builder(const AuthGuard(child: DbTestPage())),
       ),
     ],
   );

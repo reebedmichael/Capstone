@@ -9,6 +9,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../shared/providers/auth_form_providers.dart';
+import '../../../shared/providers/auth_providers.dart';
 import '../../../shared/widgets/email_field.dart';
 import '../../../shared/widgets/password_field.dart';
 
@@ -19,8 +20,9 @@ class TekenInPage extends ConsumerWidget
   @override
   Widget build(BuildContext context, WidgetRef ref) 
   {
-    final isLoading = ref.watch(loginLoadingProvider);
+    final isLoading = ref.watch(authLoadingProvider);
     final isFormValid = ref.watch(loginFormValidProvider);
+    final authError = ref.watch(authErrorProvider);
     
     return Scaffold(
       body: Center(
@@ -85,6 +87,25 @@ class TekenInPage extends ConsumerWidget
                           const PasswordField(),
                           Spacing.vGap8,
                           
+                          // Error message
+                          if (authError != null)
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              margin: const EdgeInsets.only(bottom: 16),
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: AppColors.error),
+                              ),
+                              child: Text(
+                                authError,
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: AppColors.error,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          
                           // Forgot password link
                           Align(
                             alignment: Alignment.centerRight,
@@ -116,19 +137,36 @@ class TekenInPage extends ConsumerWidget
                           SpysPrimaryButton(
                             text: StringsAfAdmin.signInCta,
                             isLoading: isLoading,
-                            onPressed: isFormValid ? () {
-                              // Simulate login
-                              ref.read(loginLoadingProvider.notifier).state = true;
+                            onPressed: isFormValid ? () async {
+                              final email = ref.read(emailProvider);
+                              final password = ref.read(passwordProvider);
                               
-                              // Simulate API call delay
-                              Future.delayed(const Duration(seconds: 2), () {
-                                ref.read(loginLoadingProvider.notifier).state = false;
-                                debugPrint('Login attempted with email: ${ref.read(emailProvider)}');
-                                if (context.mounted)
-                                {
+                              // Clear any previous errors
+                              ref.read(authErrorProvider.notifier).state = null;
+                              ref.read(authLoadingProvider.notifier).state = true;
+                              
+                              try {
+                                final authService = ref.read(authServiceProvider);
+                                await authService.signInWithEmail(
+                                  email: email,
+                                  password: password,
+                                );
+                                
+                                if (context.mounted) {
                                   context.go("/dashboard");
                                 }
-                              });
+                              } catch (e) {
+                                String errorMessage = 'Teken in het gefaal';
+                                if (e.toString().contains('Invalid login credentials')) {
+                                  errorMessage = 'Verkeerde e-pos of wagwoord';
+                                } else if (e.toString().contains('Email not confirmed')) {
+                                  errorMessage = 'E-pos nog nie bevestig nie';
+                                }
+                                
+                                ref.read(authErrorProvider.notifier).state = errorMessage;
+                              } finally {
+                                ref.read(authLoadingProvider.notifier).state = false;
+                              }
                             } : null,
                           ),
                         ],
@@ -145,26 +183,37 @@ class TekenInPage extends ConsumerWidget
                         Container(
                           margin: const EdgeInsets.only(bottom: 24),
                           child: SpysPrimaryButton(
-                            text: 'Vinnige Teken In',
+                            text: 'Vinnige Teken In (Demo)',
                             isLoading: isLoading,
-                            onPressed: () {
+                            onPressed: () async {
                               // Auto-fill demo credentials
-                              ref.read(emailProvider.notifier).state = 'jan.smit@universiteit.ac.za';
-                              ref.read(passwordProvider.notifier).state = 'password123';
+                              ref.read(emailProvider.notifier).state = 'admin@spys.co.za';
+                              ref.read(passwordProvider.notifier).state = 'admin123';
                               
-                              // Simulate login
-                              ref.read(loginLoadingProvider.notifier).state = true;
-
-                              Future.delayed(const Duration(seconds: 2), () 
-                              {
-                                ref.read(loginLoadingProvider.notifier).state = false;
-                                debugPrint('Quick login with demo credentials');
-                                if (!context.mounted) return;
-
-                                //context.go('/dashboard');
-                                //temp net om my(Jacques) se goed te toets
-                                context.go('/dashboard');
-                              });
+                              // Clear any previous errors
+                              ref.read(authErrorProvider.notifier).state = null;
+                              ref.read(authLoadingProvider.notifier).state = true;
+                              
+                              try {
+                                final authService = ref.read(authServiceProvider);
+                                await authService.signInWithEmail(
+                                  email: 'admin@spys.co.za',
+                                  password: 'admin123',
+                                );
+                                
+                                if (context.mounted) {
+                                  context.go('/dashboard');
+                                }
+                              } catch (e) {
+                                String errorMessage = 'Demo teken in het gefaal';
+                                if (e.toString().contains('Invalid login credentials')) {
+                                  errorMessage = 'Demo rekening bestaan nie - registreer eers';
+                                }
+                                
+                                ref.read(authErrorProvider.notifier).state = errorMessage;
+                              } finally {
+                                ref.read(authLoadingProvider.notifier).state = false;
+                              }
                             },
                           ),
                         ),
