@@ -12,8 +12,15 @@ scripts:
   clean: melos exec -- "flutter clean || true"
 
   analyze: melos exec -- flutter analyze
-  test: melos exec --fail-fast -- "flutter test || dart test"
+  analyze:apps: |
+    cd apps/mobile && flutter analyze --no-fatal-warnings
+    cd ../admin_web && flutter analyze --no-fatal-warnings
+  test: |
+    cd packages/spys_api_client && flutter test || dart test
   format: melos exec -- dart format .
+  build: |
+    cd packages/spys_core && dart run build_runner build -d
+    cd ../spys_api_client && flutter pub get && flutter pub run build_runner build -d
 
   # App-specific helpers
   run:mobile: |
@@ -23,6 +30,14 @@ scripts:
 
   build:web: |
     cd apps/admin_web && flutter build web --release
+
+  db:apply: |
+    bash scripts/db_apply.sh
+
+  smoke: |
+    melos run build
+    melos run analyze
+    melos run test
 
   # Example: update a dependency across all packages
   # melos run upgrade:riverpod

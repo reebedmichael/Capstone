@@ -152,35 +152,44 @@ class _SidebarState extends State<Sidebar> {
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: ListTile(
-                        leading: Tooltip(
-                          message: widget.isCollapsed ? 'Spyskaart' : '',
-                          waitDuration: const Duration(milliseconds: 400),
-                          child: Icon(
-                            Icons.restaurant_menu,
-                            color: isSelected
-                                ? Colors.white
-                                : Theme.of(context).iconTheme.color,
-                          ),
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: widget.isCollapsed ? 16 : 12,
+                          vertical: 8,
                         ),
-                        title: widget.isCollapsed
-                            ? null
-                            : Text(
-                                'Spyskaart',
-                                style: TextStyle(
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: widget.isCollapsed ? 24 : 40,
+                              child: Tooltip(
+                                message: widget.isCollapsed ? 'Spyskaart' : '',
+                                waitDuration: const Duration(milliseconds: 400),
+                                child: Icon(
+                                  Icons.restaurant_menu,
                                   color: isSelected
                                       ? Colors.white
-                                      : Theme.of(
-                                          context,
-                                        ).textTheme.bodyMedium?.color,
-                                  fontWeight: isSelected
-                                      ? FontWeight.w600
-                                      : FontWeight.normal,
+                                      : Theme.of(context).iconTheme.color,
                                 ),
                               ),
-                        trailing: widget.isCollapsed
-                            ? null
-                            : Icon(
+                            ),
+                            if (!widget.isCollapsed) ...[
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Spyskaart',
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Theme.of(
+                                            context,
+                                          ).textTheme.bodyMedium?.color,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                              Icon(
                                 spyskaartExpanded
                                     ? Icons.expand_less
                                     : Icons.expand_more,
@@ -188,11 +197,8 @@ class _SidebarState extends State<Sidebar> {
                                     ? Colors.white
                                     : Theme.of(context).iconTheme.color,
                               ),
-                        dense: true,
-                        horizontalTitleGap: 12,
-                        minLeadingWidth: widget.isCollapsed ? 0 : 40,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: widget.isCollapsed ? 16 : 12,
+                            ],
+                          ],
                         ),
                       ),
                     ),
@@ -243,35 +249,43 @@ class _SidebarState extends State<Sidebar> {
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: ListTile(
-                leading: Tooltip(
-                  message: widget.isCollapsed ? e.label : '',
-                  waitDuration: const Duration(milliseconds: 400),
-                  child: Icon(
-                    e.icon,
-                    color: isSelected
-                        ? Colors.white
-                        : Theme.of(context).iconTheme.color,
-                  ),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: widget.isCollapsed ? 16 : 12,
+                  vertical: 8,
                 ),
-                title: widget.isCollapsed
-                    ? null
-                    : Text(
-                        e.label,
-                        style: TextStyle(
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: widget.isCollapsed ? 24 : 40,
+                      child: Tooltip(
+                        message: widget.isCollapsed ? e.label : '',
+                        waitDuration: const Duration(milliseconds: 400),
+                        child: Icon(
+                          e.icon,
                           color: isSelected
                               ? Colors.white
-                              : Theme.of(context).textTheme.bodyMedium?.color,
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.normal,
+                              : Theme.of(context).iconTheme.color,
                         ),
                       ),
-                dense: true,
-                horizontalTitleGap: 12,
-                minLeadingWidth: widget.isCollapsed ? 0 : 40,
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: widget.isCollapsed ? 16 : 12,
+                    ),
+                    if (!widget.isCollapsed) ...[
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          e.label,
+                          style: TextStyle(
+                            color: isSelected
+                                ? Colors.white
+                                : Theme.of(context).textTheme.bodyMedium?.color,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),

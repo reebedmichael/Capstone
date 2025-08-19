@@ -220,8 +220,9 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
           FilledButton(
             onPressed: () {
               if (_titelCtrl.text.trim().isEmpty ||
-                  _kortCtrl.text.trim().isEmpty)
+                  _kortCtrl.text.trim().isEmpty) {
                 return;
+              }
               setState(() {
                 _all.add(
                   _Kennisgewing(
@@ -738,8 +739,9 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
 
   String _doelgroeplabel(List<String> d) {
     if (d.contains('alle')) return 'Almal';
-    if (d.contains('primere_admin') || d.contains('sekondere_admin'))
+    if (d.contains('primere_admin') || d.contains('sekondere_admin')) {
       return 'Admins';
+    }
     if (d.contains('student')) return 'Studente';
     if (d.contains('personeel')) return 'Personeel';
     if (d.length == 1) return 'Spesifiek';

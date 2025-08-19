@@ -3,9 +3,19 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'core/theme/app_theme.dart';
 import 'core/routes/app_router.dart';
 import 'shared/constants/strings_af.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart';
+import 'bootstrap.dart';
+import 'locator.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: kReleaseMode ? '.env.prod' : '.env.dev');
+
+  await bootstrapSupabase();
+
+  setupLocator();
+
   runApp(const MyApp());
 }
 

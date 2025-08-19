@@ -53,6 +53,11 @@ class _HomePageState extends State<HomePage> {
                       Row(
                         children: [
                           IconButton(
+                            onPressed: () => context.go('/db-test'),
+                            icon: const Icon(Icons.storage_rounded, color: Colors.white),
+                            tooltip: 'DB Test',
+                          ),
+                          IconButton(
                             onPressed: () => context.go('/notifications'),
                             icon: Stack(
                               clipBehavior: Clip.none,
