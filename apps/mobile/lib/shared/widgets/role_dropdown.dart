@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../../../../shared/constants/strings_af.dart';
+import '../constants/strings_af.dart';
 
 // Define a provider for the selected role
 final roleProvider = StateProvider<String?>((ref) => 'Student');

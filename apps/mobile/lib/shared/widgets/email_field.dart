@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../../../../shared/constants/strings_af.dart';
-import '../../../../shared/utils/validators.dart';
-import '../../providers/auth_form_providers.dart';
+import '../constants/strings_af.dart';
+import '../utils/validators.dart';
+import '../providers/auth_form_providers.dart';
 
 class EmailField extends ConsumerWidget {
   final String? errorText;

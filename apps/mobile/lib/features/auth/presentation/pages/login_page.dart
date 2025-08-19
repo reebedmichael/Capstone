@@ -7,10 +7,10 @@ import '../../../../shared/widgets/spys_primary_button.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 
-import '../../providers/auth_form_providers.dart';
-import '../widgets/auth_header.dart';
-import '../widgets/email_field.dart';
-import '../widgets/password_field.dart';
+import '../../../../shared/providers/auth_form_providers.dart';
+import '../../../../shared/widgets/auth_header.dart';
+import '../../../../shared/widgets/email_field.dart';
+import '../../../../shared/widgets/password_field.dart';
 
 class LoginPage extends ConsumerWidget 
 {

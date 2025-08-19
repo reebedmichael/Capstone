@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import '../../../../shared/constants/strings_af.dart';
-import '../../../../shared/utils/validators.dart';
-import '../../../../shared/constants/spacing.dart';
-import '../../providers/auth_form_providers.dart';
+import '../constants/strings_af.dart';
+import '../utils/validators.dart';
+import '../constants/spacing.dart';
+import '../providers/auth_form_providers.dart';
 
 class NameFields extends ConsumerWidget {
   const NameFields({super.key});
@@ -13,10 +13,9 @@ class NameFields extends ConsumerWidget {
     final firstNameError = ref.watch(firstNameErrorProvider);
     final lastNameError = ref.watch(lastNameErrorProvider);
     
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: TextField(
+        TextField(
             onChanged: (value) {
               ref.read(firstNameProvider.notifier).state = value;
 
@@ -36,11 +35,9 @@ class NameFields extends ConsumerWidget {
             ),
             textInputAction: TextInputAction.next,
             autocorrect: false,
-          ),
         ),
-        Spacing.hGap16,
-        Expanded(
-          child: TextField(
+        Spacing.vGap16,
+        TextField(
             onChanged: (value) {
               ref.read(lastNameProvider.notifier).state = value;
               
@@ -61,7 +58,6 @@ class NameFields extends ConsumerWidget {
             textInputAction: TextInputAction.next,
             autocorrect: false,
           ),
-        ),
       ],
     );
   }

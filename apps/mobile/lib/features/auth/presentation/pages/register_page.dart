@@ -7,14 +7,13 @@ import '../../../../shared/widgets/spys_primary_button.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 
-import '../../providers/auth_form_providers.dart';
+import '../../../../shared/providers/auth_form_providers.dart';
 
-import '../widgets/name_fields.dart';
-import '../widgets/email_field.dart';
-import '../widgets/cellphone_field.dart';
-import '../widgets/role_dropdown.dart';
-import '../widgets/location_dropdown.dart';
-import '../widgets/password_field.dart';
+import '../../../../shared/widgets/name_fields.dart';
+import '../../../../shared/widgets/email_field.dart';
+import '../../../../shared/widgets/cellphone_field.dart';
+import '../../../../shared/widgets/location_dropdown.dart';
+import '../../../../shared/widgets/password_field.dart';
 
 class RegisterPage extends ConsumerWidget {
   const RegisterPage({super.key});
@@ -107,9 +106,6 @@ class RegisterPage extends ConsumerWidget {
                         // Cellphone field
                         const CellphoneField(),
                         Spacing.vGap16,
-                        // Role dropdown
-                        const RoleDropdown(),
-                        Spacing.vGap16,
                         // Location dropdown
                         const LocationDropdown(),
                         Spacing.vGap16,
@@ -124,6 +120,8 @@ class RegisterPage extends ConsumerWidget {
                           text: StringsAf.signUpCta,
                           onPressed: isFormValid ? () 
                           {
+                            //TODO: Add api calls en databasis goed, onthou gebruiker is ekstern by verstek
+
                             debugPrint('Registration attempted with email: ${ref.read(emailProvider)}');
 
                             context.go("/home");

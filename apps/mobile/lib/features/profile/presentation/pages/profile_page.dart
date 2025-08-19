@@ -1,4 +1,4 @@
-import 'package:capstone_mobile/features/auth/providers/auth_form_providers.dart';
+import 'package:capstone_mobile/shared/providers/auth_form_providers.dart';
 import 'package:capstone_mobile/shared/constants/spacing.dart';
 import 'package:capstone_mobile/shared/widgets/spys_primary_button.dart';
 import 'package:flutter/material.dart';
@@ -6,11 +6,11 @@ import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../app/presentation/widgets/app_bottom_nav.dart';
 
-import '../../../auth/presentation/widgets/name_fields.dart';
-import '../../../auth/presentation/widgets/email_field.dart';
-import '../../../auth/presentation/widgets/cellphone_field.dart';
-import '../../../auth/presentation/widgets/role_dropdown.dart';
-import '../../../auth/presentation/widgets/location_dropdown.dart';
+import '../../../../shared/widgets/name_fields.dart';
+import '../../../../shared/widgets/email_field.dart';
+import '../../../../shared/widgets/cellphone_field.dart';
+import '../../../../shared/widgets/role_dropdown.dart';
+import '../../../../shared/widgets/location_dropdown.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
