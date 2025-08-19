@@ -15,6 +15,7 @@ import '../../features/cart/presentation/pages/cart_page.dart';
 import '../../features/food/presentation/pages/food_detail_page.dart';
 import '../../features/allowance/presentation/pages/allowance_page.dart';
 import '../../features/welcome/presentation/pages/welcome_page.dart';
+import '../../pages/db_test_page.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -64,6 +65,10 @@ class AppRouter {
       GoRoute(
         path: '/allowance',
         builder: (context, state) => const AllowancePage(),
+      ),
+      GoRoute(
+        path: '/db-test',
+        builder: (context, state) => const DbTestPage(),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

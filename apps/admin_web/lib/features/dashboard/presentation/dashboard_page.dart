@@ -96,6 +96,10 @@ class DashboardPage extends StatelessWidget {
                   onPressed: () => context.go('/kennisgewings'),
                   child: const Text('Bekyk Alle Kennisgewings'),
                 ),
+                TextButton(
+                  onPressed: () => context.go('/db-test'),
+                  child: const Text('DB Test'),
+                ),
               ],
               child: Column(
                 children: kennisgewings.take(3).map((Map<String, dynamic> k) {
@@ -250,6 +254,11 @@ class DashboardPage extends StatelessWidget {
                   onPressed: () => context.go('/verslae'),
                   icon: const Icon(Icons.bar_chart_outlined),
                   label: const Text('Genereer Verslag'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => context.go('/db-test'),
+                  icon: const Icon(Icons.storage_rounded),
+                  label: const Text('DB Test'),
                 ),
               ],
             ),

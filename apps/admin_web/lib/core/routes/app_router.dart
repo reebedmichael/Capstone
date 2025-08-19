@@ -17,6 +17,7 @@ import 'package:capstone_admin/features/verslae/presentation/verslae_page.dart';
 import 'package:capstone_admin/features/instellings/presentation/instellings_page.dart';
 import 'package:capstone_admin/features/hulp/presentation/hulp_page.dart';
 import 'package:capstone_admin/features/profiel/presentation/profiel_page.dart';
+import '../../pages/db_test_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -92,6 +93,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/profiel',
         name: 'profiel',
         builder: _builder(const ProfielPage()),
+      ),
+      GoRoute(
+        path: '/db-test',
+        name: 'db_test',
+        builder: _builder(const DbTestPage()),
       ),
     ],
   );
