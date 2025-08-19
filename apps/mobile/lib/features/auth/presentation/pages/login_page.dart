@@ -169,6 +169,8 @@ class LoginPage extends ConsumerWidget
                               ref.read(loginLoadingProvider.notifier).state = false;
                               debugPrint('Login attempted with email: ${ref.read(emailProvider)}');
                             });
+
+                            //TODO: log in databasis goed.
                           } : null,
                         ),
                       ],
@@ -240,7 +242,7 @@ class LoginPage extends ConsumerWidget
                   child: Column(
                     children: [
                       Text(
-                        '© 2024 Spys - Universiteit Voedsel App',
+                        '© 2025 Spys - Universiteit Voedsel App',
                         style: AppTypography.caption,
                         textAlign: TextAlign.center,
                       ),
