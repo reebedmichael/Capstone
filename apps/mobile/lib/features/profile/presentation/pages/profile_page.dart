@@ -9,7 +9,6 @@ import '../../../app/presentation/widgets/app_bottom_nav.dart';
 import '../../../../shared/widgets/name_fields.dart';
 import '../../../../shared/widgets/email_field.dart';
 import '../../../../shared/widgets/cellphone_field.dart';
-import '../../../../shared/widgets/role_dropdown.dart';
 import '../../../../shared/widgets/location_dropdown.dart';
 
 class ProfilePage extends ConsumerWidget {
@@ -20,7 +19,8 @@ class ProfilePage extends ConsumerWidget {
     final name = ref.watch(firstNameProvider);
     final surname = ref.watch(lastNameProvider);
     final email = ref.watch(emailProvider);
-    final role = ref.watch(roleProvider).toString();
+    //TODO:lees eintlik wat die rol is vd databasis af
+    final role = "Ekstern";
     final walletBalance = ref.watch(walletBalanceProvider);
 
     final isFormValid = ref.watch(registerFormValidProvider);
@@ -141,9 +141,6 @@ class ProfilePage extends ConsumerWidget {
                             // Cellphone field
                             const CellphoneField(),
                             Spacing.vGap16,
-                            // Role dropdown
-                            const RoleDropdown(),
-                            Spacing.vGap16,
                             // Location dropdown
                             const LocationDropdown(),
                             Spacing.vGap16,
@@ -152,7 +149,7 @@ class ProfilePage extends ConsumerWidget {
                               text: "Stoor",
                               onPressed: isFormValid
                                   ? () {
-                                      //Opdateer nuwe gebruiker inligting
+                                      //TODO:Opdateer nuwe gebruiker inligting
                                     }
                                   : null,
                             ),
