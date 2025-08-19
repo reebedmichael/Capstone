@@ -173,10 +173,10 @@ class AllowancePage extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       '• Jou maandelikse toelae is '
-                      'R${monthlyAllowance}.',
+                      'R$monthlyAllowance.',
                     ),
                     Text(
-                      '• Jy het R${currentBalance} oor van jou toelae vir hierdie maand.',
+                      '• Jy het R$currentBalance oor van jou toelae vir hierdie maand.',
                     ),
                     const Text(
                       '• Die toelae sal op die eerste dag van elke maand ontvang word.',
@@ -215,7 +215,7 @@ class AllowancePage extends StatelessWidget {
                   ),
                 ),
               );
-            }).toList(),
+            }),
 
             const SizedBox(height: 16),
             Card(

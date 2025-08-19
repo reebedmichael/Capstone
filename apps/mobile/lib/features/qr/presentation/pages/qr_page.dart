@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'dart:math';
 
 class QrPage extends StatefulWidget {
   final Map<String, dynamic>? order;
@@ -267,7 +266,7 @@ class _QrPageState extends State<QrPage> {
                         ),
                       ],
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ),

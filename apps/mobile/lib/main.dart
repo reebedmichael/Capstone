@@ -5,6 +5,7 @@ import 'core/routes/app_router.dart';
 import 'shared/constants/strings_af.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 

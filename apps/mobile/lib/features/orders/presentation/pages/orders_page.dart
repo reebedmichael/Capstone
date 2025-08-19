@@ -1,12 +1,11 @@
 import 'package:capstone_mobile/features/app/presentation/widgets/app_bottom_nav.dart';
 import 'package:capstone_mobile/features/feedback/presentation/pages/feedback_page.dart';
-import 'package:capstone_mobile/features/home/presentation/pages/home_page.dart';
 import 'package:capstone_mobile/features/qr/presentation/pages/qr_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:capstone_mobile/core/theme/app_typography.dart';
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});
@@ -31,19 +30,11 @@ class _OrdersPageState extends State<OrdersPage>
       'items': [
         {
           'quantity': 2,
-          'foodItem': {
-            'name': 'Burger',
-            'price': 50.00,
-            'imageUrl': 'https://via.placeholder.com/150',
-          },
+          'foodItem': {'name': 'Burger', 'price': 50.00, 'imageUrl': ''},
         },
         {
           'quantity': 2,
-          'foodItem': {
-            'name': 'Chips',
-            'price': 25.25,
-            'imageUrl': 'https://via.placeholder.com/150',
-          },
+          'foodItem': {'name': 'Chips', 'price': 25.25, 'imageUrl': ''},
         },
       ],
       'feedback': null,
@@ -57,11 +48,7 @@ class _OrdersPageState extends State<OrdersPage>
       'items': [
         {
           'quantity': 1,
-          'foodItem': {
-            'name': 'Pizza',
-            'price': 75.00,
-            'imageUrl': 'https://via.placeholder.com/150',
-          },
+          'foodItem': {'name': 'Pizza', 'price': 75.00, 'imageUrl': ''},
         },
       ],
       'feedback': null,
@@ -277,7 +264,7 @@ class _OrdersPageState extends State<OrdersPage>
                   children: [
                     Text(
                       'Bestelling #${order['id']}',
-                      style: GoogleFonts.inter(
+                      style: AppTypography.labelLarge.copyWith(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -359,21 +346,22 @@ class _OrdersPageState extends State<OrdersPage>
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(6),
-                        child: Image.network(
-                          food['imageUrl'] ?? '',
-                          width: 48,
-                          height: 48,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            width: 48,
-                            height: 48,
-                            color: Colors.grey.shade300,
-                            child: const Icon(
-                              Icons.image_not_supported,
-                              size: 20,
-                            ),
-                          ),
-                        ),
+                        child:
+                            (food['imageUrl'] != null &&
+                                (food['imageUrl'] as String).isNotEmpty)
+                            ? Image.network(
+                                food['imageUrl'] as String,
+                                width: 48,
+                                height: 48,
+                                fit: BoxFit.cover,
+                              )
+                            : Container(
+                                width: 48,
+                                height: 48,
+                                color: Colors.grey.shade300,
+                                alignment: Alignment.center,
+                                child: const Icon(Icons.fastfood, size: 20),
+                              ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(

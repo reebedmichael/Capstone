@@ -90,7 +90,7 @@ class _HulpPageState extends State<HulpPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(title: const Text("Hulp en Ondersteuning")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -211,18 +211,16 @@ class _HulpPageState extends State<HulpPage> {
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
             ),
             const SizedBox(height: 8), // Optional: Space between title and list
-            ...tips
-                .map(
-                  (t) => ListTile(
-                    leading: const Icon(
-                      Icons.check_circle,
-                      color: Colors.green,
-                      size: 20,
-                    ),
-                    title: Text(t, style: const TextStyle(fontSize: 14)),
-                  ),
-                )
-                .toList(),
+            ...tips.map(
+              (t) => ListTile(
+                leading: const Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
+                  size: 20,
+                ),
+                title: Text(t, style: const TextStyle(fontSize: 14)),
+              ),
+            ),
           ],
         ),
       ),
@@ -329,8 +327,9 @@ class _HulpPageState extends State<HulpPage> {
                           return "E-pos is verpligtend";
                         }
                         final regex = RegExp(r'^\S+@\S+\.\S+$');
-                        if (!regex.hasMatch(v))
+                        if (!regex.hasMatch(v)) {
                           return "Ongeldige e-pos formaat";
+                        }
                         return null;
                       },
                     ),

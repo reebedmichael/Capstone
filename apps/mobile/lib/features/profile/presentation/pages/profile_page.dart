@@ -12,8 +12,7 @@ import '../../../auth/presentation/widgets/cellphone_field.dart';
 import '../../../auth/presentation/widgets/role_dropdown.dart';
 import '../../../auth/presentation/widgets/location_dropdown.dart';
 
-class ProfilePage extends ConsumerWidget 
-{
+class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
 
   @override
@@ -26,7 +25,7 @@ class ProfilePage extends ConsumerWidget
 
     final isFormValid = ref.watch(registerFormValidProvider);
 
-    final initials = "${name}${surname}".toUpperCase();
+    final initials = "$name$surname".toUpperCase();
 
     return Scaffold(
       body: SafeArea(
@@ -45,7 +44,7 @@ class ProfilePage extends ConsumerWidget
                   const Text(
                     "My Profiel",
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  )
+                  ),
                 ],
               ),
             ),
@@ -73,18 +72,26 @@ class ProfilePage extends ConsumerWidget
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text("$name $surname",
-                                      style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold)),
+                                  Text(
+                                    "$name $surname",
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                   const SizedBox(height: 4),
-                                  Text(email,
-                                      style: TextStyle(
-                                          color: Colors.grey.shade600)),
+                                  Text(
+                                    email,
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
                                   const SizedBox(height: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 4),
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: Colors.blue.shade50,
                                       borderRadius: BorderRadius.circular(12),
@@ -96,7 +103,7 @@ class ProfilePage extends ConsumerWidget
                                   ),
                                 ],
                               ),
-                            )
+                            ),
                           ],
                         ),
                       ),
@@ -118,37 +125,38 @@ class ProfilePage extends ConsumerWidget
                                 Text(
                                   "Persoonlike Inligting",
                                   style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
-                        Spacing.vGap20,
+                            Spacing.vGap20,
 
-                        const NameFields(),
-                        Spacing.vGap16,
-                        // Email field
-                        const EmailField(),
-                        Spacing.vGap16,
-                        // Cellphone field
-                        const CellphoneField(),
-                        Spacing.vGap16,
-                        // Role dropdown
-                        const RoleDropdown(),
-                        Spacing.vGap16,
-                        // Location dropdown
-                        const LocationDropdown(),
-                        Spacing.vGap16,
+                            const NameFields(),
+                            Spacing.vGap16,
+                            // Email field
+                            const EmailField(),
+                            Spacing.vGap16,
+                            // Cellphone field
+                            const CellphoneField(),
+                            Spacing.vGap16,
+                            // Role dropdown
+                            const RoleDropdown(),
+                            Spacing.vGap16,
+                            // Location dropdown
+                            const LocationDropdown(),
+                            Spacing.vGap16,
 
-                        SpysPrimaryButton(
-                          text: "Stoor",
-                          onPressed: isFormValid ? () 
-                          {
-                            //Opdateer nuwe gebruiker inligting
-                          } : null,
-                        )
-
-                        ],
+                            SpysPrimaryButton(
+                              text: "Stoor",
+                              onPressed: isFormValid
+                                  ? () {
+                                      //Opdateer nuwe gebruiker inligting
+                                    }
+                                  : null,
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -168,9 +176,10 @@ class ProfilePage extends ConsumerWidget
                                 Text(
                                   "Rekening Instellings",
                                   style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold),
-                                )
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 16),
@@ -181,8 +190,7 @@ class ProfilePage extends ConsumerWidget
                               decoration: BoxDecoration(
                                 color: Colors.blue.shade50,
                                 borderRadius: BorderRadius.circular(8),
-                                border:
-                                    Border.all(color: Colors.blue.shade100),
+                                border: Border.all(color: Colors.blue.shade100),
                               ),
                               child: Row(
                                 mainAxisAlignment:
@@ -192,11 +200,16 @@ class ProfilePage extends ConsumerWidget
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: const [
-                                      Text("Beursie Balans",
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold)),
-                                      Text("Beskikbare fondse",
-                                          style: TextStyle(fontSize: 12)),
+                                      Text(
+                                        "Beursie Balans",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      Text(
+                                        "Beskikbare fondse",
+                                        style: TextStyle(fontSize: 12),
+                                      ),
                                     ],
                                   ),
                                   Column(
@@ -205,16 +218,17 @@ class ProfilePage extends ConsumerWidget
                                       Text(
                                         "R${walletBalance.toStringAsFixed(2)}",
                                         style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.blue),
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.blue,
+                                        ),
                                       ),
                                       TextButton(
                                         onPressed: () {
                                           context.go('/wallet');
                                         },
                                         child: const Text("Bestuur"),
-                                      )
+                                      ),
                                     ],
                                   ),
                                 ],
@@ -267,7 +281,7 @@ class ProfilePage extends ConsumerWidget
                           ],
                         ),
                       ),
-                    )
+                    ),
                   ],
                 ),
               ),

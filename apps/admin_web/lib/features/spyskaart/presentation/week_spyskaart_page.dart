@@ -634,7 +634,7 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
     final huidige = _huidigeWeekSpyskaart;
     final volgende = _volgendeWeekSpyskaart;
 
-    Widget _weekBtn({
+    Widget weekBtn({
       required String keyVal,
       required String label,
       String? chip,
@@ -673,7 +673,7 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
       spacing: 12,
       runSpacing: 8,
       children: [
-        _weekBtn(
+        weekBtn(
           keyVal: 'huidige',
           label: 'Huidige Week',
           chip: huidige != null ? 'Aktief' : null,
@@ -683,7 +683,7 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
             aktieweDag = 'maandag';
           }),
         ),
-        _weekBtn(
+        weekBtn(
           keyVal: 'volgende',
           label: 'Volgende Week',
           chip: (volgende != null)
@@ -1944,7 +1944,7 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
     }
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Stack(
           children: [

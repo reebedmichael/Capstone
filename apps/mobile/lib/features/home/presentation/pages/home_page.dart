@@ -209,7 +209,7 @@ class _HomePageState extends State<HomePage> {
                 topLeft: Radius.circular(12),
                 bottomLeft: Radius.circular(12),
               ),
-              image: imageUrl != null
+              image: imageUrl != null && imageUrl.isNotEmpty
                   ? DecorationImage(image: NetworkImage(imageUrl), fit: BoxFit.cover)
                   : null,
             ),

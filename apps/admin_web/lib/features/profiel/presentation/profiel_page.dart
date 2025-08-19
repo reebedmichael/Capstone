@@ -18,12 +18,16 @@ class ProfielPage extends ConsumerWidget {
     final name = ref.watch(firstNameProvider);
     final surname = ref.watch(lastNameProvider);
     final email = ref.watch(emailProvider);
-    final status = ref.watch(accountStatusProvider); // e.g. "aktief", "wag_goedkeuring"
+    final status = ref.watch(
+      accountStatusProvider,
+    ); // e.g. "aktief", "wag_goedkeuring"
     final createdDate = ref.watch(accountCreatedDateProvider);
     final lastActive = ref.watch(accountLastActiveProvider);
     final isFormValid = ref.watch(registerFormValidProvider);
 
-    final initials = "${name.isNotEmpty ? name[0] : ''}${surname.isNotEmpty ? surname[0] : ''}".toUpperCase();
+    final initials =
+        "${name.isNotEmpty ? name[0] : ''}${surname.isNotEmpty ? surname[0] : ''}"
+            .toUpperCase();
 
     return Scaffold(
       body: SafeArea(
@@ -46,7 +50,7 @@ class ProfielPage extends ConsumerWidget {
                   const Text(
                     "My Profiel",
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  )
+                  ),
                 ],
               ),
             ),
@@ -74,25 +78,38 @@ class ProfielPage extends ConsumerWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text("$name $surname",
-                                      style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold)),
+                                  Text(
+                                    "$name $surname",
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                   const SizedBox(height: 4),
-                                  Text(email,
-                                      style: TextStyle(
-                                          color: Colors.grey.shade600)),
+                                  Text(
+                                    email,
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
                                   const SizedBox(height: 8),
                                   Wrap(
                                     spacing: 8,
                                     children: [
                                       Chip(
-                                        label: Text("Ekstern"),//TODO: wys gebruiker se eintlike rol, dalk ook tipe admin hulle is
-                                        avatar: const Icon(Icons.shield, size: 16),
+                                        label: Text(
+                                          "Ekstern",
+                                        ), //TODO: wys gebruiker se eintlike rol, dalk ook tipe admin hulle is
+                                        avatar: const Icon(
+                                          Icons.shield,
+                                          size: 16,
+                                        ),
                                       ),
                                       Chip(
                                         label: Text(
-                                          status == "aktief" ? "Aktief" : "Wag Goedkeuring",
+                                          status == "aktief"
+                                              ? "Aktief"
+                                              : "Wag Goedkeuring",
                                         ),
                                         backgroundColor: status == "aktief"
                                             ? Colors.green.shade50
@@ -102,17 +119,22 @@ class ProfielPage extends ConsumerWidget {
                                         label: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            const Icon(Icons.calendar_today, size: 14),
+                                            const Icon(
+                                              Icons.calendar_today,
+                                              size: 14,
+                                            ),
                                             const SizedBox(width: 4),
-                                            Text("Lid sedert ${createdDate.toString().split(' ').first}"),
+                                            Text(
+                                              "Lid sedert ${createdDate.toString().split(' ').first}",
+                                            ),
                                           ],
                                         ),
                                       ),
                                     ],
-                                  )
+                                  ),
                                 ],
                               ),
-                            )
+                            ),
                           ],
                         ),
                       ),
@@ -134,21 +156,27 @@ class ProfielPage extends ConsumerWidget {
                                 Text(
                                   "Rol en Toegangsregte",
                                   style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 12),
-                            Text("Huidige Rol: Ekstern",//TODO: wys gebruiker se eintlike rol, dalk ook tipe admin hulle is
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                            Text(
+                              "Huidige Rol: Ekstern", //TODO: wys gebruiker se eintlike rol, dalk ook tipe admin hulle is
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
                             const SizedBox(height: 4),
                             Text(
                               status == "aktief"
                                   ? "Jy het volledige toegang tot die stelsel"
                                   : "Beperkte toegang totdat rekening goedgekeur word",
                               style: TextStyle(color: Colors.grey.shade600),
-                            )
+                            ),
                           ],
                         ),
                       ),
@@ -170,8 +198,9 @@ class ProfielPage extends ConsumerWidget {
                                 Text(
                                   "Persoonlike Inligting",
                                   style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
@@ -188,10 +217,12 @@ class ProfielPage extends ConsumerWidget {
 
                             SpysPrimaryButton(
                               text: "Stoor",
-                              onPressed: isFormValid ? () {
-                                // Save updated info
-                              } : null,
-                            )
+                              onPressed: isFormValid
+                                  ? () {
+                                      // Save updated info
+                                    }
+                                  : null,
+                            ),
                           ],
                         ),
                       ),
@@ -206,13 +237,27 @@ class ProfielPage extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text("Rekening Aktiwiteit",
-                                style: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.bold)),
+                            const Text(
+                              "Rekening Aktiwiteit",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             const SizedBox(height: 12),
-                            _buildActivityRow("Rekening geskep:", createdDate.toString().split(' ').first),
-                            _buildActivityRow("Laaste aktiwiteit:", lastActive?.toString().split(' ').first ?? "Onbekend"),
-                            _buildActivityRow("Rol:", "Esktern"),//TODO: wys gebruiker se eintlike rol, dalk ook tipe admin hulle is
+                            _buildActivityRow(
+                              "Rekening geskep:",
+                              createdDate.toString().split(' ').first,
+                            ),
+                            _buildActivityRow(
+                              "Laaste aktiwiteit:",
+                              lastActive.toString().split(' ').first ??
+                                  "Onbekend",
+                            ),
+                            _buildActivityRow(
+                              "Rol:",
+                              "Esktern",
+                            ), //TODO: wys gebruiker se eintlike rol, dalk ook tipe admin hulle is
                           ],
                         ),
                       ),
@@ -223,7 +268,7 @@ class ProfielPage extends ConsumerWidget {
             ),
           ],
         ),
-      )
+      ),
     );
   }
 
