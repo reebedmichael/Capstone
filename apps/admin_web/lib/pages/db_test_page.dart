@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart';
 
 class DbTestPage extends StatefulWidget {
   const DbTestPage({super.key});
@@ -34,6 +35,14 @@ class _DbTestPageState extends State<DbTestPage> {
       
       // Debug: Check if we can connect
       debugInfo += 'Connecting to: ${dotenv.env['SUPABASE_URL']}\n';
+      debugInfo += 'Anon key exists: ${dotenv.env['SUPABASE_ANON_KEY'] != null}\n';
+      debugInfo += 'Anon key length: ${dotenv.env['SUPABASE_ANON_KEY']?.length ?? 0}\n';
+      debugInfo += 'Supabase client initialized: ${sb != null}\n';
+      debugInfo += 'Environment: ${kReleaseMode ? 'production' : 'development'}\n';
+      debugInfo += 'Env file: ${kReleaseMode ? '.env.prod' : '.env.dev'}\n';
+      debugInfo += 'Current user: ${sb.auth.currentUser?.email ?? 'None'}\n';
+      debugInfo += 'User ID: ${sb.auth.currentUser?.id ?? 'None'}\n';
+      debugInfo += 'User role: ${sb.auth.currentUser?.role ?? 'None'}\n';
       
       // Simple test first
       try {

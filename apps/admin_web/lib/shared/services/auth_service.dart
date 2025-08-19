@@ -1,10 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:get_it/get_it.dart';
-import 'package:spys_api_client/spys_api_client.dart';
 
 class AuthService {
   final SupabaseClient _supabase = Supabase.instance.client;
-  final GebruikersRepository _gebruikersRepo = GetIt.instance<GebruikersRepository>();
 
   // Get current user
   User? get currentUser => _supabase.auth.currentUser;
@@ -91,11 +88,10 @@ class AuthService {
       await _supabase.from('gebruikers').upsert({
         'gebr_id': user.id,
         'gebr_epos': user.email!,
-        'gebr_voornaam': firstName,
+        'gebr_naam': firstName,
         'gebr_van': lastName,
-        'gebr_selfoon': cellphone,
         'is_aktief': true,
-        'gebr_tipe': 'admin', // Default to admin for now
+        // Note: We'll need to handle gebr_tipe_id properly later
       }, onConflict: 'gebr_id');
     } catch (e) {
       // If user creation fails, we should handle this appropriately

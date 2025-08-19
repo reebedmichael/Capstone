@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 
 import '../../../../shared/providers/auth_form_providers.dart';
+import '../../../../shared/providers/auth_providers.dart';
 
 import '../../../../shared/widgets/name_fields.dart';
 import '../../../../shared/widgets/email_field.dart';
@@ -21,6 +22,8 @@ class RegisterPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isFormValid = ref.watch(registerFormValidProvider);
+    final isLoading = ref.watch(authLoadingProvider);
+    final authError = ref.watch(authErrorProvider);
     
     return Scaffold(
       body: Container(
@@ -114,17 +117,78 @@ class RegisterPage extends ConsumerWidget {
                         Spacing.vGap16,
                         // Confirm password field
                         const PasswordField(isConfirmPassword: true),
+                        // Error message
+                        if (authError != null)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red),
+                            ),
+                            child: Text(
+                              authError,
+                              style: const TextStyle(color: Colors.red, fontSize: 14),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+
                         Spacing.vGap24,
                         // Create account button
                         SpysPrimaryButton(
-                          text: StringsAf.signUpCta,
-                          onPressed: isFormValid ? () 
-                          {
-                            //TODO: Add api calls en databasis goed, onthou gebruiker is ekstern by verstek
+                          text: "Registreer",
+                          isLoading: isLoading,
+                          onPressed: isFormValid ? () async {
+                            final firstName = ref.read(firstNameProvider);
+                            final lastName = ref.read(lastNameProvider);
+                            final email = ref.read(emailProvider);
+                            final cellphone = ref.read(cellphoneProvider);
+                            final password = ref.read(passwordProvider);
+                            final confirmPassword = ref.read(confirmPasswordProvider);
 
-                            debugPrint('Registration attempted with email: ${ref.read(emailProvider)}');
+                            if (password != confirmPassword) {
+                              ref.read(authErrorProvider.notifier).state = 'Wagwoorde stem nie ooreen nie';
+                              return;
+                            }
 
-                            context.go("/home");
+                            ref.read(authErrorProvider.notifier).state = null;
+                            ref.read(authLoadingProvider.notifier).state = true;
+
+                            try {
+                              final authService = ref.read(authServiceProvider);
+                              final response = await authService.signUpWithEmail(
+                                email: email, 
+                                password: password, 
+                                firstName: firstName, 
+                                lastName: lastName, 
+                                cellphone: cellphone
+                              );
+
+                              if (response.user != null) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Registrasie suksesvol! Jy kan nou in teken.'),
+                                      backgroundColor: Colors.green,
+                                    )
+                                  );
+                                  context.go('/auth/login');
+                                }
+                              }
+                            } catch (e) {
+                              String errorMessage = 'Registrasie het gefaal';
+                              if (e.toString().contains('User already registered')) {
+                                errorMessage = 'E-pos adres is reeds geregistreer';
+                              } else if (e.toString().contains('Password should be at least')) {
+                                errorMessage = 'Wagwoord moet ten minste 6 karakters wees';
+                              } else if (e.toString().contains('Invalid email')) {
+                                errorMessage = 'Ongeldige e-pos adres';
+                              }
+                              ref.read(authErrorProvider.notifier).state = errorMessage;
+                            } finally {
+                              ref.read(authLoadingProvider.notifier).state = false;
+                            }
                           } : null,
                         ),
                       ],

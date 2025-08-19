@@ -8,6 +8,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 
 import '../../../../shared/providers/auth_form_providers.dart';
+import '../../../../shared/providers/auth_providers.dart';
 import '../../../../shared/widgets/auth_header.dart';
 import '../../../../shared/widgets/email_field.dart';
 import '../../../../shared/widgets/password_field.dart';
@@ -19,8 +20,9 @@ class LoginPage extends ConsumerWidget
   @override
   Widget build(BuildContext context, WidgetRef ref) 
   {
-    final isLoading = ref.watch(loginLoadingProvider);
+    final isLoading = ref.watch(authLoadingProvider);
     final isFormValid = ref.watch(loginFormValidProvider);
+    final authError = ref.watch(authErrorProvider);
     
     return Scaffold(
       body: Container(
@@ -48,27 +50,53 @@ class LoginPage extends ConsumerWidget
                   subtitle: StringsAf.appTitle,
                 ),
                 
+                // Error message
+                if (authError != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red),
+                    ),
+                    child: Text(
+                      authError,
+                      style: const TextStyle(color: Colors.red, fontSize: 14),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+
                 // Quick Login Button (Demo)
                 Container(
                   margin: const EdgeInsets.only(bottom: 24),
                   child: SpysPrimaryButton(
                     text: 'Vinnige Teken In',
                     isLoading: isLoading,
-                    onPressed: () {
+                    onPressed: () async {
                       // Auto-fill demo credentials
-                      ref.read(emailProvider.notifier).state = 'jan.smit@universiteit.ac.za';
-                      ref.read(passwordProvider.notifier).state = 'password123';
+                      ref.read(emailProvider.notifier).state = 'student@spys.co.za';
+                      ref.read(passwordProvider.notifier).state = 'student123';
                       
-                      // Simulate login
-                      ref.read(loginLoadingProvider.notifier).state = true;
+                      ref.read(authErrorProvider.notifier).state = null;
+                      ref.read(authLoadingProvider.notifier).state = true;
 
-                      Future.delayed(const Duration(seconds: 2), () 
-                      {
-                        ref.read(loginLoadingProvider.notifier).state = false;
-                        debugPrint('Quick login with demo credentials');
-                        if (!context.mounted) return;
-                        context.go('/home');
-                      });
+                      try {
+                        final authService = ref.read(authServiceProvider);
+                        await authService.signInWithEmail(
+                          email: 'student@spys.co.za', 
+                          password: 'student123'
+                        );
+                        if (context.mounted) { context.go('/home'); }
+                      } catch (e) {
+                        String errorMessage = 'Demo teken in het gefaal';
+                        if (e.toString().contains('Invalid login credentials')) {
+                          errorMessage = 'Demo rekening bestaan nie - registreer eers';
+                        }
+                        ref.read(authErrorProvider.notifier).state = errorMessage;
+                      } finally {
+                        ref.read(authLoadingProvider.notifier).state = false;
+                      }
                     },
                   ),
                 ),
@@ -160,17 +188,28 @@ class LoginPage extends ConsumerWidget
                         SpysPrimaryButton(
                           text: StringsAf.signInCta,
                           isLoading: isLoading,
-                          onPressed: isFormValid ? () {
-                            // Simulate login
-                            ref.read(loginLoadingProvider.notifier).state = true;
-                            
-                            // Simulate API call delay
-                            Future.delayed(const Duration(seconds: 2), () {
-                              ref.read(loginLoadingProvider.notifier).state = false;
-                              debugPrint('Login attempted with email: ${ref.read(emailProvider)}');
-                            });
+                          onPressed: isFormValid ? () async {
+                            final email = ref.read(emailProvider);
+                            final password = ref.read(passwordProvider);
 
-                            //TODO: log in databasis goed.
+                            ref.read(authErrorProvider.notifier).state = null;
+                            ref.read(authLoadingProvider.notifier).state = true;
+
+                            try {
+                              final authService = ref.read(authServiceProvider);
+                              await authService.signInWithEmail(email: email, password: password);
+                              if (context.mounted) { context.go('/home'); }
+                            } catch (e) {
+                              String errorMessage = 'Teken in het gefaal';
+                              if (e.toString().contains('Invalid login credentials')) {
+                                errorMessage = 'Verkeerde e-pos of wagwoord';
+                              } else if (e.toString().contains('Email not confirmed')) {
+                                errorMessage = 'E-pos nog nie bevestig nie';
+                              }
+                              ref.read(authErrorProvider.notifier).state = errorMessage;
+                            } finally {
+                              ref.read(authLoadingProvider.notifier).state = false;
+                            }
                           } : null,
                         ),
                       ],
