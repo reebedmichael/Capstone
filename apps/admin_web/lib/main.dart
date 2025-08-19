@@ -2,8 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'core/routes/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart';
+import 'bootstrap.dart';
+import 'locator.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: kReleaseMode ? '.env.prod' : '.env.dev');
+
+  await bootstrapSupabase();
+
+  setupLocator();
+
   runApp(const ProviderScope(child: SpysAdminApp()));
 }
 
