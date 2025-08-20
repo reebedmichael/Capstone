@@ -66,6 +66,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
   /// Robust ingredient extraction:
   /// - checks various candidate keys,
   /// - accepts List, Map, JSON array string, CSV/semicolon/newline separated strings,
+  /// - supports Postgres array string format `{a,b}`,
   /// - tries nested 'kos_item' key and description fallback.
   List<String> get _ingredients {
     final candidateKeys = [
@@ -125,15 +126,18 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
   List<String> _parseIngredientsRaw(dynamic raw) {
     if (raw == null) return [];
 
+    // If Supabase already gave a List
     if (raw is List) {
       return raw.map((e) => e.toString().trim()).where((s) => s.isNotEmpty).toList();
     }
 
+    // Map -> take values
     if (raw is Map) {
       final vals = raw.values.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
       if (vals.isNotEmpty) return vals;
     }
 
+    // Strings: handle many possible formats
     if (raw is String) {
       final s = raw.trim();
       if (s.isEmpty) return [];
@@ -150,10 +154,33 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
         }
       }
 
-      // split common separators
+      // Postgres array string like '{Beesvleis,Uie}' or '{"Beesvleis","Uie"}'
+      if (s.startsWith('{') && s.endsWith('}')) {
+        final inner = s.substring(1, s.length - 1);
+        // split on commas that are not inside quotes - simple approach:
+        // if values are quoted, remove surrounding quotes later.
+        final parts = inner.split(',');
+        final cleaned = parts.map((p) {
+          var part = p.trim();
+          if ((part.startsWith('"') && part.endsWith('"')) || (part.startsWith("'") && part.endsWith("'"))) {
+            part = part.substring(1, part.length - 1);
+          }
+          return part;
+        }).where((p) => p.isNotEmpty).toList();
+        if (cleaned.isNotEmpty) return cleaned;
+      }
+
+      // split common separators (comma, semicolon, newline, bullet)
       final parts = s.split(RegExp(r',|;|\n|•|\u2022'));
       if (parts.length > 1) {
-        return parts.map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+        return parts.map((p) {
+          var v = p.trim();
+          // remove surrounding quotes if present
+          if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+            v = v.substring(1, v.length - 1);
+          }
+          return v;
+        }).where((p) => p.isNotEmpty).toList();
       }
 
       // dash separated fallback
@@ -162,7 +189,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       }
 
       // single short string -> treat as single ingredient
-      if (s.length <= 80) return [s];
+      if (s.length <= 200) return [s];
     }
 
     return [];
@@ -179,7 +206,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       if (args.containsKey('kos_item') && args['kos_item'] is Map<String, dynamic>) {
         // prefer nested kos_item map
         item = Map<String, dynamic>.from(args['kos_item'] as Map);
-        // but also copy top-level week_dag_naam if present in wrapper so _day works
+        // copy top-level week_dag_naam if present
         if (args.containsKey('week_dag') && args['week_dag'] is Map && args['week_dag']['week_dag_naam'] != null) {
           item['week_dag_naam'] = args['week_dag']['week_dag_naam'];
         } else if (args.containsKey('week_dag_naam') && args['week_dag_naam'] != null) {
