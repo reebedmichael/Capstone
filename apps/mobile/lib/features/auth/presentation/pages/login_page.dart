@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../shared/constants/strings_af.dart';
 import '../../../../shared/constants/spacing.dart';
 import '../../../../shared/widgets/spys_primary_button.dart';
@@ -83,10 +84,14 @@ class LoginPage extends ConsumerWidget
 
                       try {
                         final authService = ref.read(authServiceProvider);
-                        await authService.signInWithEmail(
+                        final response = await authService.signInWithEmail(
                           email: 'student@spys.co.za', 
                           password: 'student123'
                         );
+
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setString("gebr_id", response.user!.id);
+
                         if (context.mounted) { context.go('/home'); }
                       } catch (e) {
                         String errorMessage = 'Demo teken in het gefaal';
@@ -197,7 +202,11 @@ class LoginPage extends ConsumerWidget
 
                             try {
                               final authService = ref.read(authServiceProvider);
-                              await authService.signInWithEmail(email: email, password: password);
+                              final response = await authService.signInWithEmail(email: email, password: password);
+
+                              final prefs = await SharedPreferences.getInstance();
+                              await prefs.setString("gebr_id", response.user!.id);
+
                               if (context.mounted) { context.go('/home'); }
                             } catch (e) {
                               String errorMessage = 'Teken in het gefaal';
