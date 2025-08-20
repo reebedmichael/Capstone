@@ -8,7 +8,7 @@ class GebruikersRepository {
   SupabaseClient get _sb => _db.raw;
 
   Future<Map<String, dynamic>?> kryGebruiker(String gebrId) async {
-    final data = await _sb.from('gebruikers')
+    final data = await _sb.from('vw_gebruikers_volledig')
         .select()
         .eq('gebr_id', gebrId)
         .maybeSingle();
