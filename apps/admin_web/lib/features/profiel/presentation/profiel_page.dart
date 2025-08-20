@@ -1,7 +1,10 @@
 import 'package:capstone_admin/locator.dart';
 import 'package:capstone_admin/shared/constants/spacing.dart';
+import 'package:capstone_admin/shared/providers/auth_form_providers.dart';
+import 'package:capstone_admin/shared/providers/auth_providers.dart';
 import 'package:capstone_admin/shared/widgets/spys_primary_button.dart';
 import 'package:flutter/material.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:spys_api_client/spys_api_client.dart';
 import '../../../shared/widgets/name_fields.dart';
 import '../../../shared/widgets/email_field.dart';
@@ -9,21 +12,14 @@ import '../../../shared/widgets/cellphone_field.dart';
 import '../../../shared/widgets/location_dropdown.dart';
 import 'package:go_router/go_router.dart';
 
-class ProfielPage extends StatefulWidget {
+class ProfielPage extends ConsumerStatefulWidget {
   const ProfielPage({super.key});
 
   @override
-  State<ProfielPage> createState() => _ProfielPageState();
+  ConsumerState<ProfielPage> createState() => _ProfielPageState();
 }
 
-class _ProfielPageState extends State<ProfielPage> {
-  String firstName = '';
-  String lastName = '';
-  String email = '';
-  String cellphone = '078 435 5301';
-  String status = 'wag_goedkeuring';
-  DateTime? createdDate;
-  DateTime? lastActive;
+class _ProfielPageState extends ConsumerState<ProfielPage> {
   bool isLoading = true;
 
   @override
@@ -39,12 +35,15 @@ class _ProfielPageState extends State<ProfielPage> {
 
       if (data != null) {
         setState(() {
-          firstName = data['gebr_naam'] ?? '';
-          lastName = data['gebr_van'] ?? '';
-          email = data['gebr_epos'] ?? '';
-          status = data['is_aktief'] == true ? 'aktief' : 'wag_goedkeuring';
-          createdDate = data['gebr_geskep_datum'] != null ? DateTime.parse(data['gebr_geskep_datum']) : null;
-          lastActive = DateTime.now();
+          ref.read(firstNameProvider.notifier).state = data['gebr_naam'] ?? '';
+          ref.read(lastNameProvider.notifier).state = data['gebr_van'] ?? '';
+          ref.read(emailProvider.notifier).state = data['gebr_epos'] ?? '';
+          ref.read(cellphoneProvider.notifier).state = data["gebr_selfoon"] ?? '';
+          ref.read(statusProvider.notifier).state = data["is_aktief"] ?? false;
+          ref.read(createdDateProvider.notifier).state = data["gebr_geskep_datum"];
+          //TODO: gaan ons rerig hierdie gebruik? vvvv
+          ref.read(lastActiveProvider.notifier).state = DateTime.now();
+          ref.read(locationProvider.notifier).state = data["kampus_naam"];
           isLoading = false;
         });
       } else {
@@ -68,6 +67,17 @@ class _ProfielPageState extends State<ProfielPage> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
+
+    final firstName = ref.watch(firstNameProvider);
+    final lastName = ref.watch(lastNameProvider);
+    final email = ref.watch(emailProvider);
+    final cellphone = ref.watch(cellphoneProvider);
+    final status = ref.watch(statusProvider);
+    final createdDate = ref.watch(createdDateProvider);
+    final lastActive = ref.watch(lastActiveProvider);
+    final location = ref.watch(locationProvider);
+
+    final isFormValid = ref.watch(profielFormValidProvider);
 
     final initials =
         "${firstName.isNotEmpty ? firstName[0] : ''}${lastName.isNotEmpty ? lastName[0] : ''}"
@@ -143,9 +153,9 @@ class _ProfielPageState extends State<ProfielPage> {
                                       ),
                                       Chip(
                                         label: Text(
-                                          status == "aktief" ? "Aktief" : "Wag Goedkeuring",
+                                          status == true ? "Aktief" : "Wag Goedkeuring",
                                         ),
-                                        backgroundColor: status == "aktief"
+                                        backgroundColor: status == true
                                             ? Colors.green.shade50
                                             : Colors.orange.shade50,
                                       ),
@@ -241,15 +251,48 @@ class _ProfielPageState extends State<ProfielPage> {
                             CellphoneField(initialCellphone: cellphone),
 
                             Spacing.vGap16,
-                            LocationDropdown(),
+                            LocationDropdown(initialValue: location),
 
                             Spacing.vGap16,
                             SpysPrimaryButton(
                               text: "Stoor",
-                              onPressed: true
-                                  ? () {
-                                      //TODO: Save updated info via repository
+                              onPressed: isFormValid
+                                  ? () async
+                                  {
+                                    final gebRepository = sl<GebruikersRepository>();
+                                    final kamRepository = sl<KampusRepository>();
+                                    final newKampusID = await kamRepository.kryKampusID(location);
+                                    //TODO:kyk of email en ander goed bots
+                                    // final gebruikersMetEpos = await gebRepository.soekGebruikers(email);
+
+                                    _loadUserData();
+                                    
+                                    if (context.mounted) 
+                                    {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Registrasie suksesvol! Jy kan nou in teken.'),
+                                          backgroundColor: Colors.green,
+                                        ));
+
+                                        debugPrint(firstName);
+
+
+
+                                      await gebRepository.skepOfOpdateerGebruiker(
+                                        {
+                                          //TODO: gebruik local id
+                                          "gebr_id" : "fe08a973-bdd4-4618-b4ca-6754d510c9a5",
+                                          "gebr_naam" : firstName,
+                                          "gebr_van" : lastName,
+                                          "gebr_epos" : email,
+                                          "gebr_selfoon" : cellphone,
+                                          //TODO: hierdie werk nie
+                                          "kampus_id" : newKampusID
+                                        }
+                                      );
                                     }
+                                  }
                                   : null,
                             ),
                           ],

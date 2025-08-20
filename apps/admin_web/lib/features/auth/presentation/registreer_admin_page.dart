@@ -138,7 +138,7 @@ class RegistreerAdminPage extends ConsumerWidget {
                           final cellphone = ref.read(cellphoneProvider);
                           final password = ref.read(passwordProvider);
                           final confirmPassword = ref.read(confirmPasswordProvider);
-                          
+                           
                           // Validate passwords match
                           if (password != confirmPassword) {
                             ref.read(authErrorProvider.notifier).state = 'Wagwoorde stem nie ooreen nie';
