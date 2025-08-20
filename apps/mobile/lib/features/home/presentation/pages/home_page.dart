@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../locator.dart';
 import '../../../../shared/constants/spacing.dart';
 import '../../../app/presentation/widgets/app_bottom_nav.dart';
+import 'package:spys_api_client/src/spyskaart_repository.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -13,9 +15,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  String selectedDay = 'Maandag';
+  String selectedDay = 'Alle';
   String selectedCategory = 'Alle';
-  final days = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrydag'];
+  final days = ['Alle', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrydag'];
   final categories = [
     'Alle',
     'Hoofkos',
@@ -24,6 +26,68 @@ class _HomePageState extends State<HomePage> {
     'Glutenvry',
     'Personeelspesifiek'
   ];
+
+  Map<String, dynamic>? spyskaart;
+  List<Map<String, dynamic>> allMenuItems = [];
+  List<Map<String, dynamic>> filteredMenuItems = [];
+  bool isLoading = true;
+  String searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchMenu();
+  }
+
+  Future<void> _fetchMenu() async {
+    setState(() => isLoading = true);
+    try {
+      final spyskaartData = await sl<SpyskaartRepository>().getAktieweSpyskaart();
+      if (spyskaartData != null) {
+        final List<dynamic> items = spyskaartData['spyskaart_kos_item'] ?? [];
+        final mappedItems = items.map((e) {
+          final kosItem = Map<String, dynamic>.from(e['kos_item'] ?? {});
+          kosItem['week_dag_naam'] = e['week_dag']?['week_dag_naam'] ?? '';
+          kosItem['kos_item_kategorie'] = kosItem['kos_item_kategorie'] ?? 'Alle';
+          return kosItem;
+        }).toList();
+
+        setState(() {
+          spyskaart = spyskaartData;
+          allMenuItems = mappedItems;
+          _applyFilters();
+        });
+      } else {
+        setState(() {
+          spyskaart = null;
+          allMenuItems = [];
+          filteredMenuItems = [];
+        });
+      }
+    } catch (e) {
+      print('Error fetching menu: $e');
+      setState(() {
+        spyskaart = null;
+        allMenuItems = [];
+        filteredMenuItems = [];
+      });
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  void _applyFilters() {
+    final query = searchQuery.toLowerCase();
+    filteredMenuItems = allMenuItems.where((item) {
+      final matchesDay = selectedDay == 'Alle' || item['week_dag_naam'] == selectedDay;
+      final matchesCategory =
+          selectedCategory == 'Alle' || item['kos_item_kategorie'] == selectedCategory;
+      final matchesSearch = query.isEmpty ||
+          (item['kos_item_naam']?.toLowerCase().contains(query) ?? false) ||
+          (item['kos_item_beskrywing']?.toLowerCase().contains(query) ?? false);
+      return matchesDay && matchesCategory && matchesSearch;
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -92,6 +156,12 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 12),
                   // Search bar
                   TextField(
+                    onChanged: (val) {
+                      setState(() {
+                        searchQuery = val;
+                        _applyFilters();
+                      });
+                    },
                     decoration: InputDecoration(
                       hintText: 'Soek na kos, bestanddele...',
                       prefixIcon: const Icon(Icons.search),
@@ -122,7 +192,10 @@ class _HomePageState extends State<HomePage> {
                   return ChoiceChip(
                     label: Text(day),
                     selected: isSelected,
-                    onSelected: (_) => setState(() => selectedDay = day),
+                    onSelected: (_) => setState(() {
+                      selectedDay = day;
+                      _applyFilters();
+                    }),
                     selectedColor: AppColors.primary,
                     labelStyle: TextStyle(
                         color: isSelected ? Colors.white : AppColors.onSurfaceVariant),
@@ -144,7 +217,10 @@ class _HomePageState extends State<HomePage> {
                       child: ChoiceChip(
                         label: Text(cat),
                         selected: isSelected,
-                        onSelected: (_) => setState(() => selectedCategory = cat),
+                        onSelected: (_) => setState(() {
+                          selectedCategory = cat;
+                          _applyFilters();
+                        }),
                         selectedColor: AppColors.primary,
                         labelStyle: TextStyle(
                             color: isSelected ? Colors.white : AppColors.primary),
@@ -158,20 +234,25 @@ class _HomePageState extends State<HomePage> {
 
             // Food Items List
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(Spacing.screenHPad),
-                itemCount: 5, // voorbeeld items
-                itemBuilder: (context, index) {
-                  return _buildFoodCard(
-                    name: 'Dag se spesiaal',
-                    description: 'Heerlike vars opsies',
-                    price: 49.99,
-                    imageUrl: null,
-                    available: index % 2 == 0,
-                    allergens: ['Gluten', 'Lactose'],
-                  );
-                },
-              ),
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : filteredMenuItems.isEmpty
+                      ? const Center(child: Text('Geen items beskikbaar'))
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(Spacing.screenHPad),
+                          itemCount: filteredMenuItems.length,
+                          itemBuilder: (context, index) {
+                            final item = filteredMenuItems[index];
+                            final available = item['is_aktief'] ?? true;
+                            return _buildFoodCard(
+                              name: item['kos_item_naam'] ?? 'Geen Naam',
+                              description: item['kos_item_beskrywing'] ?? '',
+                              price: item['kos_item_koste']?.toDouble() ?? 0.0,
+                              available: available,
+                              dayName: item['week_dag_naam'] ?? '',
+                            );
+                          },
+                        ),
             ),
           ],
         ),
@@ -196,9 +277,8 @@ class _HomePageState extends State<HomePage> {
     required String name,
     required String description,
     required double price,
-    String? imageUrl,
     required bool available,
-    required List<String> allergens,
+    required String dayName,
   }) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -208,63 +288,20 @@ class _HomePageState extends State<HomePage> {
           Container(
             width: 100,
             height: 100,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                bottomLeft: Radius.circular(12),
-              ),
-              image: imageUrl != null && imageUrl.isNotEmpty
-                  ? DecorationImage(image: NetworkImage(imageUrl), fit: BoxFit.cover)
-                  : null,
-            ),
-            child: !available
-                ? Container(
-                    color: Colors.black54,
-                    child: const Center(
-                      child: Text('Uitverkoop', style: TextStyle(color: Colors.white)),
-                    ),
-                  )
-                : null,
+            color: AppColors.surfaceVariant,
+            child: const Icon(Icons.fastfood, size: 40, color: AppColors.onSurfaceVariant),
           ),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(name, style: AppTypography.titleMedium),
-                  const SizedBox(height: 4),
-                  Text(description, style: AppTypography.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: allergens
-                        .map((a) => Container(
-                              margin: const EdgeInsets.only(right: 4),
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: AppColors.primary),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(a, style: const TextStyle(fontSize: 10)),
-                            ))
-                        .toList(),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('R${price.toStringAsFixed(2)}', style: AppTypography.titleMedium.copyWith(color: AppColors.primary)),
-                      ElevatedButton(
-                        onPressed: available ? () => context.go('/food-detail') : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        ),
-                        child: Text(available ? 'Besigtig Detail' : 'Uitverkoop'),
-                      ),
-                    ],
-                  ),
+                  if (description.isNotEmpty) Text(description),
+                  Text('Prys: R$price'),
+                  Text('Dag: $dayName'),
+                  if (!available) Text('Nie beskikbaar nie', style: TextStyle(color: Colors.red)),
                 ],
               ),
             ),
