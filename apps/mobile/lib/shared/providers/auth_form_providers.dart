@@ -5,9 +5,15 @@ final firstNameProvider = StateProvider<String>((ref) => '');
 final lastNameProvider = StateProvider<String>((ref) => '');
 final emailProvider = StateProvider<String>((ref) => '');
 final cellphoneProvider = StateProvider<String>((ref) => '');
+final locationProvider = StateProvider<String>((ref) => '');
+final userRollProvider = StateProvider<String>((ref) => '');
+final adminRollProvider = StateProvider<String>((ref) => '');
 final passwordProvider = StateProvider<String>((ref) => '');
 final confirmPasswordProvider = StateProvider<String>((ref) => '');
 final walletBalanceProvider = StateProvider<double>((ref) => 0.0);
+final statusProvider = StateProvider<bool>((ref) => false);
+final createdDateProvider = StateProvider<DateTime>((ref) => DateTime.now());
+final lastActiveProvider = StateProvider<DateTime>((ref) => DateTime.now());
 
 // UI state providers
 final passwordVisibleProvider = StateProvider<bool>((ref) => false);
@@ -69,4 +75,27 @@ final registerFormValidProvider = Provider<bool>((ref) {
          emailError == null && 
          passwordError == null && 
          confirmPasswordError == null;
+});
+
+// Form validity providers - Profiel
+final profielFormValidProvider = Provider<bool>((ref) {
+  final firstName = ref.watch(firstNameProvider);
+  final lastName = ref.watch(lastNameProvider);
+  final email = ref.watch(emailProvider);
+  final cellphone = ref.watch(cellphoneProvider);
+  
+  final firstNameError = ref.watch(firstNameErrorProvider);
+  final lastNameError = ref.watch(lastNameErrorProvider);
+  final emailError = ref.watch(emailErrorProvider);
+  final cellphoneError = ref.watch(cellphoneErrorProvider);
+  
+  return firstName.isNotEmpty && 
+         lastName.isNotEmpty && 
+         email.isNotEmpty && 
+         cellphone.isNotEmpty &&
+
+         firstNameError == null && 
+         lastNameError == null && 
+         cellphoneError == null &&
+         emailError == null;
 });
