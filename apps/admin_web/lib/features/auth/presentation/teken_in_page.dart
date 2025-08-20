@@ -13,17 +13,15 @@ import '../../../shared/providers/auth_providers.dart';
 import '../../../shared/widgets/email_field.dart';
 import '../../../shared/widgets/password_field.dart';
 
-class TekenInPage extends ConsumerWidget 
-{
+class TekenInPage extends ConsumerWidget {
   const TekenInPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) 
-  {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isLoading = ref.watch(authLoadingProvider);
     final isFormValid = ref.watch(loginFormValidProvider);
     final authError = ref.watch(authErrorProvider);
-    
+
     return Scaffold(
       body: Center(
         child: Container(
@@ -46,13 +44,13 @@ class TekenInPage extends ConsumerWidget
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Spacing.vGap40,
-                  
+
                   // Header with Logo and Brand
                   const AuthHeader(
                     title: StringsAfAdmin.loginTitle,
                     subtitle: StringsAfAdmin.appTitle,
                   ),
-                  
+
                   // Login Form Card
                   Card(
                     elevation: 8,
@@ -78,15 +76,15 @@ class TekenInPage extends ConsumerWidget
                             textAlign: TextAlign.center,
                           ),
                           Spacing.vGap24,
-                          
+
                           // Email field
                           const EmailField(),
                           Spacing.vGap16,
-                          
+
                           // Password field
                           const PasswordField(),
                           Spacing.vGap8,
-                          
+
                           // Error message
                           if (authError != null)
                             Container(
@@ -105,7 +103,7 @@ class TekenInPage extends ConsumerWidget
                                 textAlign: TextAlign.center,
                               ),
                             ),
-                          
+
                           // Forgot password link
                           Align(
                             alignment: Alignment.centerRight,
@@ -114,11 +112,17 @@ class TekenInPage extends ConsumerWidget
                                 showDialog(
                                   context: context,
                                   builder: (context) => AlertDialog(
-                                    title: Text(StringsAfAdmin.forgotPasswordDialogTitle),
-                                    content: Text(StringsAfAdmin.forgotPasswordDialogMessage),
+                                    title: Text(
+                                      StringsAfAdmin.forgotPasswordDialogTitle,
+                                    ),
+                                    content: Text(
+                                      StringsAfAdmin
+                                          .forgotPasswordDialogMessage,
+                                    ),
                                     actions: [
                                       TextButton(
-                                        onPressed: () => Navigator.of(context).pop(),
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(),
                                         child: Text(StringsAfAdmin.dialogOk),
                                       ),
                                     ],
@@ -132,48 +136,71 @@ class TekenInPage extends ConsumerWidget
                             ),
                           ),
                           Spacing.vGap24,
-                          
+
                           // Sign in button
                           SpysPrimaryButton(
                             text: StringsAfAdmin.signInCta,
                             isLoading: isLoading,
-                            onPressed: isFormValid ? () async {
-                              final email = ref.read(emailProvider);
-                              final password = ref.read(passwordProvider);
-                              
-                              // Clear any previous errors
-                              ref.read(authErrorProvider.notifier).state = null;
-                              ref.read(authLoadingProvider.notifier).state = true;
-                              
-                              try {
-                                final authService = ref.read(authServiceProvider);
-                                await authService.signInWithEmail(
-                                  email: email,
-                                  password: password,
-                                );
-                                
-                                if (context.mounted) {
-                                  context.go("/dashboard");
-                                }
-                              } catch (e) {
-                                String errorMessage = 'Teken in het gefaal';
-                                if (e.toString().contains('Invalid login credentials')) {
-                                  errorMessage = 'Verkeerde e-pos of wagwoord';
-                                } else if (e.toString().contains('Email not confirmed')) {
-                                  errorMessage = 'E-pos nog nie bevestig nie';
-                                }
-                                
-                                ref.read(authErrorProvider.notifier).state = errorMessage;
-                              } finally {
-                                ref.read(authLoadingProvider.notifier).state = false;
-                              }
-                            } : null,
+                            onPressed: isFormValid
+                                ? () async {
+                                    final email = ref.read(emailProvider);
+                                    final password = ref.read(passwordProvider);
+
+                                    // Clear any previous errors
+                                    ref.read(authErrorProvider.notifier).state =
+                                        null;
+                                    ref
+                                            .read(authLoadingProvider.notifier)
+                                            .state =
+                                        true;
+
+                                    try {
+                                      final authService = ref.read(
+                                        authServiceProvider,
+                                      );
+                                      await authService.signInWithEmail(
+                                        email: email,
+                                        password: password,
+                                      );
+
+                                      if (context.mounted) {
+                                        context.go("/dashboard");
+                                      }
+                                    } catch (e) {
+                                      String errorMessage =
+                                          'Teken in het gefaal';
+                                      if (e.toString().contains(
+                                        'Invalid login credentials',
+                                      )) {
+                                        errorMessage =
+                                            'Verkeerde e-pos of wagwoord';
+                                      } else if (e.toString().contains(
+                                        'Email not confirmed',
+                                      )) {
+                                        errorMessage =
+                                            'E-pos nog nie bevestig nie';
+                                      }
+
+                                      ref
+                                              .read(authErrorProvider.notifier)
+                                              .state =
+                                          errorMessage;
+                                    } finally {
+                                      ref
+                                              .read(
+                                                authLoadingProvider.notifier,
+                                              )
+                                              .state =
+                                          false;
+                                    }
+                                  }
+                                : null,
                           ),
                         ],
                       ),
                     ),
                   ),
-                  
+
                   // Register section
                   Container(
                     padding: const EdgeInsets.all(24),
@@ -187,32 +214,43 @@ class TekenInPage extends ConsumerWidget
                             isLoading: isLoading,
                             onPressed: () async {
                               // Auto-fill demo credentials
-                              ref.read(emailProvider.notifier).state = 'admin@spys.co.za';
-                              ref.read(passwordProvider.notifier).state = 'admin123';
-                              
+                              ref.read(emailProvider.notifier).state =
+                                  'prvanstaden.phillip@gmail.com';
+                              ref.read(passwordProvider.notifier).state =
+                                  '12345Qwerty';
+
                               // Clear any previous errors
                               ref.read(authErrorProvider.notifier).state = null;
-                              ref.read(authLoadingProvider.notifier).state = true;
-                              
+                              ref.read(authLoadingProvider.notifier).state =
+                                  true;
+
                               try {
-                                final authService = ref.read(authServiceProvider);
-                                await authService.signInWithEmail(
-                                  email: 'admin@spys.co.za',
-                                  password: 'admin123',
+                                final authService = ref.read(
+                                  authServiceProvider,
                                 );
-                                
+                                await authService.signInWithEmail(
+                                  email: 'prvanstaden.phillip@gmail.com',
+                                  password: '12345Qwerty',
+                                );
+
                                 if (context.mounted) {
                                   context.go('/dashboard');
                                 }
                               } catch (e) {
-                                String errorMessage = 'Demo teken in het gefaal';
-                                if (e.toString().contains('Invalid login credentials')) {
-                                  errorMessage = 'Demo rekening bestaan nie - registreer eers';
+                                String errorMessage =
+                                    'Demo teken in het gefaal';
+                                if (e.toString().contains(
+                                  'Invalid login credentials',
+                                )) {
+                                  errorMessage =
+                                      'Demo rekening bestaan nie - registreer eers';
                                 }
-                                
-                                ref.read(authErrorProvider.notifier).state = errorMessage;
+
+                                ref.read(authErrorProvider.notifier).state =
+                                    errorMessage;
                               } finally {
-                                ref.read(authLoadingProvider.notifier).state = false;
+                                ref.read(authLoadingProvider.notifier).state =
+                                    false;
                               }
                             },
                           ),
@@ -223,7 +261,9 @@ class TekenInPage extends ConsumerWidget
                           children: [
                             const Expanded(child: Divider()),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
                               child: Text(
                                 StringsAfAdmin.orDivider,
                                 style: AppTypography.caption.copyWith(
@@ -234,9 +274,9 @@ class TekenInPage extends ConsumerWidget
                             const Expanded(child: Divider()),
                           ],
                         ),
-                        
+
                         Spacing.vGap16,
-                        
+
                         // Register text and button
                         Text(
                           StringsAfAdmin.noAccountQ,
@@ -244,7 +284,7 @@ class TekenInPage extends ConsumerWidget
                           textAlign: TextAlign.center,
                         ),
                         Spacing.vGap12,
-                        
+
                         OutlinedButton(
                           onPressed: () => context.go('/registreer_admin'),
                           style: OutlinedButton.styleFrom(
@@ -268,7 +308,7 @@ class TekenInPage extends ConsumerWidget
                       ],
                     ),
                   ),
-                  
+
                   // Footer
                   Container(
                     padding: const EdgeInsets.all(24),
@@ -293,7 +333,7 @@ class TekenInPage extends ConsumerWidget
             ),
           ),
         ),
-      )
+      ),
     );
   }
 }
