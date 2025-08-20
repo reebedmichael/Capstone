@@ -1,32 +1,76 @@
+import 'package:capstone_admin/locator.dart';
 import 'package:capstone_admin/shared/constants/spacing.dart';
 import 'package:capstone_admin/shared/widgets/spys_primary_button.dart';
 import 'package:flutter/material.dart';
-import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:go_router/go_router.dart';
-
-import '../../../shared/providers/auth_form_providers.dart';
+import 'package:spys_api_client/spys_api_client.dart';
 import '../../../shared/widgets/name_fields.dart';
 import '../../../shared/widgets/email_field.dart';
 import '../../../shared/widgets/cellphone_field.dart';
 import '../../../shared/widgets/location_dropdown.dart';
+import 'package:go_router/go_router.dart';
 
-class ProfielPage extends ConsumerWidget {
+class ProfielPage extends StatefulWidget {
   const ProfielPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final name = ref.watch(firstNameProvider);
-    final surname = ref.watch(lastNameProvider);
-    final email = ref.watch(emailProvider);
-    final status = ref.watch(
-      accountStatusProvider,
-    ); // e.g. "aktief", "wag_goedkeuring"
-    final createdDate = ref.watch(accountCreatedDateProvider);
-    final lastActive = ref.watch(accountLastActiveProvider);
-    final isFormValid = ref.watch(registerFormValidProvider);
+  State<ProfielPage> createState() => _ProfielPageState();
+}
+
+class _ProfielPageState extends State<ProfielPage> {
+  String firstName = '';
+  String lastName = '';
+  String email = '';
+  String cellphone = '078 435 5301';
+  String status = 'wag_goedkeuring';
+  DateTime? createdDate;
+  DateTime? lastActive;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final repository = sl<GebruikersRepository>();
+      final data = await repository.kryGebruiker("fe08a973-bdd4-4618-b4ca-6754d510c9a5");
+
+      if (data != null) {
+        setState(() {
+          firstName = data['gebr_naam'] ?? '';
+          lastName = data['gebr_van'] ?? '';
+          email = data['gebr_epos'] ?? '';
+          status = data['is_aktief'] == true ? 'aktief' : 'wag_goedkeuring';
+          createdDate = data['gebr_geskep_datum'] != null ? DateTime.parse(data['gebr_geskep_datum']) : null;
+          lastActive = DateTime.now();
+          isLoading = false;
+        });
+      } else {
+        debugPrint("Data not found");
+        setState(() {
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching user: $e");
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
 
     final initials =
-        "${name.isNotEmpty ? name[0] : ''}${surname.isNotEmpty ? surname[0] : ''}"
+        "${firstName.isNotEmpty ? firstName[0] : ''}${lastName.isNotEmpty ? lastName[0] : ''}"
             .toUpperCase();
 
     return Scaffold(
@@ -54,7 +98,6 @@ class ProfielPage extends ConsumerWidget {
                 ],
               ),
             ),
-
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
@@ -79,7 +122,7 @@ class ProfielPage extends ConsumerWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    "$name $surname",
+                                    "$firstName $lastName",
                                     style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -88,28 +131,19 @@ class ProfielPage extends ConsumerWidget {
                                   const SizedBox(height: 4),
                                   Text(
                                     email,
-                                    style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                    ),
+                                    style: TextStyle(color: Colors.grey.shade600),
                                   ),
                                   const SizedBox(height: 8),
                                   Wrap(
                                     spacing: 8,
                                     children: [
-                                      Chip(
-                                        label: Text(
-                                          "Ekstern",
-                                        ), //TODO: wys gebruiker se eintlike rol, dalk ook tipe admin hulle is
-                                        avatar: const Icon(
-                                          Icons.shield,
-                                          size: 16,
-                                        ),
+                                      const Chip(
+                                        label: Text("Ekstern"),
+                                        avatar: Icon(Icons.shield, size: 16),
                                       ),
                                       Chip(
                                         label: Text(
-                                          status == "aktief"
-                                              ? "Aktief"
-                                              : "Wag Goedkeuring",
+                                          status == "aktief" ? "Aktief" : "Wag Goedkeuring",
                                         ),
                                         backgroundColor: status == "aktief"
                                             ? Colors.green.shade50
@@ -119,13 +153,10 @@ class ProfielPage extends ConsumerWidget {
                                         label: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            const Icon(
-                                              Icons.calendar_today,
-                                              size: 14,
-                                            ),
+                                            const Icon(Icons.calendar_today, size: 14),
                                             const SizedBox(width: 4),
                                             Text(
-                                              "Lid sedert ${createdDate.toString().split(' ').first}",
+                                              "Lid sedert ${createdDate?.toString().split(' ').first ?? "Onbekend"}",
                                             ),
                                           ],
                                         ),
@@ -139,9 +170,7 @@ class ProfielPage extends ConsumerWidget {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 16),
-
                     // Role Information
                     Card(
                       child: Padding(
@@ -163,9 +192,9 @@ class ProfielPage extends ConsumerWidget {
                               ],
                             ),
                             const SizedBox(height: 12),
-                            Text(
-                              "Huidige Rol: Ekstern", //TODO: wys gebruiker se eintlike rol, dalk ook tipe admin hulle is
-                              style: const TextStyle(
+                            const Text(
+                              "Huidige Rol: Ekstern",
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -181,9 +210,7 @@ class ProfielPage extends ConsumerWidget {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 16),
-
                     // Personal Information
                     Card(
                       child: Padding(
@@ -192,12 +219,12 @@ class ProfielPage extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
-                              children: const [
-                                Icon(Icons.person, size: 20),
-                                SizedBox(width: 8),
+                              children: [
+                                const Icon(Icons.person, size: 20),
+                                const SizedBox(width: 8),
                                 Text(
                                   "Persoonlike Inligting",
-                                  style: TextStyle(
+                                  style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -205,21 +232,23 @@ class ProfielPage extends ConsumerWidget {
                               ],
                             ),
                             Spacing.vGap20,
+                            NameFields(initialFirstName: firstName, initialLastName: lastName),
 
-                            const NameFields(),
                             Spacing.vGap16,
-                            const EmailField(),
-                            Spacing.vGap16,
-                            const CellphoneField(),
-                            Spacing.vGap16,
-                            const LocationDropdown(),
-                            Spacing.vGap16,
+                            EmailField(initialEmail: email),
 
+                            Spacing.vGap16,
+                            CellphoneField(initialCellphone: cellphone),
+
+                            Spacing.vGap16,
+                            LocationDropdown(),
+
+                            Spacing.vGap16,
                             SpysPrimaryButton(
                               text: "Stoor",
-                              onPressed: isFormValid
+                              onPressed: true
                                   ? () {
-                                      // Save updated info
+                                      //TODO: Save updated info via repository
                                     }
                                   : null,
                             ),
@@ -227,9 +256,7 @@ class ProfielPage extends ConsumerWidget {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 16),
-
                     // Account Activity
                     Card(
                       child: Padding(
@@ -247,17 +274,13 @@ class ProfielPage extends ConsumerWidget {
                             const SizedBox(height: 12),
                             _buildActivityRow(
                               "Rekening geskep:",
-                              createdDate.toString().split(' ').first,
+                              createdDate?.toString().split(' ').first ?? "Onbekend",
                             ),
                             _buildActivityRow(
                               "Laaste aktiwiteit:",
-                              lastActive.toString().split(' ').first ??
-                                  "Onbekend",
+                              lastActive?.toString().split(' ').first ?? "Onbekend",
                             ),
-                            _buildActivityRow(
-                              "Rol:",
-                              "Esktern",
-                            ), //TODO: wys gebruiker se eintlike rol, dalk ook tipe admin hulle is
+                            _buildActivityRow("Rol:", "Ekstern"),
                           ],
                         ),
                       ),
