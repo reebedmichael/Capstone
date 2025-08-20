@@ -5,6 +5,7 @@ import 'package:capstone_admin/shared/providers/auth_providers.dart';
 import 'package:capstone_admin/shared/widgets/spys_primary_button.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spys_api_client/spys_api_client.dart';
 import '../../../shared/widgets/name_fields.dart';
 import '../../../shared/widgets/email_field.dart';
@@ -30,8 +31,11 @@ class _ProfielPageState extends ConsumerState<ProfielPage> {
 
   Future<void> _loadUserData() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final id = prefs.getString("gebr_id");
+
       final repository = sl<GebruikersRepository>();
-      final data = await repository.kryGebruiker("fe08a973-bdd4-4618-b4ca-6754d510c9a5");
+      final data = await repository.kryGebruiker(id!);
 
       if (data != null) {
         setState(() {
@@ -277,12 +281,13 @@ class _ProfielPageState extends ConsumerState<ProfielPage> {
 
                                         debugPrint(firstName);
 
-
+                                      final prefs = await SharedPreferences.getInstance();
+                                      final id = prefs.getString("gebr_id");
 
                                       await gebRepository.skepOfOpdateerGebruiker(
                                         {
                                           //TODO: gebruik local id
-                                          "gebr_id" : "fe08a973-bdd4-4618-b4ca-6754d510c9a5",
+                                          "gebr_id" : id,
                                           "gebr_naam" : firstName,
                                           "gebr_van" : lastName,
                                           "gebr_epos" : email,
