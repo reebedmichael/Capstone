@@ -123,6 +123,9 @@ class _WeekTemplateCardState extends State<WeekTemplateCard> {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Text(
+                                                "Beskrywing: ${item.beskrywing}",
+                                              ),
+                                              Text(
                                                 "Kategorie: ${item.kategorie}",
                                               ),
                                               Text(

@@ -61,6 +61,7 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
       id: "1",
       naam: "Beesburger",
       bestanddele: ["Beesvleis", "Broodjie", "Kaas", "Tamatie", "Slaai"],
+      beskrywing: "super!",
       allergene: ["Gluten", "Melk"],
       prys: 85.00,
       kategorie: "Hoofgereg",
@@ -69,6 +70,7 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
       id: "2",
       naam: "Ontbyt Omelet",
       bestanddele: ["Eiers", "Kaas", "Uie", "Spinasie"],
+      beskrywing: "super!",
       allergene: ["Eiers", "Melk"],
       prys: 55.00,
       kategorie: "Ontbyt",
@@ -76,6 +78,7 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
     KositemTemplate(
       id: "3",
       naam: "Vrugteslaai",
+      beskrywing: "super!",
       bestanddele: ["Appel", "Bessie", "Druiwe", "Piesang"],
       allergene: [],
       prys: 45.00,
@@ -84,6 +87,7 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
     KositemTemplate(
       id: "4",
       naam: "Koffie Latte",
+      beskrywing: "super!",
       bestanddele: ["Koffie", "Melk", "Suiker"],
       allergene: ["Melk"],
       prys: 30.00,

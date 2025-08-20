@@ -7,8 +7,9 @@ class KositemFormModal extends StatelessWidget {
   final TextEditingController prysController;
   final TextEditingController bestanddeleController;
   final TextEditingController allergeneController;
+  final TextEditingController beskrywingController;
   final String? selectedCategory;
-  final Uint8List? selectedImage;
+  final String? selectedImage;
   final bool isLoading;
   final VoidCallback onCancel;
   final VoidCallback onSave;
@@ -29,6 +30,7 @@ class KositemFormModal extends StatelessWidget {
     required this.onSave,
     required this.onPickImage,
     required this.onCategoryChanged,
+    required this.beskrywingController,
   });
 
   @override
@@ -90,6 +92,17 @@ class KositemFormModal extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
 
+                      TextFormField(
+                        controller: beskrywingController,
+                        maxLines: 3,
+                        decoration: const InputDecoration(
+                          labelText: 'Beskrywing',
+                          hintText: 'Gee ’n kort beskrywing van die item',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
                       // Kategorie
                       DropdownButtonFormField<String>(
                         value: selectedCategory,
@@ -103,11 +116,11 @@ class KositemFormModal extends StatelessWidget {
                             : null,
                         items:
                             [
-                                  'Hoofgereg',
-                                  'Ontbyt',
-                                  'Versnappering',
-                                  'Ligte ete',
-                                  'Drankie',
+                                  'Hoofkos',
+                                  'Vegetaries',
+                                  'Vegan',
+                                  'Glutenvry',
+                                  'Personeelspesifiek',
                                 ]
                                 .map(
                                   (val) => DropdownMenuItem(
@@ -154,13 +167,14 @@ class KositemFormModal extends StatelessWidget {
                             label: const Text('Kies Prent'),
                           ),
                           const SizedBox(width: 16),
-                          if (selectedImage != null)
+                          if (selectedImage != null &&
+                              selectedImage!.isNotEmpty)
                             SizedBox(
                               width: 80,
                               height: 80,
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: Image.memory(
+                                child: Image.network(
                                   selectedImage!,
                                   fit: BoxFit.cover,
                                 ),

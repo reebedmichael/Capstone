@@ -23,7 +23,7 @@ class KositemTemplateCard extends StatelessWidget {
             SizedBox(
               height: 150,
               width: double.infinity,
-              child: Image.memory(template.prent!, fit: BoxFit.cover),
+              child: Image.network(template.prent!, fit: BoxFit.cover),
             ),
           Expanded(
             child: Padding(
@@ -38,6 +38,9 @@ class KositemTemplateCard extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                  const SizedBox(height: 8),
+
+                  Text('Beskrywing: ${template.beskrywing}'),
                   const SizedBox(height: 8),
                   Text('Kategorie: ${template.kategorie}'),
                   const SizedBox(height: 8),

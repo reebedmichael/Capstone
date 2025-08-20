@@ -7,8 +7,11 @@ class SpyskaartRepository {
 
   SupabaseClient get _sb => _db.raw;
 
-  Future<List<Map<String, dynamic>>> lysSpyskaartVirWeek(String spyskaartId) async {
-    final rows = await _sb.from('spyskaart_kos_item')
+  Future<List<Map<String, dynamic>>> lysSpyskaartVirWeek(
+    String spyskaartId,
+  ) async {
+    final rows = await _sb
+        .from('spyskaart_kos_item')
         .select('''
           *,
           kos_item:kos_item_id(*),
@@ -20,7 +23,8 @@ class SpyskaartRepository {
 
   Future<List<Map<String, dynamic>>> lysAktiefOpDatum(DateTime datum) async {
     final dateStr = datum.toIso8601String().split('T')[0];
-    final rows = await _sb.from('spyskaart')
+    final rows = await _sb
+        .from('spyskaart')
         .select('''
           *,
           spyskaart_kos_item:spyskaart_kos_item(
@@ -33,4 +37,4 @@ class SpyskaartRepository {
         .lte('spyskaart_datum', dateStr);
     return List<Map<String, dynamic>>.from(rows);
   }
-} 
+}

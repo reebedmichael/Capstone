@@ -192,7 +192,8 @@ create table if not exists public.SPYSKAART (
   SPYSKAART_ID uuid primary key default gen_random_uuid(),
   SPYSKAART_NAAM text not null default '',
   SPYSKAART_IS_TEMPLAAT boolean default false,
-  SPYSKAART_DATUM timestamp default now()
+  SPYSKAART_DATUM timestamp default now(),
+  SPYSKAART_IS_ACTIVE boolean default false,
 );
 
 create table if not exists public.WEEK_DAG (

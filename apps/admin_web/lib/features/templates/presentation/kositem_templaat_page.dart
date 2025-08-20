@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:spys_api_client/spys_api_client.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/kos_item_templaat.dart';
 import '../widgets/kos_templaat_card.dart';
 import '../widgets/kositem_empty_state.dart';
@@ -15,59 +17,62 @@ class KositemTemplaatPage extends StatefulWidget {
 }
 
 class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
-  List<KositemTemplate> templates = [
-    KositemTemplate(
-      id: "1",
-      naam: "Beesburger",
-      bestanddele: ["Beesvleis", "Broodjie", "Kaas", "Tamatie", "Slaai"],
-      allergene: ["Gluten", "Melk"],
-      prys: 85.00,
-      kategorie: "Hoofgereg",
-    ),
-    KositemTemplate(
-      id: "2",
-      naam: "Ontbyt Omelet",
-      bestanddele: ["Eiers", "Kaas", "Uie", "Spinasie"],
-      allergene: ["Eiers", "Melk"],
-      prys: 55.00,
-      kategorie: "Ontbyt",
-    ),
-    KositemTemplate(
-      id: "3",
-      naam: "Vrugteslaai",
-      bestanddele: ["Appel", "Bessie", "Druiwe", "Piesang"],
-      allergene: [],
-      prys: 45.00,
-      kategorie: "Ligte ete",
-    ),
-    KositemTemplate(
-      id: "4",
-      naam: "Koffie Latte",
-      bestanddele: ["Koffie", "Melk", "Suiker"],
-      allergene: ["Melk"],
-      prys: 30.00,
-      kategorie: "Drankie",
-    ),
-  ];
+  // final SpyskaartRepository repo = SpyskaartRepository(SupabaseDb());
 
-  bool toonVormModal = false;
-  KositemTemplate? huidigeTemplate;
+  List<KositemTemplate> templates = [];
   bool isLoading = false;
   String suksesBoodskap = '';
   String foutBoodskap = '';
+
+  bool toonVormModal = false;
+  KositemTemplate? huidigeTemplate;
 
   final _formKey = GlobalKey<FormState>();
   final TextEditingController naamController = TextEditingController();
   final TextEditingController bestanddeleController = TextEditingController();
   final TextEditingController allergeneController = TextEditingController();
   final TextEditingController prysController = TextEditingController();
+  final TextEditingController beskrywingController = TextEditingController();
   String? selectedCategory;
-  Uint8List? selectedImage;
+  String? selectedImage;
+
+  late final AdminSpyskaartRepository repo;
+
+  @override
+  void initState() {
+    super.initState();
+    repo = AdminSpyskaartRepository(SupabaseDb(Supabase.instance.client));
+    laaiTemplates();
+  }
+
+  Future<void> laaiTemplates() async {
+    setState(() => isLoading = true);
+    try {
+      final rows = await repo.getKosItems();
+      templates = rows.map((row) {
+        return KositemTemplate(
+          id: row['kos_item_id'].toString(),
+          naam: row['kos_item_naam'] ?? '',
+          beskrywing: row['kos_item_beskrywing'] ?? '',
+          bestanddele:
+              (row['kos_item_bestandele'] as List?)?.cast<String>() ?? [],
+          allergene: (row['kos_item_allergene'] as List?)?.cast<String>() ?? [],
+          prys: (row['kos_item_koste'] as num?)?.toDouble() ?? 0.0,
+          kategorie: row['kos_item_kategorie'] ?? '',
+          prent: row['kos_item_prentjie'],
+        );
+      }).toList();
+    } catch (e) {
+      foutBoodskap = e.toString();
+    }
+    setState(() => isLoading = false);
+  }
 
   void resetVorm() {
     naamController.clear();
     bestanddeleController.clear();
     allergeneController.clear();
+    beskrywingController.clear();
     prysController.clear();
     selectedCategory = null;
     selectedImage = null;
@@ -76,8 +81,11 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
 
   void laaiTemplateInVorm(KositemTemplate template) {
     naamController.text = template.naam;
+    beskrywingController.text = template.beskrywing;
     bestanddeleController.text = template.bestanddele.join(', ');
-    allergeneController.text = template.allergene.join(', ');
+    allergeneController.text = template.allergene.join(
+      ', ',
+    ); //////////////////////////////////////////////////////////////////////////////////////////
     prysController.text = template.prys.toString();
     selectedCategory = template.kategorie;
     selectedImage = template.prent;
@@ -89,14 +97,30 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
       type: FileType.image,
       withData: true,
     );
+
     if (result != null && result.files.single.bytes != null) {
-      setState(() {
-        selectedImage = result.files.single.bytes;
-      });
+      final bytes = result.files.single.bytes!; // Uint8List
+
+      setState(() => isLoading = true);
+
+      try {
+        final fileName = naamController.text.trim().isEmpty
+            ? 'kositem'
+            : naamController.text.trim().replaceAll(' ', '_');
+
+        // upload en kry URL
+        final url = await repo.uploadKosItemPrent(bytes, fileName);
+
+        setState(() => selectedImage = url);
+      } catch (e) {
+        setState(() => foutBoodskap = e.toString());
+      } finally {
+        setState(() => isLoading = false);
+      }
     }
   }
 
-  void stoorTemplate() {
+  Future<void> stoorTemplate() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -105,7 +129,7 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
       suksesBoodskap = '';
     });
 
-    Future.delayed(const Duration(milliseconds: 500), () {
+    try {
       final bestanddeleLys = bestanddeleController.text
           .split(',')
           .map((b) => b.trim())
@@ -118,62 +142,62 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
           .where((a) => a.isNotEmpty)
           .toList();
 
+      final kosItemData = {
+        'kos_item_naam': naamController.text.trim(),
+        'kos_item_bestandele': bestanddeleLys,
+        'kos_item_beskrywing': beskrywingController.text.trim(),
+        'kos_item_allergene': allergeneLys,
+        'kos_item_koste': double.tryParse(prysController.text.trim()) ?? 0,
+        'kos_item_kategorie': selectedCategory ?? '',
+        // 'kos_item_prentjie': selectedImage, // store URL not bytes
+      };
+      // slegs sit die prentjie key as ons 'n URL het (nuwe of reeds ingestel)
+      if (selectedImage != null && selectedImage!.isNotEmpty) {
+        kosItemData['kos_item_prentjie'] = selectedImage!;
+      }
       if (huidigeTemplate != null) {
-        final index = templates.indexWhere((t) => t.id == huidigeTemplate!.id);
-        if (index != -1) {
-          templates[index] = KositemTemplate(
-            id: huidigeTemplate!.id,
-            naam: naamController.text.trim(),
-            bestanddele: bestanddeleLys,
-            allergene: allergeneLys,
-            prys: double.tryParse(prysController.text.trim()) ?? 0,
-            kategorie: selectedCategory ?? '',
-            prent: selectedImage,
-          );
-          suksesBoodskap = 'Templaat suksesvol gewysig';
-        }
+        await repo.updateKosItem(huidigeTemplate!.id, kosItemData);
+        suksesBoodskap = 'Templaat suksesvol gewysig';
       } else {
-        templates.add(
-          KositemTemplate(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            naam: naamController.text.trim(),
-            bestanddele: bestanddeleLys,
-            allergene: allergeneLys,
-            prys: double.tryParse(prysController.text.trim()) ?? 0,
-            kategorie: selectedCategory ?? '',
-            prent: selectedImage,
-          ),
-        );
+        await repo.addKosItem(kosItemData);
         suksesBoodskap = 'Templaat suksesvol geskep';
       }
 
+      await laaiTemplates();
       setState(() {
-        isLoading = false;
         toonVormModal = false;
         resetVorm();
       });
+    } catch (e) {
+      foutBoodskap = e.toString();
+    }
 
-      Future.delayed(const Duration(seconds: 3), () {
-        setState(() {
-          suksesBoodskap = '';
-          foutBoodskap = '';
-        });
-      });
-    });
+    setState(() => isLoading = false);
   }
 
-  void verwyderTemplate(KositemTemplate template) {
-    setState(() {
-      templates.removeWhere((t) => t.id == template.id);
-      suksesBoodskap = "Templaat '${template.naam}' is verwyder";
-    });
-
-    Future.delayed(const Duration(seconds: 1), () {
-      setState(() {
-        suksesBoodskap = '';
-      });
-    });
+  Future<void> verwyderTemplate(KositemTemplate template) async {
+    try {
+      await repo.softDeleteKosItem(template.id);
+      await laaiTemplates();
+      setState(
+        () => suksesBoodskap = "Templaat '${template.naam}' is verwyder",
+      );
+    } catch (e) {
+      foutBoodskap = e.toString();
+    }
   }
+  //Hard delete
+  // Future<void> verwyderTemplate(KositemTemplate template) async {
+  //   try {
+  //     await repo.deleteKosItem(template.id);
+  //     await laaiTemplates();
+  //     setState(
+  //       () => suksesBoodskap = "Templaat '${template.naam}' is verwyder",
+  //     );
+  //   } catch (e) {
+  //     foutBoodskap = e.toString();
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -204,7 +228,9 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
             if (foutBoodskap.isNotEmpty)
               _buildFeedbackMessage(foutBoodskap, Colors.red, Icons.error),
             Expanded(
-              child: templates.isEmpty
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : templates.isEmpty
                   ? KositemEmptyState(
                       onCreate: () {
                         resetVorm();
@@ -236,7 +262,9 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
                                 onConfirm: () => Navigator.pop(context, true),
                               ),
                             );
-                            if (bevestig == true) verwyderTemplate(template);
+                            if (bevestig == true) {
+                              verwyderTemplate(template);
+                            }
                           },
                         );
                       },
@@ -251,6 +279,7 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
               naamController: naamController,
               prysController: prysController,
               bestanddeleController: bestanddeleController,
+              beskrywingController: beskrywingController,
               allergeneController: allergeneController,
               selectedCategory: selectedCategory,
               selectedImage: selectedImage,
