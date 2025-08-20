@@ -52,6 +52,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ref.read(emailProvider.notifier).state = data['gebr_epos'] ?? '';
           ref.read(cellphoneProvider.notifier).state = data["gebr_selfoon"] ?? '';
           ref.read(locationProvider.notifier).state = data["kampus_naam"] ?? '';
+          ref.read(walletBalanceProvider.notifier).state = data['beursie_balans'] ?? '';
           isLoading = false;
         });
       } else {
