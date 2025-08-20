@@ -231,10 +231,14 @@ class TekenInPage extends ConsumerWidget {
                                 final authService = ref.read(
                                   authServiceProvider,
                                 );
-                                await authService.signInWithEmail(
+
+                                final response = await authService.signInWithEmail(
                                   email: 'prvanstaden.phillip@gmail.com',
                                   password: '12345Qwerty',
                                 );
+
+                                final prefs = await SharedPreferences.getInstance();
+                                await prefs.setString("gebr_id", response.user!.id);
 
                                 if (context.mounted) {
                                   context.go('/dashboard');
