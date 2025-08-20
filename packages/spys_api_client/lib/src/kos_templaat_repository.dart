@@ -4,9 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 // import 'package:uuid/uuid.dart';
 import 'db.dart';
 
-class AdminSpyskaartRepository {
+class KosTemplaatRepository {
   final SupabaseDb _db;
-  AdminSpyskaartRepository(this._db);
+  KosTemplaatRepository(this._db);
 
   SupabaseClient get _sb => _db.client;
 

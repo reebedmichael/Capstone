@@ -36,12 +36,12 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
   String? selectedCategory;
   String? selectedImage;
 
-  late final AdminSpyskaartRepository repo;
+  late final KosTemplaatRepository repo;
 
   @override
   void initState() {
     super.initState();
-    repo = AdminSpyskaartRepository(SupabaseDb(Supabase.instance.client));
+    repo = KosTemplaatRepository(SupabaseDb(Supabase.instance.client));
     laaiTemplates();
   }
 
