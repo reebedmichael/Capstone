@@ -346,7 +346,8 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       Text('R${price.toStringAsFixed(2)}', style: AppTypography.titleMedium.copyWith(color: AppColors.primary)),
                       const SizedBox(width: 12),
-                      if (dayName.isNotEmpty) Text(dayName, style: AppTypography.labelSmall),
+                      if (dayName.isNotEmpty && selectedDay == 'Alle')  
+                Text(dayName, style: AppTypography.labelSmall),
                       const Spacer(),
                       TextButton(
                         onPressed: () {
