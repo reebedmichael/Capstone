@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../app/presentation/widgets/app_bottom_nav.dart';
@@ -347,11 +348,16 @@ class _WalletPageState extends State<WalletPage>
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary),
-                          onPressed: () {
+                          onPressed: () async {
                             // DUMMY ACTION: Show snackbar
+                            final prefs = await SharedPreferences.getInstance();
+                            final current = prefs.getDouble("beursie_balaans");
+
+                            await prefs.setDouble("beursie_balaans", current! + double.parse(topUpAmount));
+
                             ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                    content: Text('Top-up clicked')));
+                                    content: Text('Fondse Bygevoeg.')));
                           },
                           icon: const Icon(Icons.add),
                           label: Text(
