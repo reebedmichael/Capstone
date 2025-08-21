@@ -76,8 +76,8 @@ class LoginPage extends ConsumerWidget
                     isLoading: isLoading,
                     onPressed: () async {
                       // Auto-fill demo credentials
-                      ref.read(emailProvider.notifier).state = 'student@spys.co.za';
-                      ref.read(passwordProvider.notifier).state = 'student123';
+                      ref.read(emailProvider.notifier).state = 'swanepoel.jacques.za@gmail.com';
+                      ref.read(passwordProvider.notifier).state = 'Game4sloop';
                       
                       ref.read(authErrorProvider.notifier).state = null;
                       ref.read(authLoadingProvider.notifier).state = true;
@@ -85,12 +85,15 @@ class LoginPage extends ConsumerWidget
                       try {
                         final authService = ref.read(authServiceProvider);
                         final response = await authService.signInWithEmail(
-                          email: 'student@spys.co.za', 
-                          password: 'student123'
+                          email: 'swanepoel.jacques.za@gmail.com', 
+                          password: 'Game4sloop'
                         );
 
                         final prefs = await SharedPreferences.getInstance();
                         await prefs.setString("gebr_id", response.user!.id);
+
+                        //TODO: Fix hierdie
+                        prefs.setDouble("beursie_balaans", 200.0);
 
                         if (context.mounted) { context.go('/home'); }
                       } catch (e) {
@@ -206,6 +209,9 @@ class LoginPage extends ConsumerWidget
 
                               final prefs = await SharedPreferences.getInstance();
                               await prefs.setString("gebr_id", response.user!.id);
+
+                              //TODO: Fix hierdie
+                              prefs.setDouble("beursie_balaans", 200.0);
 
                               if (context.mounted) { context.go('/home'); }
                             } catch (e) {
