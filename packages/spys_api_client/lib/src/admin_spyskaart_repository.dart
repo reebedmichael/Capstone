@@ -1,0 +1,307 @@
+// lib/src/week_templaat_repository.dart
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'db.dart';
+
+/// Handles SPYSKAART (weekly menu) + SPYSKAART_KOS_ITEM + WEEK_DAG helpers.
+/// Provides:
+/// - templates CRUD (spyskaart with spyskaart_is_templaat = true)
+/// - helpers for fetching/creating a spyskaart for a given week start date
+/// - add/remove item to/from spyskaart for a specific dag name (e.g. 'maandag')
+class AdminSpyskaartRepository {
+  final SupabaseDb _db;
+  AdminSpyskaartRepository(this._db);
+
+  SupabaseClient get _sb => _db.client;
+
+  Map<String, String>? _weekDagCache; // dag_naam -> week_dag_id
+
+  Future<Map<String, String>> _ensureWeekDagCache() async {
+    if (_weekDagCache != null) return _weekDagCache!;
+    final rows = await _sb
+        .from('week_dag')
+        .select('week_dag_id, week_dag_naam');
+    final map = <String, String>{};
+    for (final r in rows as List) {
+      final naam = (r['week_dag_naam'] as String).toLowerCase();
+      map[naam] = r['week_dag_id'] as String;
+    }
+    _weekDagCache = map;
+    return map;
+  }
+
+  /// Convert DateTime -> 'YYYY-MM-DD' date string (no time).
+  String _dateOnly(DateTime d) {
+    final iso = d.toIso8601String();
+    return iso.split('T')[0];
+  }
+
+  /// Find a spyskaart by exact date (spyskaart_datum) or return null.
+  Future<Map<String, dynamic>?> _findSpyskaartByDate(DateTime date) async {
+    final dateStr = _dateOnly(date);
+    final row = await _sb
+        .from('spyskaart')
+        .select('''
+          spyskaart_id,
+          spyskaart_naam,
+          spyskaart_beskrywing,
+          spyskaart_datum,
+          spyskaart_is_templaat,
+          spyskaart_is_active,
+          spyskaart_kos_item:spyskaart_kos_item(
+            spyskaart_kos_id,
+            kos_item:kos_item_id(*),
+            week_dag:week_dag_id(*)
+          )
+          ''')
+        .eq('spyskaart_datum', dateStr)
+        .maybeSingle();
+    return row;
+  }
+
+  /// Get or create a spyskaart row for the given weekStart date.
+  /// Returns the full row (with nested spyskaart_kos_item).
+  Future<Map<String, dynamic>> getOrCreateSpyskaartForDate(
+    DateTime weekStart,
+  ) async {
+    final dateStr = _dateOnly(weekStart);
+    final existing = await _sb
+        .from('spyskaart')
+        .select('''
+          spyskaart_id,
+          spyskaart_naam,
+          spyskaart_datum,
+          spyskaart_is_templaat,
+          spyskaart_is_active,
+          spyskaart_kos_item:spyskaart_kos_item(
+            spyskaart_kos_id,
+            kos_item:kos_item_id(*),
+            week_dag:week_dag_id(*)
+          )
+          ''')
+        .eq('spyskaart_datum', dateStr)
+        .maybeSingle();
+
+    if (existing != null) return Map<String, dynamic>.from(existing);
+
+    // create new spyskaart row (konsep)
+    final insert = {
+      'spyskaart_naam': 'Week Spyskaart ${dateStr}',
+      'spyskaart_is_templaat': false,
+      'spyskaart_is_active': false,
+      'spyskaart_datum': dateStr,
+    };
+
+    final created = await _sb
+        .from('spyskaart')
+        .insert(insert)
+        .select()
+        .single();
+    // fetch nested children (none at creation)
+    final row = await _sb
+        .from('spyskaart')
+        .select('''
+          spyskaart_id,
+          spyskaart_naam,
+          spyskaart_datum,
+          spyskaart_is_templaat,
+          spyskaart_is_active,
+          spyskaart_kos_item:spyskaart_kos_item(
+            spyskaart_kos_id,
+            kos_item:kos_item_id(*),
+            week_dag:week_dag_id(*)
+          )
+          ''')
+        .eq('spyskaart_id', created['spyskaart_id'])
+        .maybeSingle();
+
+    return Map<String, dynamic>.from(row as Map);
+  }
+
+  /// Add a kos_item to a spyskaart for a day name (maandag, ...).
+  Future<void> addItemToSpyskaart({
+    required String spyskaartId,
+    required String dagNaam, // e.g. 'maandag'
+    required String kosItemId,
+  }) async {
+    final dagMap = await _ensureWeekDagCache();
+    final dagId = dagMap[dagNaam.toLowerCase()];
+    if (dagId == null) throw Exception('Geen week_dag gevind vir $dagNaam');
+
+    await _sb.from('spyskaart_kos_item').insert({
+      'spyskaart_id': spyskaartId,
+      'kos_item_id': kosItemId,
+      'week_dag_id': dagId,
+    });
+  }
+
+  /// Remove a kos_item from a spyskaart for a day name (removes any matching rows).
+  Future<void> removeItemFromSpyskaart({
+    required String spyskaartId,
+    required String dagNaam,
+    required String kosItemId,
+  }) async {
+    final dagMap = await _ensureWeekDagCache();
+    final dagId = dagMap[dagNaam.toLowerCase()];
+    if (dagId == null) throw Exception('Geen week_dag gevind vir $dagNaam');
+
+    await _sb
+        .from('spyskaart_kos_item')
+        .delete()
+        .eq('spyskaart_id', spyskaartId)
+        .eq('kos_item_id', kosItemId)
+        .eq('week_dag_id', dagId);
+  }
+
+  /// Mark spyskaart as approved / active (sets spyskaart_is_active = true)
+  Future<void> approveSpyskaart(String spyskaartId) async {
+    await _sb
+        .from('spyskaart')
+        .update({'spyskaart_is_active': true})
+        .eq('spyskaart_id', spyskaartId);
+  }
+
+  // ------------------- Template CRUD (spyskaart_is_templaat = true) -------------------
+
+  Future<Map<String, dynamic>> createWeekTemplate({
+    required String naam,
+    String? beskrywing,
+    required Map<String, List<Map<String, dynamic>>> dae,
+  }) async {
+    final insertPayload = {
+      'spyskaart_naam': naam,
+      'spyskaart_is_templaat': true,
+      'spyskaart_is_active': false,
+      'spyskaart_datum': DateTime.now().toIso8601String(),
+    };
+
+    final spyskaart = await _sb
+        .from('spyskaart')
+        .insert(insertPayload)
+        .select()
+        .single();
+    final spyskaartId = spyskaart['spyskaart_id'] as String;
+
+    final dagMap = await _ensureWeekDagCache();
+    final inserts = <Map<String, dynamic>>[];
+
+    dae.forEach((dagNaam, lys) {
+      final dagId = dagMap[dagNaam.toLowerCase()];
+      if (dagId == null) return;
+      for (final kos in lys) {
+        final kosId = kos['id'] as String?;
+        if (kosId == null) continue;
+        inserts.add({
+          'spyskaart_id': spyskaartId,
+          'kos_item_id': kosId,
+          'week_dag_id': dagId,
+        });
+      }
+    });
+
+    if (inserts.isNotEmpty)
+      await _sb.from('spyskaart_kos_item').insert(inserts);
+
+    return Map<String, dynamic>.from(spyskaart);
+  }
+
+  Future<void> updateWeekTemplate({
+    required String spyskaartId,
+    required String naam,
+    String? beskrywing,
+    required Map<String, List<Map<String, dynamic>>> dae,
+  }) async {
+    await _sb
+        .from('spyskaart')
+        .update({'spyskaart_naam': naam})
+        .eq('spyskaart_id', spyskaartId);
+    await _sb
+        .from('spyskaart_kos_item')
+        .delete()
+        .eq('spyskaart_id', spyskaartId);
+
+    final dagMap = await _ensureWeekDagCache();
+    final inserts = <Map<String, dynamic>>[];
+
+    dae.forEach((dagNaam, lys) {
+      final dagId = dagMap[dagNaam.toLowerCase()];
+      if (dagId == null) return;
+      for (final kos in lys) {
+        final kosId = kos['id'] as String?;
+        if (kosId == null) continue;
+        inserts.add({
+          'spyskaart_id': spyskaartId,
+          'kos_item_id': kosId,
+          'week_dag_id': dagId,
+        });
+      }
+    });
+
+    if (inserts.isNotEmpty)
+      await _sb.from('spyskaart_kos_item').insert(inserts);
+  }
+
+  Future<void> deleteWeekTemplate(String spyskaartId) async {
+    await _sb
+        .from('spyskaart_kos_item')
+        .delete()
+        .eq('spyskaart_id', spyskaartId);
+    await _sb.from('spyskaart').delete().eq('spyskaart_id', spyskaartId);
+  }
+
+  Future<List<Map<String, dynamic>>> listWeekTemplatesRaw() async {
+    final rows = await _sb
+        .from('spyskaart')
+        .select('''
+          spyskaart_id,
+          spyskaart_naam,
+          spyskaart_datum,
+          spyskaart_is_templaat,
+          spyskaart_kos_item:spyskaart_kos_item(
+            spyskaart_kos_id,
+            kos_item:kos_item_id(*),
+            week_dag:week_dag_id(*)
+          )
+          ''')
+        .eq('spyskaart_is_templaat', true)
+        .order('spyskaart_datum', ascending: false);
+
+    return List<Map<String, dynamic>>.from(rows as List);
+  }
+
+  Future<Map<String, dynamic>?> getTemplateRawById(String spyskaartId) async {
+    final row = await _sb
+        .from('spyskaart')
+        .select('''
+          spyskaart_id,
+          spyskaart_naam,
+          spyskaart_datum,
+          spyskaart_is_templaat,
+          spyskaart_kos_item(
+            spyskaart_kos_id,
+            week_dag:week_dag_id(week_dag_id, week_dag_naam),
+            kos_item:kos_item_id(
+              kos_item_id,
+              kos_item_naam,
+              kos_item_beskrywing,
+              kos_item_koste,
+              kos_item_prentjie,
+              kos_item_bestandele,
+              kos_item_allergene,
+              kos_item_kategorie
+            )
+          )
+          ''')
+        .eq('spyskaart_id', spyskaartId)
+        .maybeSingle();
+
+    if (row == null) return null;
+    return Map<String, dynamic>.from(row);
+  }
+
+  Future<void> approveWeek(int spyskaartId) async {
+    await _sb
+        .from('spyskaart')
+        .update({'status': 'goedgekeur'})
+        .eq('spyskaart_id', spyskaartId);
+  }
+}

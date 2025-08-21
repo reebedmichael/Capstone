@@ -1,4 +1,3 @@
-// item_detail_dialog.dart
 import 'package:flutter/material.dart';
 import 'models.dart';
 
@@ -8,6 +7,9 @@ class ItemDetailDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasImg = item.prentBytes != null || item.prentUrl != null;
+    final beskrywing = (item.beskrywing ?? '').trim();
+
     return Dialog(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 900),
@@ -22,7 +24,7 @@ class ItemDetailDialog extends StatelessWidget {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 12),
-                if (item.prentBytes != null || item.prentUrl != null)
+                if (hasImg)
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: SizedBox(
@@ -53,7 +55,8 @@ class ItemDetailDialog extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    Chip(label: Text(item.kategorie)),
+                    if (item.kategorie.isNotEmpty)
+                      Chip(label: Text(item.kategorie)),
                     Chip(
                       label: Text(
                         item.beskikbaar ? 'Beskikbaar' : 'Nie Beskikbaar',
@@ -61,13 +64,30 @@ class ItemDetailDialog extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  'Bestanddele:',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 6),
-                Text(item.bestanddele.join(', ')),
+
+                // Beskrywing
+                if (beskrywing.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'Beskrywing:',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(beskrywing),
+                ],
+
+                // Bestanddele
+                if (item.bestanddele.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'Bestanddele:',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(item.bestanddele.join(', ')),
+                ],
+
+                // Allergene
                 if (item.allergene.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   Text(
@@ -77,6 +97,7 @@ class ItemDetailDialog extends StatelessWidget {
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
+                    runSpacing: 8,
                     children: item.allergene
                         .map(
                           (a) => Chip(
@@ -87,6 +108,7 @@ class ItemDetailDialog extends StatelessWidget {
                         .toList(),
                   ),
                 ],
+
                 const SizedBox(height: 16),
                 Text(
                   'Geskep op: ${item.geskep.day}/${item.geskep.month}/${item.geskep.year}',

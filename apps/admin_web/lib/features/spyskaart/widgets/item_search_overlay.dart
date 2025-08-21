@@ -1,4 +1,3 @@
-// item_search_overlay.dart
 import 'package:flutter/material.dart';
 import 'models.dart';
 
@@ -29,14 +28,15 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
     return widget.items.where((item) {
       final inName = item.naam.toLowerCase().contains(term);
       final inCat = item.kategorie.toLowerCase().contains(term);
+      final inDesc = (item.beskrywing ?? '').toLowerCase().contains(term);
       final inIng = item.bestanddele.any((b) => b.toLowerCase().contains(term));
-      return inName || inCat || inIng;
+      final inAlg = item.allergene.any((a) => a.toLowerCase().contains(term));
+      return inName || inCat || inDesc || inIng || inAlg;
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    // ⛔️ No more Positioned.fill here. This is now just the dialog body.
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Column(
@@ -85,13 +85,14 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
               autofocus: true,
               decoration: const InputDecoration(
                 prefixIcon: Icon(Icons.search),
-                hintText: 'Soek volgens naam, kategorie of bestanddele...',
+                hintText:
+                    'Soek volgens naam, kategorie, beskrywing of bestanddele...',
               ),
               onChanged: (v) => setState(() => q = v),
             ),
           ),
 
-          // body
+          // results
           Expanded(
             child: Builder(
               builder: (ctx) {
@@ -124,15 +125,14 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
 
                 return LayoutBuilder(
                   builder: (context, c) {
-                    int cols = c.maxWidth >= 1000 ? 2 : 1;
-                    // ✅ return GridView directly (no Expanded inside LayoutBuilder)
+                    final cols = c.maxWidth >= 1000 ? 2 : 1;
                     return GridView.builder(
                       padding: const EdgeInsets.all(12),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: cols,
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 12,
-                        childAspectRatio: 1.8,
+                        childAspectRatio: 1.9,
                       ),
                       itemCount: results.length,
                       itemBuilder: (context, i) {
@@ -140,6 +140,8 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
                         final isAlreeds = widget.alreadySelectedIds.contains(
                           item.id,
                         );
+                        final beskrywing = (item.beskrywing ?? '').trim();
+
                         return InkWell(
                           onTap: () {
                             if (!isAlreeds) widget.onAdd(item.id);
@@ -206,8 +208,10 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
                                         const SizedBox(height: 6),
                                         Wrap(
                                           spacing: 6,
+                                          runSpacing: 6,
                                           children: [
-                                            Chip(label: Text(item.kategorie)),
+                                            if (item.kategorie.isNotEmpty)
+                                              Chip(label: Text(item.kategorie)),
                                             if (isAlreeds)
                                               Chip(
                                                 backgroundColor: Colors.green,
@@ -221,15 +225,32 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
                                               ),
                                           ],
                                         ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          item.bestanddele.join(', '),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            color: Theme.of(context).hintColor,
+                                        if (beskrywing.isNotEmpty) ...[
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            beskrywing,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              color: Theme.of(
+                                                context,
+                                              ).hintColor,
+                                            ),
                                           ),
-                                        ),
+                                        ],
+                                        if (item.bestanddele.isNotEmpty) ...[
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            item.bestanddele.join(', '),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              color: Theme.of(
+                                                context,
+                                              ).hintColor,
+                                            ),
+                                          ),
+                                        ],
                                         if (item.allergene.isNotEmpty)
                                           Padding(
                                             padding: const EdgeInsets.only(
@@ -237,6 +258,7 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
                                             ),
                                             child: Wrap(
                                               spacing: 6,
+                                              runSpacing: 6,
                                               children: item.allergene
                                                   .map(
                                                     (a) => Chip(

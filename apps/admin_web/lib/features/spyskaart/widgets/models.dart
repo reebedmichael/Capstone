@@ -17,6 +17,7 @@ class Kositem {
   final Uint8List? prentBytes;
   final String? prentUrl;
   final bool beskikbaar;
+  final String beskrywing;
   final DateTime geskep;
 
   Kositem({
@@ -29,6 +30,7 @@ class Kositem {
     this.prentBytes,
     this.prentUrl,
     this.beskikbaar = true,
+    required this.beskrywing,
     DateTime? geskep,
   }) : geskep = geskep ?? DateTime.now();
 }

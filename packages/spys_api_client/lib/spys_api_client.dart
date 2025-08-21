@@ -7,3 +7,4 @@ export 'src/beursie_repository.dart';
 export 'src/kampus_repository.dart';
 export 'src/kos_templaat_repository.dart';
 export 'src/week_templaat_repository.dart';
+export 'src/admin_spyskaart_repository.dart';

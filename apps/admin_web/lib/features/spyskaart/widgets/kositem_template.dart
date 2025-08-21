@@ -7,6 +7,7 @@ class KositemTemplate {
   final List<String> allergene;
   final double prys;
   final String kategorie;
+  final String beskrywing;
   final Uint8List? prent;
 
   KositemTemplate({
@@ -15,6 +16,7 @@ class KositemTemplate {
     required this.bestanddele,
     required this.allergene,
     required this.prys,
+    required this.beskrywing,
     required this.kategorie,
     this.prent,
   });

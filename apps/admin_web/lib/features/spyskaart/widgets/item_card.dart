@@ -1,4 +1,3 @@
-// item_card.dart
 import 'package:flutter/material.dart';
 import 'models.dart';
 
@@ -24,6 +23,12 @@ class ItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasImg = item.prentBytes != null || item.prentUrl != null;
+    final beskrywing = (item.beskrywing ?? '').trim();
+    final bestanddele = item.bestanddele;
+    final allergene = item.allergene;
+    final kategorie = item.kategorie;
+
     return Card(
       shape: RoundedRectangleBorder(
         side: BorderSide(
@@ -36,7 +41,7 @@ class ItemCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (item.prentBytes != null || item.prentUrl != null)
+            if (hasImg)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: SizedBox(
@@ -54,6 +59,8 @@ class ItemCard extends StatelessWidget {
                   child: Text(
                     item.naam,
                     style: const TextStyle(fontWeight: FontWeight.w600),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 Text(
@@ -62,11 +69,14 @@ class ItemCard extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
+
+            // Kategorie + beskikbaar
             Wrap(
               spacing: 8,
+              runSpacing: 4,
               children: [
-                Chip(label: Text(item.kategorie)),
+                if (kategorie.isNotEmpty) Chip(label: Text(kategorie)),
                 if (!item.beskikbaar)
                   Chip(
                     backgroundColor: Colors.red.shade50,
@@ -74,10 +84,36 @@ class ItemCard extends StatelessWidget {
                   ),
               ],
             ),
-            if (item.allergene.isNotEmpty)
+
+            // Beskrywing (kort)
+            if (beskrywing.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                beskrywing,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: Theme.of(context).hintColor),
+              ),
+            ],
+
+            // Bestanddele (kort)
+            if (bestanddele.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Bestanddele: ${bestanddele.join(', ')}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: Theme.of(context).hintColor),
+              ),
+            ],
+
+            // Allergene chips
+            if (allergene.isNotEmpty) ...[
+              const SizedBox(height: 6),
               Wrap(
                 spacing: 6,
-                children: item.allergene
+                runSpacing: 6,
+                children: allergene
                     .map(
                       (a) => Chip(
                         backgroundColor: Colors.red.shade50,
@@ -86,6 +122,8 @@ class ItemCard extends StatelessWidget {
                     )
                     .toList(),
               ),
+            ],
+
             const Spacer(),
             Row(
               children: [

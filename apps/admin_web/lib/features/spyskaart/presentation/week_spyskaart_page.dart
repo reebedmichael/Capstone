@@ -1,5 +1,8 @@
-// week_spyskaart_page.dart
+// lib/pages/week_spyskaart_page.dart
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:spys_api_client/spys_api_client.dart'; // exports db + repos
+
 import '../widgets/models.dart';
 import '../widgets/header.dart';
 import '../widgets/status_banners.dart';
@@ -44,129 +47,194 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
   String soekTerm = '';
   bool toonSoeker = false;
 
-  late AppState appState;
+  late final AdminSpyskaartRepository weekRepo;
+  late final KosTemplaatRepository kosRepo;
+  late final SupabaseDb db;
+
+  AppState appState = AppState(
+    weekSpyskaarte: [],
+    kositems: [],
+    kositemTemplates: [],
+    weekTemplates: [],
+    ingetekenGebruiker: AppUser(id: 'user_1', naam: 'Admin'),
+  );
 
   @override
   void initState() {
     super.initState();
-    _seedMock();
+    final client = Supabase.instance.client;
+    db = SupabaseDb(client);
+    weekRepo = AdminSpyskaartRepository(db);
+    kosRepo = KosTemplaatRepository(db);
+
+    _loadAll();
   }
 
-  void _seedMock() {
-    final items = <Kositem>[
-      Kositem(
-        id: "1",
-        naam: "Beesburger",
-        bestanddele: ["Beesvleis", "Broodjie", "Kaas", "Tamatie", "Slaai"],
-        allergene: ["Gluten", "Melk"],
-        prys: 85.00,
-        kategorie: "Hoofgereg",
-      ),
-      Kositem(
-        id: "2",
-        naam: "Ontbyt Omelet",
-        bestanddele: ["Eiers", "Kaas", "Uie", "Spinasie"],
-        allergene: ["Eiers", "Melk"],
-        prys: 55.00,
-        kategorie: "Ontbyt",
-      ),
-      Kositem(
-        id: "3",
-        naam: "Vrugteslaai",
-        bestanddele: ["Appel", "Bessie", "Druiwe", "Piesang"],
-        allergene: [],
-        prys: 45.00,
-        kategorie: "Ligte ete",
-      ),
-      Kositem(
-        id: "4",
-        naam: "Koffie Latte",
-        bestanddele: ["Koffie", "Melk", "Suiker"],
-        allergene: ["Melk"],
-        prys: 30.00,
-        kategorie: "Drankie",
-      ),
-    ];
-
+  // ---------- helpers to compute week-start (Monday) ----------
+  DateTime mondayOf(DateTime d) => d.subtract(Duration(days: d.weekday - 1));
+  DateTime _weekStartFor(String which) {
     final now = DateTime.now();
-    DateTime monday(DateTime d) => d.subtract(Duration(days: d.weekday - 1));
-    final beginHuidig = monday(now);
-    final beginVolgende = beginHuidig.add(const Duration(days: 7));
+    final thisMonday = mondayOf(now);
+    if (which == 'huidige') return thisMonday;
+    return thisMonday.add(const Duration(days: 7)); // volgende
+  }
 
-    final huidige = WeekSpyskaart(
-      id: 'ws1',
-      status: 'aktief',
-      dae: {
-        'maandag': ['1', '2'],
-        'dinsdag': ['3'],
-        'woensdag': [],
-        'donderdag': ['4'],
-        'vrydag': ['3'],
-        'saterdag': [],
-        'sondag': [],
-      },
-      weekBegin: beginHuidig,
-      weekEinde: beginHuidig.add(const Duration(days: 6)),
-      sperdatum: beginVolgende.subtract(const Duration(days: 2)),
-    );
+  // ---------- Load data ----------
+  Future<void> _loadAll() async {
+    setState(() => isLoading = true);
+    try {
+      await Future.wait([_loadKosItems(), _loadSpyskaarte(), _loadTemplates()]);
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
 
-    final volgende = WeekSpyskaart(
-      id: 'ws2',
-      status: 'konsep',
-      dae: {
-        'maandag': [],
-        'dinsdag': [],
-        'woensdag': [],
-        'donderdag': [],
-        'vrydag': [],
-        'saterdag': [],
-        'sondag': [],
-      },
-      weekBegin: beginVolgende,
-      weekEinde: beginVolgende.add(const Duration(days: 6)),
-      sperdatum: beginVolgende.add(const Duration(days: 2)),
-    );
-
-    final templates = [
-      WeekTemplate(
-        id: 'tpl1',
-        naam: 'Basiese Week Templaat',
-        beskrywing: 'Hoofgereg Ma–Vr, nagereg Vrydag',
-        dae: {
-          'maandag': ['1'],
-          'dinsdag': ['2'],
-          'woensdag': ['3'],
-          'donderdag': ['4'],
-          'vrydag': [],
-          'saterdag': [],
-          'sondag': [],
-        },
+  Future<void> _loadKosItems() async {
+    final rows = await kosRepo.getKosItems();
+    final items = rows.map((r) => _mapKosRowToKositem(r)).toList();
+    // for templates table fallback, fetch kos templates if you have a separate column - here we just use kositems
+    setState(
+      () => appState = appState.copyWith(
+        kositems: items,
+        kositemTemplates:
+            [], // optionally fetch template items if tracked separately
       ),
-    ];
-
-    appState = AppState(
-      weekSpyskaarte: [huidige, volgende],
-      kositems: items,
-      kositemTemplates: [],
-      weekTemplates: templates,
-      ingetekenGebruiker: AppUser(id: 'user_1', naam: 'Admin'),
     );
   }
 
-  // helpers to find things
-  WeekSpyskaart? get huidigeWeek => appState.weekSpyskaarte.firstWhere(
-    (w) => w.status == 'aktief',
-    orElse: () => appState.weekSpyskaarte.first,
-  );
-  WeekSpyskaart? get volgendeWeek => appState.weekSpyskaarte.firstWhere(
-    (w) => w.status == 'konsep' || w.status == 'goedgekeur',
-    orElse: () => appState.weekSpyskaarte.last,
-  );
+  Kositem _mapKosRowToKositem(Map<String, dynamic> r) {
+    // Map your DB row fields to Kositem model expected by widgets.
+    return Kositem(
+      id: r['kos_item_id'].toString(),
+      naam: r['kos_item_naam'] ?? '',
+      bestanddele: List<String>.from(r['kos_item_bestandele'] ?? []),
+      beskrywing: r['kos_item_beskrywing'] ?? '',
+      allergene: List<String>.from(r['kos_item_allergene'] ?? []),
+      prys: (r['kos_item_koste'] ?? 0).toDouble(),
+      kategorie: r['kategorie'] ?? '',
+      beskikbaar: (r['is_aktief'] ?? true) as bool,
+      prentUrl: r['kos_item_prentjie'] as String?,
+      prentBytes: null,
+      geskep: r['kos_item_geskep_datum'] != null
+          ? DateTime.parse(r['kos_item_geskep_datum'])
+          : DateTime.now(),
+    );
+  }
 
-  List<Kositem> get alleBeskikbareItems => [
-    ...appState.kositems,
-    ...appState.kositemTemplates,
-  ];
+  Future<void> _loadSpyskaarte() async {
+    // fetch or create the current and next spyskaart rows based on week start dates
+    final huidigStart = _weekStartFor('huidige');
+    final volgendeStart = _weekStartFor('volgende');
+
+    final huidigRaw = await weekRepo.getOrCreateSpyskaartForDate(huidigStart);
+    final volgendeRaw = await weekRepo.getOrCreateSpyskaartForDate(
+      volgendeStart,
+    );
+
+    // map raw -> WeekSpyskaart used by your UI
+    final huidige = _mapRawToWeekSpyskaart(
+      huidigRaw,
+      weekStart: huidigStart,
+      status: 'aktief',
+    );
+    final volgende = _mapRawToWeekSpyskaart(
+      volgendeRaw,
+      weekStart: volgendeStart,
+      status: 'konsep',
+    );
+
+    setState(() {
+      // keep existing templates & users in appState
+      appState = appState.copyWith(weekSpyskaarte: [huidige, volgende]);
+    });
+  }
+
+  Future<void> _loadTemplates() async {
+    final rawTemplates = await weekRepo.listWeekTemplatesRaw();
+    final shaped = rawTemplates.map((row) {
+      final kinders = List<Map<String, dynamic>>.from(
+        (row['spyskaart_kos_item'] as List?) ?? [],
+      );
+      final dae = {
+        'maandag': <String>[],
+        'dinsdag': <String>[],
+        'woensdag': <String>[],
+        'donderdag': <String>[],
+        'vrydag': <String>[],
+        'saterdag': <String>[],
+        'sondag': <String>[],
+      };
+      for (final child in kinders) {
+        final kos = Map<String, dynamic>.from(child['kos_item'] ?? {});
+        final dag = Map<String, dynamic>.from(child['week_dag'] ?? {});
+        final dagNaam = (dag['week_dag_naam'] ?? '').toString().toLowerCase();
+        if (!dae.containsKey(dagNaam)) continue;
+        dae[dagNaam]!.add(kos['kos_item_id'].toString());
+      }
+
+      return WeekTemplate(
+        id: row['spyskaart_id'].toString(),
+        naam: row['spyskaart_naam'] ?? '',
+        beskrywing: row['spyskaart_beskrywing'] ?? '',
+        dae: dae,
+      );
+    }).toList();
+
+    setState(() => appState = appState.copyWith(weekTemplates: shaped));
+  }
+
+  WeekSpyskaart _mapRawToWeekSpyskaart(
+    Map<String, dynamic> raw, {
+    required DateTime weekStart,
+    required String status,
+  }) {
+    final kinders = List<Map<String, dynamic>>.from(
+      (raw['spyskaart_kos_item'] as List?) ?? [],
+    );
+    final dae = {
+      'maandag': <String>[],
+      'dinsdag': <String>[],
+      'woensdag': <String>[],
+      'donderdag': <String>[],
+      'vrydag': <String>[],
+      'saterdag': <String>[],
+      'sondag': <String>[],
+    };
+
+    for (final child in kinders) {
+      final kos = Map<String, dynamic>.from(child['kos_item'] ?? {});
+      final dag = Map<String, dynamic>.from(child['week_dag'] ?? {});
+      final dagNaam = (dag['week_dag_naam'] ?? '').toString().toLowerCase();
+      if (!dae.containsKey(dagNaam)) continue;
+      dae[dagNaam]!.add(kos['kos_item_id'].toString());
+    }
+
+    final weekEnd = weekStart.add(const Duration(days: 6));
+    final sperdatum = weekStart.add(
+      const Duration(days: 5),
+    ); // default sperdatum = weekStart+5 (customize as needed)
+
+    return WeekSpyskaart(
+      id: raw['spyskaart_id'].toString(),
+      status: status,
+      dae: dae,
+      weekBegin: weekStart,
+      weekEinde: weekEnd,
+      sperdatum: sperdatum,
+      goedgekeurDatum: raw['goedgekeur_datum'] != null
+          ? DateTime.tryParse(raw['goedgekeur_datum'])
+          : null,
+      goedgekeurDeur: raw['goedgekeur_deur'] as String?,
+    );
+  }
+
+  // ---------- helpers used by UI ----------
+  WeekSpyskaart? get huidigeWeek =>
+      appState.weekSpyskaarte.isNotEmpty ? appState.weekSpyskaarte.first : null;
+  WeekSpyskaart? get volgendeWeek =>
+      appState.weekSpyskaarte.length > 1 ? appState.weekSpyskaarte[1] : null;
+
+  List<Kositem> get alleBeskikbareItems => appState.kositems;
 
   Kositem? kryItem(String id) {
     try {
@@ -181,121 +249,163 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
   bool kanWysig(WeekSpyskaart? s) {
     if (s == null) return false;
     if (aktieweWeek == 'huidige') return true;
+    // volgende can be edited if not past sperdatum and status is 'konsep'
     return s.status == 'konsep' && !isNaSperdatum(s);
   }
 
   void updateState(AppState s) => setState(() => appState = s);
 
-  void voegItemBy(WeekSpyskaart sp, String dag, String itemId) {
-    final newDae = Map<String, List<String>>.from(sp.dae);
-    newDae[dag] = [...(newDae[dag] ?? []), itemId];
-    final updated = appState.weekSpyskaarte
-        .map((w) => w.id == sp.id ? w.copyWith(dae: newDae) : w)
-        .toList();
-    updateState(appState.copyWith(weekSpyskaarte: updated));
-    setState(() {
-      soekTerm = '';
-      toonSoeker = false;
-      suksesBoodskap = 'Item bygevoeg by ${_label(dag)}';
-    });
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      setState(() => suksesBoodskap = '');
-    });
+  // ---------- actions ----------
+
+  Future<void> voegItemBy(WeekSpyskaart sp, String dag, String itemId) async {
+    try {
+      await weekRepo.addItemToSpyskaart(
+        spyskaartId: sp.id,
+        dagNaam: dag,
+        kosItemId: itemId,
+      );
+      // refresh the spyskaart
+      await _loadSpyskaarte();
+      setState(() {
+        suksesBoodskap = 'Item bygevoeg by ${_label(dag)}';
+      });
+      Future.delayed(const Duration(seconds: 2), () {
+        if (!mounted) return;
+        setState(() => suksesBoodskap = '');
+      });
+    } catch (e) {
+      setState(() => foutBoodskap = 'Kon nie item byvoeg nie: ${e.toString()}');
+    }
   }
 
-  void verwyderItem(WeekSpyskaart sp, String dag, String itemId) {
-    final newDae = Map<String, List<String>>.from(sp.dae);
-    newDae[dag] = (newDae[dag] ?? []).where((id) => id != itemId).toList();
-    final updated = appState.weekSpyskaarte
-        .map((w) => w.id == sp.id ? w.copyWith(dae: newDae) : w)
-        .toList();
-    updateState(appState.copyWith(weekSpyskaarte: updated));
-    setState(() => suksesBoodskap = 'Item verwyder van ${_label(dag)}');
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      setState(() => suksesBoodskap = '');
-    });
+  Future<void> verwyderItem(WeekSpyskaart sp, String dag, String itemId) async {
+    try {
+      await weekRepo.removeItemFromSpyskaart(
+        spyskaartId: sp.id,
+        dagNaam: dag,
+        kosItemId: itemId,
+      );
+      await _loadSpyskaarte();
+      setState(() => suksesBoodskap = 'Item verwyder van ${_label(dag)}');
+      Future.delayed(const Duration(seconds: 2), () {
+        if (!mounted) return;
+        setState(() => suksesBoodskap = '');
+      });
+    } catch (e) {
+      setState(
+        () => foutBoodskap = 'Kon nie item verwyder nie: ${e.toString()}',
+      );
+    }
   }
 
-  void laaiTemplaat(String tplId) {
-    final tpl = appState.weekTemplates.firstWhere(
-      (t) => t.id == tplId,
-      orElse: () => appState.weekTemplates.first,
-    );
-    final vol = volgendeWeek;
-    if (vol == null) return;
-    final updated = appState.weekSpyskaarte.map((w) {
-      if (w.id == vol.id) {
-        return w.copyWith(
-          dae: {
-            for (final e in tpl.dae.entries) e.key: List<String>.from(e.value),
-          },
-        );
+  void laaiTemplaat(String tplId) async {
+    try {
+      // Get template raw (contains kos items organized by week_dag)
+      final tplRaw = await weekRepo.getTemplateRawById(tplId);
+      if (tplRaw == null) return;
+      // target = volgende week spyskaart (create if not exists)
+      final volStart = _weekStartFor('volgende');
+      final volRaw = await weekRepo.getOrCreateSpyskaartForDate(volStart);
+      final volId = volRaw['spyskaart_id'] as String;
+
+      // build dae mapping for update
+      final kinders = List<Map<String, dynamic>>.from(
+        (tplRaw['spyskaart_kos_item'] as List?) ?? [],
+      );
+      final daeMap = <String, List<Map<String, dynamic>>>{};
+      for (final d in daeVanWeek) daeMap[d['key']!] = [];
+
+      for (final child in kinders) {
+        final kos = Map<String, dynamic>.from(child['kos_item'] ?? {});
+        final dag = Map<String, dynamic>.from(child['week_dag'] ?? {});
+        final dagNaam = (dag['week_dag_naam'] ?? '').toString().toLowerCase();
+        if (!daeMap.containsKey(dagNaam)) continue;
+        daeMap[dagNaam]!.add({'id': kos['kos_item_id']});
       }
-      return w;
-    }).toList();
 
-    updateState(appState.copyWith(weekSpyskaarte: updated));
-    setState(() {
-      suksesBoodskap = 'Templaat "${tpl.naam}" suksesvol gelaai';
-      toonTemplaatModal = false;
-    });
-    Future.delayed(const Duration(seconds: 3), () {
-      if (!mounted) return;
-      setState(() => suksesBoodskap = '');
-    });
+      // Use updateWeekTemplate to replace children for the spyskaart (works for template and non-template rows)
+      await weekRepo.updateWeekTemplate(
+        spyskaartId: volId,
+        naam: volRaw['spyskaart_naam'] ?? 'Volgende Week',
+        beskrywing: null,
+        dae: daeMap,
+      );
+
+      await _loadSpyskaarte();
+      setState(() {
+        suksesBoodskap = 'Templaat suksesvol gelaai';
+        toonTemplaatModal = false;
+      });
+      Future.delayed(const Duration(seconds: 3), () {
+        if (!mounted) return;
+        setState(() => suksesBoodskap = '');
+      });
+    } catch (e) {
+      setState(
+        () => foutBoodskap = 'Kon nie templaat laai nie: ${e.toString()}',
+      );
+    }
   }
 
-  void stoorAsTemplaat() {
+  Future<void> stoorAsTemplaat() async {
+    // store the active week (huidige/volgende) as a template
     final sp = aktieweWeek == 'huidige' ? huidigeWeek : volgendeWeek;
     if (sp == null) return;
-    final tpl = WeekTemplate(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      naam:
-          'Week Templaat ${DateTime.now().toLocal().toString().split(' ').first}',
-      beskrywing: 'Outomaties geskep van $aktieweWeek week spyskaart',
-      dae: {for (final e in sp.dae.entries) e.key: List<String>.from(e.value)},
+
+    final daePayload = sp.dae.map(
+      (k, v) => MapEntry(k, v.map((id) => {'id': id}).toList()),
     );
-    updateState(
-      appState.copyWith(weekTemplates: [...appState.weekTemplates, tpl]),
-    );
-    setState(() => suksesBoodskap = 'Week spyskaart gestoor as templaat');
-    Future.delayed(const Duration(seconds: 3), () {
-      if (!mounted) return;
-      setState(() => suksesBoodskap = '');
-    });
+
+    try {
+      await weekRepo.createWeekTemplate(
+        naam:
+            'Week Templaat ${DateTime.now().toLocal().toString().split(' ').first}',
+        beskrywing: 'Gestoor vanaf UI',
+        dae: daePayload,
+      );
+      await _loadTemplates();
+      setState(() => suksesBoodskap = 'Week spyskaart gestoor as templaat');
+      Future.delayed(const Duration(seconds: 3), () {
+        if (!mounted) return;
+        setState(() => suksesBoodskap = '');
+      });
+    } catch (e) {
+      setState(
+        () => foutBoodskap = 'Kon nie stoor as templaat nie: ${e.toString()}',
+      );
+    }
   }
 
   Future<void> stuurVirGoedkeuring() async {
     final vol = volgendeWeek;
     if (vol == null) return;
+
     setState(() => isLoading = true);
-    await Future.delayed(const Duration(seconds: 1));
-    final updated = appState.weekSpyskaarte.map((w) {
-      if (w.id == vol.id) {
-        return w.copyWith(
-          status: 'goedgekeur',
-          goedgekeurDeur: appState.ingetekenGebruiker?.id,
-          goedgekeurDatum: DateTime.now(),
-        );
-      }
-      return w;
-    }).toList();
-    updateState(appState.copyWith(weekSpyskaarte: updated));
-    setState(() {
-      isLoading = false;
-      suksesBoodskap = 'Volgende week se spyskaart suksesvol goedgekeur';
-      toonStuurModal = false;
-    });
-    Future.delayed(const Duration(seconds: 3), () {
-      if (!mounted) return;
-      setState(() => suksesBoodskap = '');
-    });
+    try {
+      await weekRepo.approveSpyskaart(vol.id);
+      // refresh
+      await _loadSpyskaarte();
+      setState(() {
+        isLoading = false;
+        suksesBoodskap = 'Volgende week se spyskaart suksesvol goedgekeur';
+        toonStuurModal = false;
+      });
+      Future.delayed(const Duration(seconds: 3), () {
+        if (!mounted) return;
+        setState(() => suksesBoodskap = '');
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+        foutBoodskap = 'Kon nie goedkeur nie: ${e.toString()}';
+      });
+    }
   }
 
   String _label(String key) =>
       daeVanWeek.firstWhere((d) => d['key'] == key)['label']!;
+
+  // ---------- UI ----------
 
   @override
   Widget build(BuildContext context) {
@@ -433,7 +543,7 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         showDialog(
           context: context,
-          builder: (_) => ItemDetailDialog(item: gekieseItem!),
+          builder: (_) => ItemDetailDialog(item: gekieseItem!), //
         );
       });
     }
