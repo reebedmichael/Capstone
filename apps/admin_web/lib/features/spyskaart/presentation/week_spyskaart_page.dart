@@ -269,7 +269,7 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
       setState(() {
         suksesBoodskap = 'Item bygevoeg by ${_label(dag)}';
       });
-      Future.delayed(const Duration(seconds: 2), () {
+      Future.delayed(const Duration(seconds: 1), () {
         if (!mounted) return;
         setState(() => suksesBoodskap = '');
       });
@@ -287,7 +287,7 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
       );
       await _loadSpyskaarte();
       setState(() => suksesBoodskap = 'Item verwyder van ${_label(dag)}');
-      Future.delayed(const Duration(seconds: 2), () {
+      Future.delayed(const Duration(seconds: 1), () {
         if (!mounted) return;
         setState(() => suksesBoodskap = '');
       });
@@ -336,7 +336,7 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
         suksesBoodskap = 'Templaat suksesvol gelaai';
         toonTemplaatModal = false;
       });
-      Future.delayed(const Duration(seconds: 3), () {
+      Future.delayed(const Duration(seconds: 1), () {
         if (!mounted) return;
         setState(() => suksesBoodskap = '');
       });
@@ -390,7 +390,7 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
         suksesBoodskap = 'Volgende week se spyskaart suksesvol goedgekeur';
         toonStuurModal = false;
       });
-      Future.delayed(const Duration(seconds: 3), () {
+      Future.delayed(const Duration(seconds: 1), () {
         if (!mounted) return;
         setState(() => suksesBoodskap = '');
       });
