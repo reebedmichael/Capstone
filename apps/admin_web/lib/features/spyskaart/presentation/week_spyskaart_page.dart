@@ -211,7 +211,7 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
 
     final weekEnd = weekStart.add(const Duration(days: 6));
     final sperdatum = weekStart.add(
-      const Duration(days: 5),
+      const Duration(days: -1),
     ); // default sperdatum = weekStart+5 (customize as needed)
 
     return WeekSpyskaart(

@@ -45,11 +45,11 @@ class ItemCard extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: SizedBox(
-                  height: 120,
+                  height: 200,
                   width: double.infinity,
                   child: item.prentBytes != null
                       ? Image.memory(item.prentBytes!, fit: BoxFit.cover)
-                      : Image.network(item.prentUrl!, fit: BoxFit.cover),
+                      : Image.network(item.prentUrl!, fit: BoxFit.contain),
                 ),
               ),
             const SizedBox(height: 8),

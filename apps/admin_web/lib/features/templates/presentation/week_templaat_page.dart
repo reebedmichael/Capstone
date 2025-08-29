@@ -30,6 +30,9 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
   String? activeTemplateId;
   String successMessage = '';
 
+  final TextEditingController searchController = TextEditingController();
+  String searchQuery = '';
+
   // Form state
   final formNameController = TextEditingController();
   final formDescController = TextEditingController();
@@ -210,7 +213,7 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
 
     // Auto-hide success banner
     Future.delayed(
-      const Duration(seconds: 1),
+      const Duration(seconds: 3),
       () => mounted ? setState(() => successMessage = '') : null,
     );
   }
@@ -227,7 +230,7 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
     });
 
     Future.delayed(
-      const Duration(seconds: 1),
+      const Duration(seconds: 3),
       () => mounted ? setState(() => successMessage = '') : null,
     );
   }
@@ -294,6 +297,16 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
     super.dispose();
   }
 
+  List<Map<String, dynamic>> get filteredWeekTemplates {
+    if (searchQuery.isEmpty) return weekTemplates;
+    final q = searchQuery.toLowerCase();
+    return weekTemplates.where((t) {
+      final naam = (t['naam'] ?? '').toString().toLowerCase();
+      final beskrywing = (t['beskrywing'] ?? '').toString().toLowerCase();
+      return naam.contains(q) || beskrywing.contains(q);
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final body = _loading
@@ -302,6 +315,21 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
+                TextField(
+                  controller: searchController,
+                  decoration: InputDecoration(
+                    hintText: "Soek 'n spyskaart templaat...",
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  onChanged: (val) {
+                    setState(() => searchQuery = val);
+                  },
+                ),
+                const SizedBox(height: 12),
                 if (successMessage.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -325,7 +353,7 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
                     ),
                   ),
                 Expanded(
-                  child: weekTemplates.isEmpty
+                  child: filteredWeekTemplates.isEmpty
                       ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -336,7 +364,7 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
                                 color: Colors.grey,
                               ),
                               const SizedBox(height: 16),
-                              const Text('Geen Week Templates'),
+                              const Text('Geen Week Templaaie'),
                               const SizedBox(height: 8),
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.add),
@@ -357,9 +385,9 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
                                 crossAxisSpacing: 16,
                                 childAspectRatio: 4 / 3,
                               ),
-                          itemCount: weekTemplates.length,
+                          itemCount: filteredWeekTemplates.length,
                           itemBuilder: (context, index) {
-                            final templaat = weekTemplates[index];
+                            final templaat = filteredWeekTemplates[index];
                             return WeekTemplateCard(
                               templaat: templaat,
                               daeVanWeek: daeVanWeek
@@ -388,16 +416,16 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
       appBar: AppBar(
         title: const Text('Week Templates'),
         actions: [
-          OutlinedButton.icon(
-            icon: const Icon(Icons.folder_open),
-            label: const Text('Laai Templaat'),
-            onPressed: () async {
-              // Ensure fresh data before showing load modal
-              await _fetchWeekTemplates();
-              setState(() => showLoadModal = true);
-            },
-          ),
-          const SizedBox(width: 8),
+          // OutlinedButton.icon(
+          //   icon: const Icon(Icons.folder_open),
+          //   label: const Text('Laai Templaat'),
+          //   onPressed: () async {
+          //     // Ensure fresh data before showing load modal
+          //     await _fetchWeekTemplates();
+          //     setState(() => showLoadModal = true);
+          //   },
+          // ),
+          // const SizedBox(width: 8),
           OutlinedButton.icon(
             icon: const Icon(Icons.refresh),
             label: const Text('Herlaai'),

@@ -12,7 +12,7 @@ class ItemDetailDialog extends StatelessWidget {
 
     return Dialog(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 900),
+        constraints: const BoxConstraints(maxWidth: 600),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: SingleChildScrollView(

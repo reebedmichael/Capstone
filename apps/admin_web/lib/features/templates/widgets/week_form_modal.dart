@@ -52,6 +52,7 @@ class _FormModalState extends State<FormModal> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: DefaultTabController(
         length: widget.daeVanWeek.length,
         child: Container(
@@ -60,38 +61,53 @@ class _FormModalState extends State<FormModal> with TickerProviderStateMixin {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
+              // Title
               Text(
                 widget.activeTemplateId != null
                     ? 'Wysig Week Templaat'
                     : 'Skep Nuwe Week Templaat',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: widget.nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Templaat Naam *',
-                  border: OutlineInputBorder(),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+
+              // Form fields
+              TextField(
+                controller: widget.nameController,
+                decoration: InputDecoration(
+                  labelText: 'Templaat Naam *',
+                  prefixIcon: const Icon(Icons.edit),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               TextField(
                 controller: widget.descController,
                 maxLines: 2,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Beskrywing',
-                  border: OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.notes),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
 
-              // 🗓 Tabs per dag
+              // Tabs for days
               TabBar(
+                isScrollable: true,
+                indicatorColor: Theme.of(context).colorScheme.primary,
                 tabs: widget.daeVanWeek
                     .map((dag) => Tab(text: dag['label']))
                     .toList(),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+
+              // Day content
               Expanded(
                 child: TabBarView(
                   children: widget.daeVanWeek.map((dag) {
@@ -99,21 +115,44 @@ class _FormModalState extends State<FormModal> with TickerProviderStateMixin {
                     final index = widget.daeVanWeek.indexOf(dag);
                     return Column(
                       children: [
+                        // --- Selected items section ---
                         Expanded(
                           child: Scrollbar(
                             controller: _scrollControllers[index],
                             thumbVisibility: true,
                             child: ListView(
                               controller: _scrollControllers[index],
-                              children: widget.formDays[dagKey]!
-                                  .map(
-                                    (food) => ListTile(
+                              children: [
+                                if (widget.formDays[dagKey]!.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8.0,
+                                    ),
+                                    child: Text(
+                                      "Gekose items",
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
+                                  ),
+                                ...widget.formDays[dagKey]!.map(
+                                  (food) => Card(
+                                    margin: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
+                                    child: ListTile(
                                       title: Text(food.naam),
                                       subtitle: Text(
                                         "${food.kategorie} • R${food.prys.toStringAsFixed(2)}",
                                       ),
                                       trailing: IconButton(
-                                        icon: const Icon(Icons.close),
+                                        icon: const Icon(
+                                          Icons.close,
+                                          color: Colors.red,
+                                        ),
                                         onPressed: () {
                                           setState(() {
                                             widget.formDays[dagKey]!.remove(
@@ -123,49 +162,62 @@ class _FormModalState extends State<FormModal> with TickerProviderStateMixin {
                                         },
                                       ),
                                     ),
-                                  )
-                                  .toList(),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
+
+                        // --- Search + suggestions section ---
+                        const SizedBox(height: 8),
                         TextField(
                           controller: widget.searchControllers[dagKey],
                           decoration: InputDecoration(
                             hintText: 'Soek kos vir ${dag['label']}',
-                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.search),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                           onChanged: (_) => setState(() {}),
                         ),
-                        SizedBox(
-                          height: 150,
-                          child: ListView(
-                            children: widget.templates
-                                .where(
-                                  (t) =>
-                                      t.naam.toLowerCase().contains(
-                                        widget.searchControllers[dagKey]!.text
-                                            .toLowerCase(),
-                                      ) &&
-                                      !widget.formDays[dagKey]!.any(
-                                        (f) => f.id == t.id,
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: Card(
+                            elevation: 1,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ListView(
+                              children: widget.templates
+                                  .where(
+                                    (t) =>
+                                        t.naam.toLowerCase().contains(
+                                          widget.searchControllers[dagKey]!.text
+                                              .toLowerCase(),
+                                        ) &&
+                                        !widget.formDays[dagKey]!.any(
+                                          (f) => f.id == t.id,
+                                        ),
+                                  )
+                                  .map(
+                                    (t) => ListTile(
+                                      title: Text(t.naam),
+                                      subtitle: Text(
+                                        "${t.kategorie} • R${t.prys.toStringAsFixed(2)}",
                                       ),
-                                )
-                                .map(
-                                  (t) => ListTile(
-                                    title: Text(t.naam),
-                                    subtitle: Text(
-                                      "${t.kategorie} • R${t.prys.toStringAsFixed(2)}",
+                                      onTap: () {
+                                        setState(() {
+                                          widget.formDays[dagKey]!.add(t);
+                                          widget.searchControllers[dagKey]!
+                                              .clear();
+                                        });
+                                      },
                                     ),
-                                    onTap: () {
-                                      setState(() {
-                                        widget.formDays[dagKey]!.add(t);
-                                        widget.searchControllers[dagKey]!
-                                            .clear();
-                                      });
-                                    },
-                                  ),
-                                )
-                                .toList(),
+                                  )
+                                  .toList(),
+                            ),
                           ),
                         ),
                       ],
@@ -173,20 +225,24 @@ class _FormModalState extends State<FormModal> with TickerProviderStateMixin {
                   }).toList(),
                 ),
               ),
-              const SizedBox(height: 16),
+
+              // --- Bottom action buttons ---
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton(
+                    child: OutlinedButton.icon(
                       onPressed: widget.onCancel,
-                      child: const Text('Kanselleer'),
+                      icon: const Icon(Icons.close),
+                      label: const Text('Kanselleer'),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: ElevatedButton(
+                    child: ElevatedButton.icon(
                       onPressed: widget.onSave,
-                      child: Text(
+                      icon: const Icon(Icons.save),
+                      label: Text(
                         widget.activeTemplateId != null
                             ? 'Stoor Wysigings'
                             : 'Skep Templaat',

@@ -118,8 +118,8 @@ class _SidebarState extends ConsumerState<Sidebar> {
 
     final children = [
       _NavEntry('Week Spyskaart', Icons.calendar_today, '/week_spyskaart'),
-      _NavEntry('Templates: Kositem', Icons.list_alt, '/templates/kositem'),
-      _NavEntry('Templates: Week', Icons.view_week, '/templates/week'),
+      _NavEntry('Kositems', Icons.list_alt, '/templates/kositem'),
+      _NavEntry('Templaaie', Icons.view_week, '/templates/week'),
     ];
 
     return Padding(

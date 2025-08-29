@@ -20,6 +20,11 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
   // final SpyskaartRepository repo = SpyskaartRepository(SupabaseDb());
 
   List<KositemTemplate> templates = [];
+
+  List<KositemTemplate> filteredTemplates = [];
+  String searchQuery = "";
+  String selectedFilter = "Alle";
+
   bool isLoading = false;
   String suksesBoodskap = '';
   String foutBoodskap = '';
@@ -62,10 +67,24 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
           prent: row['kos_item_prentjie'],
         );
       }).toList();
+      applyFilters();
     } catch (e) {
       foutBoodskap = e.toString();
     }
     setState(() => isLoading = false);
+  }
+
+  void applyFilters() {
+    setState(() {
+      filteredTemplates = templates.where((template) {
+        final matchesSearch = template.naam.toLowerCase().contains(
+          searchQuery.toLowerCase(),
+        );
+        final matchesFilter =
+            selectedFilter == "Alle" || template.kategorie == selectedFilter;
+        return matchesSearch && matchesFilter;
+      }).toList();
+    });
   }
 
   void resetVorm() {
@@ -168,6 +187,10 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
         toonVormModal = false;
         resetVorm();
       });
+      Future.delayed(
+        const Duration(seconds: 3),
+        () => mounted ? setState(() => suksesBoodskap = '') : null,
+      );
     } catch (e) {
       foutBoodskap = e.toString();
     }
@@ -181,6 +204,10 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
       await laaiTemplates();
       setState(
         () => suksesBoodskap = "Templaat '${template.naam}' is verwyder",
+      );
+      Future.delayed(
+        const Duration(seconds: 3),
+        () => mounted ? setState(() => suksesBoodskap = '') : null,
       );
     } catch (e) {
       foutBoodskap = e.toString();
@@ -219,6 +246,38 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            TextField(
+              decoration: InputDecoration(
+                hintText: "Soek kositem...",
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+              onChanged: (val) {
+                searchQuery = val;
+                applyFilters();
+              },
+            ),
+            const SizedBox(height: 12),
+
+            // 🍽️ Filter Buttons
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildFilterButton("Alle"),
+                  _buildFilterButton("Hoofkos"),
+                  _buildFilterButton("Vegetaries"),
+                  _buildFilterButton("Vegan"),
+                  _buildFilterButton("Glutenvry"),
+                  _buildFilterButton("Personeelspesifiek"),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
             if (suksesBoodskap.isNotEmpty)
               _buildFeedbackMessage(
                 suksesBoodskap,
@@ -245,9 +304,10 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
                             crossAxisSpacing: 10,
                             childAspectRatio: 0.70,
                           ),
-                      itemCount: templates.length,
+                      // itemCount: templates.length,
+                      itemCount: filteredTemplates.length,
                       itemBuilder: (context, index) {
-                        final template = templates[index];
+                        final template = filteredTemplates[index];
                         return KositemTemplateCard(
                           template: template,
                           onEdit: () {
@@ -308,6 +368,23 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
           const SizedBox(width: 8),
           Expanded(child: Text(message)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFilterButton(String category) {
+    final isSelected = selectedFilter == category;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: ChoiceChip(
+        label: Text(category),
+        selected: isSelected,
+        onSelected: (_) {
+          setState(() {
+            selectedFilter = category;
+            applyFilters();
+          });
+        },
       ),
     );
   }
