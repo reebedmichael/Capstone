@@ -65,7 +65,7 @@ class _OrdersPageState extends State<OrdersPage>
           'foodItem': {
             'name': 'Pizza',
             'price': 75.00,
-            'imageUrl': 'https://via.placeholder.com/150',
+            // 'imageUrl': 'https://via.placeholder.com/150',
           },
         },
       ],
