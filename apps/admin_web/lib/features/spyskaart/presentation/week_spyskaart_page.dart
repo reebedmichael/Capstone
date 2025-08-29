@@ -421,7 +421,14 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
         ),
       );
     }
+    //  Show loader while fetching
+    if (isLoading) {
+      return const Scaffold(
+        body: SafeArea(child: Center(child: CircularProgressIndicator())),
+      );
+    }
 
+    //  Only render UI when data is loaded
     final spyskaart = aktieweWeek == 'huidige' ? huidigeWeek : volgendeWeek;
 
     return Scaffold(
