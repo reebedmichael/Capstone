@@ -196,9 +196,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             Spacing.vGap16,
                             CellphoneField(initialCellphone: cellphone),
                             Spacing.vGap16,
-                            //TODO:wil nie werk nie, ou ek het geen idee dit werk in admin
-                            // LocationDropdown(initialValue: "Centurion"),
-                            // Spacing.vGap16,
+                            LocationDropdown(initialValue: location),
+                            Spacing.vGap16,
                             SpysPrimaryButton(
                               text: "Stoor",
                               onPressed: isFormValid
