@@ -66,6 +66,7 @@ class _CellphoneFieldState extends ConsumerState<CellphoneField> {
             hintText: '012 345 6789',
             prefixIcon: const Icon(Icons.phone),
             errorText: widget.errorText ?? cellphoneError,
+            errorMaxLines: 3,
           ),
           keyboardType: TextInputType.phone,
           textInputAction: TextInputAction.next,
