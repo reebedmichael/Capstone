@@ -220,33 +220,35 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
+
             // Category Filters
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: Spacing.screenHPad),
-              child: SingleChildScrollView(
+              height: 48,
+              padding: const EdgeInsets.symmetric(horizontal: Spacing.screenHPad),
+              child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: categories.map((cat) {
-                    final isSelected = cat == selectedCategory;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(cat),
-                        selected: isSelected,
-                        onSelected: (_) => setState(() {
-                          selectedCategory = cat;
-                          _applyFilters();
-                        }),
-                        selectedColor: AppColors.primary,
-                        labelStyle: TextStyle(
-                            color: isSelected ? Colors.white : AppColors.primary),
-                        side: BorderSide(color: AppColors.primary),
-                      ),
-                    );
-                  }).toList(),
-                ),
+                itemCount: categories.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final cat = categories[index];
+                  final isSelected = cat == selectedCategory;
+                  return ChoiceChip(
+                    label: Text(cat),
+                    selected: isSelected,
+                    onSelected: (_) => setState(() {
+                      selectedCategory = cat;
+                      _applyFilters();
+                    }),
+                    selectedColor: AppColors.primary,
+                    labelStyle: TextStyle(
+                      color: isSelected ? Colors.white : AppColors.primary,
+                    ),
+                    side: BorderSide(color: AppColors.primary),
+                  );
+                },
               ),
             ),
+
 
             // Food Items List
             Expanded(
