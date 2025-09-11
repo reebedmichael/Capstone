@@ -65,6 +65,7 @@ class _EmailFieldState extends ConsumerState<EmailField> {
             hintText: 'voorbeeld@email.com',
             prefixIcon: const Icon(Icons.email_outlined),
             errorText: widget.errorText ?? emailError,
+            errorMaxLines: 3,
           ),
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,

@@ -4,43 +4,46 @@ import '../constants/strings_af.dart';
 import '../utils/validators.dart';
 import '../providers/auth_form_providers.dart';
 
-class PasswordField extends ConsumerWidget {
-  final String? errorText;
+class PasswordField extends ConsumerStatefulWidget {
   final bool isConfirmPassword;
-  final String? confirmPasswordValue;
-  
+
   const PasswordField({
     super.key,
-    this.errorText,
     this.isConfirmPassword = false,
-    this.confirmPasswordValue,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PasswordField> createState() => _PasswordFieldState();
+}
+
+class _PasswordFieldState extends ConsumerState<PasswordField> {
+  @override
+  Widget build(BuildContext context) {
     final password = ref.watch(passwordProvider);
     final passwordVisible = ref.watch(passwordVisibleProvider);
     final confirmPasswordVisible = ref.watch(confirmPasswordVisibleProvider);
     final passwordError = ref.watch(passwordErrorProvider);
     final confirmPasswordError = ref.watch(confirmPasswordErrorProvider);
-    
-    final currentVisible = isConfirmPassword ? confirmPasswordVisible : passwordVisible;
-    final currentError = isConfirmPassword ? confirmPasswordError : passwordError;
-    
+
+    final currentVisible =
+        widget.isConfirmPassword ? confirmPasswordVisible : passwordVisible;
+    final currentError =
+        widget.isConfirmPassword ? confirmPasswordError : passwordError;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         TextField(
           onChanged: (value) {
             String? error;
-            if (isConfirmPassword) {
+            if (widget.isConfirmPassword) {
               ref.read(confirmPasswordProvider.notifier).state = value;
 
               error = Validators.validateConfirmPassword(value, password);
               ref.read(confirmPasswordErrorProvider.notifier).state = error;
             } else {
               ref.read(passwordProvider.notifier).state = value;
-              
+
               error = Validators.validatePasswordRegister(value);
               ref.read(passwordErrorProvider.notifier).state = error;
             }
@@ -48,7 +51,7 @@ class PasswordField extends ConsumerWidget {
           onSubmitted: (value) {
             // Validate on submit
             String? error;
-            if (isConfirmPassword) {
+            if (widget.isConfirmPassword) {
               error = Validators.validateConfirmPassword(value, password);
               ref.read(confirmPasswordErrorProvider.notifier).state = error;
             } else {
@@ -57,25 +60,36 @@ class PasswordField extends ConsumerWidget {
             }
           },
           decoration: InputDecoration(
-            labelText: isConfirmPassword ? StringsAf.confirmPasswordLabel : StringsAf.passwordLabel,
-            hintText: isConfirmPassword ? 'Bevestig jou wagwoord' : 'Voer jou wagwoord in',
+            labelText: widget.isConfirmPassword
+                ? StringsAf.confirmPasswordLabel
+                : StringsAf.passwordLabel,
+            hintText: widget.isConfirmPassword
+                ? 'Bevestig jou wagwoord'
+                : 'Voer jou wagwoord in',
             prefixIcon: const Icon(Icons.lock_outlined),
             suffixIcon: IconButton(
               icon: Icon(
                 currentVisible ? Icons.visibility_off : Icons.visibility,
               ),
               onPressed: () {
-                if (isConfirmPassword) {
-                  ref.read(confirmPasswordVisibleProvider.notifier).state = !currentVisible;
+                if (widget.isConfirmPassword) {
+                  ref
+                      .read(confirmPasswordVisibleProvider.notifier)
+                      .state = !currentVisible;
                 } else {
-                  ref.read(passwordVisibleProvider.notifier).state = !currentVisible;
+                  ref
+                      .read(passwordVisibleProvider.notifier)
+                      .state = !currentVisible;
                 }
               },
             ),
-            errorText: errorText ?? currentError,
+            errorText: currentError,
+            errorMaxLines: 3,
           ),
           obscureText: !currentVisible,
-          textInputAction: isConfirmPassword ? TextInputAction.done : TextInputAction.next,
+          textInputAction: widget.isConfirmPassword
+              ? TextInputAction.done
+              : TextInputAction.next,
           autocorrect: false,
           enableSuggestions: false,
         ),

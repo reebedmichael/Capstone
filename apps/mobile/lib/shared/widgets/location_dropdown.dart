@@ -7,7 +7,7 @@ import 'package:spys_api_client/spys_api_client.dart';
 
 class LocationDropdown extends ConsumerStatefulWidget {
   final String? errorText;
-  final String? initialValue; // 👈 initial campus name (e.g. "Leriba")
+  final String? initialValue;
 
   const LocationDropdown({
     super.key,
@@ -21,7 +21,7 @@ class LocationDropdown extends ConsumerStatefulWidget {
 
 class _LocationDropdownState extends ConsumerState<LocationDropdown> {
   bool _isLoading = true;
-  List<String> _locations = const []; // don't prefill with label/"Geen" to avoid mismatches
+  List<String> _locations = const [];
 
   @override
   void initState() {
