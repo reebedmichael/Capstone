@@ -1,0 +1,86 @@
+enum OrderStatus {
+  pending,
+  preparing,
+  readyDelivery,
+  readyFetch,
+  outForDelivery,
+  delivered,
+  done,
+  cancelled,
+}
+
+class OrderItem {
+  final String id;
+  final String name;
+  final int quantity;
+  final double price;
+  final OrderStatus status;
+  final String scheduledDay;
+
+  OrderItem({
+    required this.id,
+    required this.name,
+    required this.quantity,
+    required this.price,
+    required this.status,
+    required this.scheduledDay,
+  });
+
+  OrderItem copyWith({
+    String? id,
+    String? name,
+    int? quantity,
+    double? price,
+    OrderStatus? status,
+    String? scheduledDay,
+  }) {
+    return OrderItem(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      quantity: quantity ?? this.quantity,
+      price: price ?? this.price,
+      status: status ?? this.status,
+      scheduledDay: scheduledDay ?? this.scheduledDay,
+    );
+  }
+}
+
+class Order {
+  final String id;
+  final String customerEmail;
+  final List<OrderItem> items;
+  final List<String> scheduledDays;
+  final OrderStatus status;
+  final DateTime createdAt;
+  final double totalAmount;
+
+  Order({
+    required this.id,
+    required this.customerEmail,
+    required this.items,
+    required this.scheduledDays,
+    required this.status,
+    required this.createdAt,
+    required this.totalAmount,
+  });
+
+  Order copyWith({
+    String? id,
+    String? customerEmail,
+    List<OrderItem>? items,
+    List<String>? scheduledDays,
+    OrderStatus? status,
+    DateTime? createdAt,
+    double? totalAmount,
+  }) {
+    return Order(
+      id: id ?? this.id,
+      customerEmail: customerEmail ?? this.customerEmail,
+      items: items ?? this.items,
+      scheduledDays: scheduledDays ?? this.scheduledDays,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      totalAmount: totalAmount ?? this.totalAmount,
+    );
+  }
+}
