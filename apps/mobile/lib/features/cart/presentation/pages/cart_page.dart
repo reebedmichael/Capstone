@@ -198,10 +198,25 @@ class _CartPageState extends State<CartPage> {
     await _loadWalletBalance();
   }
 
+  Future<String> _ensureTransTypeId(String name) async {
+    final sb = Supabase.instance.client;
+    // Try to find the transaksie tipe by name
+    final row = await sb.from('transaksie_tipe').select('trans_tipe_id').eq('trans_tipe_naam', name).maybeSingle();
+    if (row != null && row is Map<String, dynamic> && row['trans_tipe_id'] != null) {
+      return row['trans_tipe_id'].toString();
+    }
+    // If not found, insert it (so we always have the uuid)
+    final inserted = await sb.from('transaksie_tipe').insert({'trans_tipe_naam': name}).select().maybeSingle();
+    if (inserted != null && inserted['trans_tipe_id'] != null) {
+      return inserted['trans_tipe_id'].toString();
+    }
+    throw Exception('Kon transaksie tipe nie kry of skep nie ($name).');
+  }
+
   Future<bool> placeOrder(String pickup) async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Jy moet eers aanmeld.')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Jy moet eers aanmeld.'))); 
       return false;
     }
 
@@ -217,19 +232,21 @@ class _CartPageState extends State<CartPage> {
     await _loadWalletBalance();
 
     if (walletBalance < orderTotal) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Onvoldoende fondse in beursie.')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Onvoldoende fondse in beursie.'))); 
       return false;
     }
 
     // check for unavailable items
     if (unavailableItems.isNotEmpty) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sommige items is nie meer beskikbaar nie. Verwyder hulle voor bestelling.')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sommige items is nie meer beskikbaar nie. Verwyder hulle voor bestelling.'))); 
       return false;
     }
 
-    // Begin order flow (sequential; Supabase Dart client doesn't provide cross-table transactions here)
     try {
       final sb = Supabase.instance.client;
+
+      // Ensure we have a transaksie tipe id for 'uitbetaling'
+      final transTypeId = await _ensureTransTypeId('uitbetaling');
 
       // 1) create bestelling
       final bestellingInsert = await sb.from('bestelling').insert({
@@ -243,23 +260,28 @@ class _CartPageState extends State<CartPage> {
       }
       final String bestId = bestellingInsert['best_id'].toString();
 
-      // 2) insert bestelling_kos_item entries
-      for (final c in cart) {
-        await sb.from('bestelling_kos_item').insert({
+      // 2) insert bestelling_kos_item entries in batch
+      final List<Map<String, dynamic>> bkItems = cart.map((c) {
+        return {
           'best_id': bestId,
           'kos_item_id': c.foodItem.id,
-        });
+          'item_hoev': c.quantity,
+        };
+      }).toList();
+
+      if (bkItems.isNotEmpty) {
+        await sb.from('bestelling_kos_item').insert(bkItems);
       }
 
-      // 3) record beursie_transaksie (uitbetaling)
+      // 3) record beursie_transaksie (use trans_tipe_id)
       await sb.from('beursie_transaksie').insert({
         'gebr_id': user.id,
         'trans_bedrag': orderTotal,
-        'trans_tipe': 'uitbetaling',
+        'trans_tipe_id': transTypeId,
         'trans_beskrywing': 'Bestelling $bestId - afhaallokasie: $pickup',
       });
 
-      // 4) update gebruikers.beursie_balans
+      // 4) update gebruikers.beursie_balans (subtract)
       final double newBal = (walletBalance - orderTotal);
       await sb.from('gebruikers').update({'beursie_balans': newBal}).eq('gebr_id', user.id);
 
@@ -272,11 +294,14 @@ class _CartPageState extends State<CartPage> {
         cart.clear();
       });
 
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Bestelling suksesvol geplaas.')));
+
       return true;
-    } catch (e) {
-      // If something failed, we surface the error (possible partial writes may have happened)
+    } catch (e, st) {
+      debugPrint('Fout tydens plaasBestelling: $e\n$st');
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Kon nie bestelling plaas nie: $e')));
-      // reload to reflect DB state
+
+      // reload to reflect DB state (in case of partial writes)
       await _loadEverything();
       return false;
     }
