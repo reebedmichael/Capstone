@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import '../../../shared/types/order.dart' as types;
 import '../../../shared/utils/status_utils.dart';
 import 'mock_orders.dart';
-import '../../../shared/widgets/order_search.dart';
-import '../../../shared/widgets/day_filter_orders.dart';
-import '../../../shared/widgets/day_item_summary.dart';
-import '../../../shared/widgets/order_card.dart';
-import '../../../shared/widgets/order_details.dart';
-import '../../../shared/widgets/bulk_actions.dart';
-import '../../../shared/widgets/status_badge.dart';
+import '../../../shared/widgets/Bestellings/order_search.dart';
+import '../../../shared/widgets/Bestellings/day_filter_orders.dart';
+import '../../../shared/widgets/Bestellings/day_item_summary.dart';
+import '../../../shared/widgets/Bestellings/order_card.dart';
+import '../../../shared/widgets/Bestellings/order_details.dart';
+import '../../../shared/widgets/Bestellings/bulk_actions.dart';
+import '../../../shared/widgets/Bestellings/status_badge.dart';
 
 // const String CURRENT_DAY = "Donderdag";
 String _getCurrentDayInAfrikaans() {
@@ -40,18 +40,8 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
 
   // Filtering logic
   List<types.Order> get filteredOrders {
-    if (selectedDay == "Afgehandelde Bestellings") {
-      return orders
-          .where((order) => order.status == types.OrderStatus.done)
-          .where(
-            (order) =>
-                searchQuery.isEmpty ||
-                order.customerEmail.toLowerCase().contains(
-                  searchQuery.toLowerCase(),
-                ) ||
-                order.id.toLowerCase().contains(searchQuery.toLowerCase()),
-          )
-          .toList()
+    if (selectedDay == "Alle") {
+      return orders.toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     }
 
@@ -119,7 +109,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
 
   // === Status update handlers ===
   void handleUpdateOrderStatus(String orderId, types.OrderStatus status) {
-    if (selectedDay == "Afgehandelde Bestellings") return;
+    if (selectedDay == "Alle") return;
 
     setState(() {
       orders = orders.map((order) {
@@ -184,7 +174,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
   }
 
   void handleCancelOrder(String orderId) {
-    if (selectedDay == "Afgehandelde Bestellings") return;
+    if (selectedDay == "Alle") return;
 
     setState(() {
       orders = orders.map((order) {
@@ -207,7 +197,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
   }
 
   void handleBulkUpdate(List<String> orderIds, types.OrderStatus status) {
-    if (selectedDay == "Afgehandelde Bestellings") return;
+    if (selectedDay == "Alle") return;
 
     setState(() {
       orders = orders.map((order) {
@@ -273,7 +263,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
     final stats = _computeViewStats();
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
+      // backgroundColor: Theme.of(context).colorScheme.background,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -333,9 +323,8 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
 
             const SizedBox(height: 16),
 
-            // Summary stats
-            _buildSummaryCard(stats),
-
+            // // Summary stats
+            // _buildSummaryCard(stats),
             const SizedBox(height: 16),
 
             DayItemsSummary(
@@ -344,18 +333,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
               selectedFoodItem: selectedFoodItem,
               onFoodItemClick: handleFoodItemClick,
             ),
-
-            if (selectedDay != "Afgehandelde Bestellings") ...[
-              const SizedBox(height: 16),
-              BulkActions(
-                orders: filteredOrders,
-                selectedDay: selectedDay,
-                onBulkUpdate: handleBulkUpdate,
-              ),
-            ],
-
-            const Divider(height: 32),
-
+            const SizedBox(height: 32),
             filteredOrders.isEmpty
                 ? Center(
                     child: Text(
@@ -366,21 +344,36 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        selectedDay == "Afgehandelde Bestellings"
-                            ? "Afgehandelde Bestellings (${filteredOrders.length})"
-                            : "Bestellings met items vir $selectedDay (${filteredOrders.length})",
-                        style: Theme.of(context).textTheme.titleLarge,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              selectedDay == "Alle"
+                                  ? "Alle Bestellings (${filteredOrders.length})"
+                                  : "Bestellings vir $selectedDay (${filteredOrders.length})",
+                              style: Theme.of(context).textTheme.titleLarge,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (selectedDay != "Alle")
+                            BulkActions(
+                              orders: filteredOrders,
+                              onBulkUpdate: handleBulkUpdate,
+                            ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 5),
+
+                      // Orders list
                       for (var order in filteredOrders)
                         OrderCard(
                           order: order,
-                          selectedDay: selectedDay != "Afgehandelde Bestellings"
+                          selectedDay: selectedDay != "Alle"
                               ? selectedDay
                               : null,
-                          isPastOrder:
-                              selectedDay == "Afgehandelde Bestellings",
+                          isPastOrder: selectedDay == "Alle",
                           onViewDetails: (order) =>
                               _showOrderDetails(context, order),
                           onUpdateStatus: handleUpdateOrderStatus,
@@ -395,7 +388,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
   }
 
   Map<String, dynamic> _computeViewStats() {
-    if (selectedDay == "Afgehandelde Bestellings") {
+    if (selectedDay == "Alle") {
       final deliveredOrders = filteredOrders;
       final totalOrders = deliveredOrders.length;
       final totalItems = deliveredOrders.fold<int>(
@@ -433,106 +426,13 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
     };
   }
 
-  Widget _buildSummaryCard(Map<String, dynamic> stats) {
-    final statusCounts = stats["statusCounts"] as Map<types.OrderStatus, int>;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 600; // adjust breakpoint if needed
-
-    if (selectedDay == "Afgehandelde Bestellings") {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _statBox("Bestellings", stats["totalOrders"], Colors.blue),
-              _statBox("Kos items", stats["totalItems"], Colors.green),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final statWidgets = [
-      _statBox("Bestellings", stats["totalOrders"], Colors.blue),
-      _statBox("Kos Items", stats["totalItems"], Colors.blue),
-      _statBox(
-        "Bestelling Ontvang",
-        statusCounts[types.OrderStatus.pending] ?? 0,
-        Colors.grey,
-      ),
-      _statBox(
-        "In Voorbereiding",
-        statusCounts[types.OrderStatus.preparing] ?? 0,
-        Colors.orange,
-      ),
-      _statBox(
-        "Gereed vir aflewering",
-        statusCounts[types.OrderStatus.readyDelivery] ?? 0,
-        Colors.blue,
-      ),
-      _statBox(
-        "Uit vir aflewering",
-        statusCounts[types.OrderStatus.outForDelivery] ?? 0,
-        Colors.purple,
-      ),
-      _statBox(
-        "By afleweringspunt",
-        statusCounts[types.OrderStatus.delivered] ?? 0,
-        Colors.green,
-      ),
-      _statBox(
-        "Reg vir afhaal",
-        statusCounts[types.OrderStatus.readyFetch] ?? 0,
-        Colors.teal,
-      ),
-      _statBox(
-        "Afgehandel",
-        statusCounts[types.OrderStatus.done] ?? 0,
-        Colors.indigo,
-      ),
-    ];
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: isMobile
-            ? Wrap(spacing: 16, runSpacing: 16, children: statWidgets)
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: statWidgets.map((w) => Expanded(child: w)).toList(),
-              ),
-      ),
-    );
-  }
-
-  Widget _statBox(String label, int value, Color color) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          "$value",
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 12)),
-      ],
-    );
-  }
-
   void _showOrderDetails(BuildContext context, types.Order order) {
     showDialog(
       context: context,
       barrierDismissible: true,
       builder: (context) => OrderDetailsModal(
         order: order,
-        selectedDay: selectedDay != "Afgehandelde Bestellings"
-            ? selectedDay
-            : null,
+        selectedDay: selectedDay != "Alle" ? selectedDay : null,
         isOpen: true,
         onClose: () => Navigator.of(context).pop(),
         onUpdateItemStatus: handleUpdateItemStatus,

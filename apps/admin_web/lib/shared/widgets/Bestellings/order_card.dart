@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../types/order.dart';
-import '../utils/status_utils.dart';
+import '../../types/order.dart';
+import '../../utils/status_utils.dart';
 import 'cancel_confirmation.dart';
 import 'status_badge.dart';
 
@@ -169,16 +169,16 @@ class _OrderCardState extends State<OrderCard> {
           widget.order.customerEmail,
           style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
         ),
-        if (widget.isPastOrder)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              "Afgehandel op: ${widget.order.createdAt.toLocal().toString().split(' ').first}",
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: Colors.grey[600],
-              ),
-            ),
-          ),
+        // if (widget.isPastOrder)
+        //   Padding(
+        //     padding: const EdgeInsets.only(top: 4),
+        //     child: Text(
+        //       "Afgehandel op: ${widget.order.createdAt.toLocal().toString().split(' ').first}",
+        //       style: theme.textTheme.labelSmall?.copyWith(
+        //         color: Colors.grey[600],
+        //       ),
+        //     ),
+        //   ),
       ],
     );
   }
@@ -214,7 +214,7 @@ class _OrderCardState extends State<OrderCard> {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         StatusBadge(status: widget.order.status),
-        if (!widget.isPastOrder && canProgressStatus && nextStatus != null)
+        if (canProgressStatus && nextStatus != null)
           OutlinedButton.icon(
             onPressed: () => widget.onUpdateStatus(widget.order.id, nextStatus),
             icon: const Icon(Icons.arrow_forward, size: 16),
@@ -246,7 +246,7 @@ class _OrderCardState extends State<OrderCard> {
           label: const Text("Besigtig"),
           style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
         ),
-        if (!widget.isPastOrder && canCancel && cancellableItemsCount > 0)
+        if (canCancel && cancellableItemsCount > 0)
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red[700],

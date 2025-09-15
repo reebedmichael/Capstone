@@ -11,7 +11,7 @@ final List<Order> mockOrders = [
         name: "Caesar Salad",
         quantity: 2,
         price: 12.99,
-        status: OrderStatus.readyFetch,
+        status: OrderStatus.preparing,
         scheduledDay: "Donderdag",
       ),
       OrderItem(

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../types/order.dart';
+import '../../types/order.dart';
 
 class StatusConfig {
   final String label;

@@ -1,7 +1,7 @@
 // order_details_modal.dart
 import 'package:flutter/material.dart';
-import '../types/order.dart';
-import '../utils/status_utils.dart';
+import '../../types/order.dart';
+import '../../utils/status_utils.dart';
 import 'cancel_confirmation.dart';
 import 'status_badge.dart'; // for StatusBadge
 
@@ -128,9 +128,7 @@ class _OrderDetailsModalState extends State<OrderDetailsModal> {
 
                       return Card(
                         color: isSelected
-                            ? Theme.of(
-                                context,
-                              ).colorScheme.primary.withOpacity(0.05)
+                            ? Theme.of(context).colorScheme.background
                             : null,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -195,7 +193,7 @@ class _OrderDetailsModalState extends State<OrderDetailsModal> {
                                               ),
                                               const SizedBox(width: 8),
                                               Text(
-                                                "Hoeveelheid: ${items[i].quantity}",
+                                                "x ${items[i].quantity}",
                                                 style: Theme.of(
                                                   context,
                                                 ).textTheme.bodySmall,
@@ -286,7 +284,7 @@ class _OrderDetailsModalState extends State<OrderDetailsModal> {
                     Row(
                       children: [
                         if (widget.selectedDay != null &&
-                            widget.selectedDay != "Afgehandelde Bestellings")
+                            widget.selectedDay != "Alle")
                           Builder(
                             builder: (context) {
                               final dayItems = widget.order.items
@@ -351,9 +349,7 @@ class _OrderDetailsModalState extends State<OrderDetailsModal> {
         },
         orderNumber: widget.order.id,
         customerEmail: widget.order.customerEmail,
-        selectedDay: widget.selectedDay != "Afgehandelde Bestellings"
-            ? widget.selectedDay
-            : null,
+        selectedDay: widget.selectedDay != "Alle" ? widget.selectedDay : null,
         itemCount: itemCount,
       ),
     );
