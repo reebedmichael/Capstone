@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:spys_api_client/spys_api_client.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../locator.dart';
@@ -13,6 +15,12 @@ class HomePage extends StatefulWidget {
   @override
   State<HomePage> createState() => _HomePageState();
 }
+
+String? gebrNaam;
+bool gebrNaamLoading = false;
+
+int mandjieCount = 0;
+
 
 class _HomePageState extends State<HomePage> {
   String selectedDay = 'Alle';
@@ -34,10 +42,62 @@ class _HomePageState extends State<HomePage> {
   String searchQuery = '';
 
   @override
-  void initState() {
-    super.initState();
-    _fetchMenu();
+void initState() {
+  super.initState();
+  _loadGebrNaam();
+  _fetchMenu();
+  Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+    _loadGebrNaam();
+    _loadMandjieCount();
+  });
+}
+
+Future<void> _loadMandjieCount() async {
+  try {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    final items = await sl<MandjieRepository>().kryMandjie(user.id);
+    setState(() => mandjieCount = items.length);
+  } catch (e) {
+    debugPrint('Kon nie mandjie count kry nie: $e');
+    setState(() => mandjieCount = 0);
   }
+}
+
+
+  Future<void> _loadGebrNaam() async {
+  setState(() => gebrNaamLoading = true);
+
+  final user = Supabase.instance.client.auth.currentUser;
+  if (user == null) {
+    setState(() {
+      gebrNaam = null;
+      gebrNaamLoading = false;
+    });
+    return;
+  }
+
+  try {
+    final row = await Supabase.instance.client
+        .from('gebruikers')
+        .select('gebr_naam')
+        .eq('gebr_id', user.id)
+        .maybeSingle();
+
+    if (row != null && row is Map<String, dynamic>) {
+      setState(() => gebrNaam = (row['gebr_naam'] ?? '').toString());
+    } else {
+      setState(() => gebrNaam = null);
+    }
+  } catch (e) {
+    debugPrint('Kon gebr_naam nie laai nie: $e');
+    setState(() => gebrNaam = null);
+  } finally {
+    setState(() => gebrNaamLoading = false);
+  }
+}
+
 
   Future<void> _fetchMenu() async {
     setState(() => isLoading = true);
@@ -123,8 +183,12 @@ class _HomePageState extends State<HomePage> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Welkom, Gebruiker!',
-                              style: AppTypography.titleLarge.copyWith(color: Colors.white)),
+                          Text(
+                            gebrNaamLoading
+                              ? 'Welkom...'
+                              : 'Welkom, ${gebrNaam != null && gebrNaam!.isNotEmpty ? gebrNaam : 'Gebruiker'}!',
+                            style: AppTypography.titleLarge.copyWith(color: Colors.white),
+                          ),
                           const SizedBox(height: 4),
                           Text('Wat gaan jy vandag eet?',
                               style: AppTypography.bodySmall.copyWith(color: Colors.white70)),
@@ -160,7 +224,7 @@ class _HomePageState extends State<HomePage> {
                                 Positioned(
                                   right: -2,
                                   top: -2,
-                                  child: _buildBadge('2'),
+                                  child: _buildBadgeMandjie(),
                                 ),
                               ],
                             ),
@@ -299,6 +363,23 @@ class _HomePageState extends State<HomePage> {
       child: Text(count, style: const TextStyle(color: Colors.white, fontSize: 10)),
     );
   }
+
+  Widget _buildBadgeMandjie() {
+  if (mandjieCount == 0) return const SizedBox.shrink();
+  return Container(
+    padding: const EdgeInsets.all(2),
+    decoration: BoxDecoration(
+      color: Colors.red,
+      borderRadius: BorderRadius.circular(8),
+    ),
+    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+    child: Text(
+      '$mandjieCount',
+      style: const TextStyle(color: Colors.white, fontSize: 10),
+    ),
+  );
+}
+
 
   Widget _buildFoodCard({
     required String name,

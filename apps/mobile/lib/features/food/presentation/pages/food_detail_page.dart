@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:spys_api_client/spys_api_client.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/constants/spacing.dart';
@@ -237,13 +239,62 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     if (newQty >= 1 && newQty <= 10) setState(() => quantity = newQty);
   }
 
-  void handleAddToCart() {
+  // ---------- DATABASE-READY: add to mandjie ----------
+  void handleAddToCart() async {
     if (!_available) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hierdie item is tans nie beskikbaar nie.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Hierdie item is tans nie beskikbaar nie.')),
+      );
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Bygevoeg: $quantity x ${_name}')));
+
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Jy moet eers inteken om \'n mandjie te gebruik.')),
+      );
+      return;
+    }
+
+    try {
+      final sb = Supabase.instance.client;
+
+      // Check of die item alreeds in mandjie bestaan vir hierdie gebruiker
+      final existing = await sb
+          .from('mandjie')
+          .select('mand_id, qty')
+          .eq('gebr_id', user.id)
+          .eq('kos_item_id', item['kos_item_id'])
+          .maybeSingle();
+
+      if (existing != null && existing is Map<String, dynamic> && existing['mand_id'] != null) {
+        // indien dit bestaan, update qty (voeg by)
+        final int oldQty = (existing['qty'] is int) ? existing['qty'] as int : int.tryParse('${existing['qty']}') ?? 0;
+        final int newQty = (oldQty + quantity).clamp(1, 9999);
+        await sb.from('mandjie').update({'qty': newQty}).eq('mand_id', existing['mand_id']);
+      } else {
+        // anders: insert nuwe ry
+        await sb.from('mandjie').insert({
+          'gebr_id': user.id,
+          'kos_item_id': item['kos_item_id'],
+          'qty': quantity,
+        });
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Bygevoeg: $quantity x ${_name}')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Kon nie by mandjie voeg nie: $e')),
+        );
+      }
+    }
   }
+  // ----------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
