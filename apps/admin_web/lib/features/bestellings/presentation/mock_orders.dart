@@ -5,6 +5,7 @@ final List<Order> mockOrders = [
   Order(
     id: "ORD-001",
     customerEmail: "john.smith@email.com",
+    // kampus:"Centurion",
     items: [
       OrderItem(
         id: "1",

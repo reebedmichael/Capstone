@@ -33,11 +33,7 @@ class DayItemsSummary extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.orange.shade50, Colors.amber.shade50],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          color: Theme.of(context).colorScheme.background,
           border: Border.all(color: Colors.orange.shade200),
           borderRadius: BorderRadius.circular(12),
         ),
