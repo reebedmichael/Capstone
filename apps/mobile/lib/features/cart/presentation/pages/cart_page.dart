@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/constants/spacing.dart';
@@ -21,7 +22,7 @@ class FoodItemModel {
 }
 
 class CartItemModel {
-  final String id;
+  final String id; // mand_id from mandjie table
   final FoodItemModel foodItem;
   int quantity;
 
@@ -40,42 +41,11 @@ class CartPage extends StatefulWidget {
 }
 
 class _CartPageState extends State<CartPage> {
-  // Mock user wallet
-  double walletBalance = 250.00;
+  // Wallet (fetched from DB)
+  double walletBalance = 0.0;
 
-  // Mock cart
-  final List<CartItemModel> cart = <CartItemModel>[
-    CartItemModel(
-      id: 'ci-1',
-      foodItem: const FoodItemModel(
-        id: 'f-1',
-        name: 'Boerewors en Pap',
-        price: 45.00,
-        available: true,
-      ),
-      quantity: 1,
-    ),
-    CartItemModel(
-      id: 'ci-2',
-      foodItem: const FoodItemModel(
-        id: 'f-2',
-        name: 'Vegetariese Pasta',
-        price: 38.00,
-        available: true,
-      ),
-      quantity: 2,
-    ),
-    CartItemModel(
-      id: 'ci-3',
-      foodItem: const FoodItemModel(
-        id: 'f-3',
-        name: 'Dag Spesiaal',
-        price: 55.00,
-        available: false,
-      ),
-      quantity: 1,
-    ),
-  ];
+  // Cart loaded from DB
+  final List<CartItemModel> cart = <CartItemModel>[];
 
   String? pickupLocation;
   final List<String> pickupLocations = <String>[
@@ -87,6 +57,8 @@ class _CartPageState extends State<CartPage> {
     'Sport Kafeteria',
   ];
 
+  bool loading = true;
+
   bool get cartIsEmpty => cart.isEmpty;
   List<CartItemModel> get unavailableItems => cart.where((c) => !c.foodItem.available).toList();
   double get subtotal => cart.fold(0.0, (double sum, CartItemModel c) => sum + (c.foodItem.price * c.quantity));
@@ -94,35 +66,231 @@ class _CartPageState extends State<CartPage> {
   double get total => subtotal + deliveryFee;
   bool get hasSufficientFunds => walletBalance >= total;
 
-  void updateCartQuantity(String itemId, int newQuantity) {
+  @override
+  void initState() {
+    super.initState();
+    _loadEverything();
+  }
+
+  Future<void> _loadEverything() async {
+    setState(() => loading = true);
+    await _loadWalletBalance();
+    await _loadCart();
+    setState(() => loading = false);
+  }
+
+  Future<void> _loadWalletBalance() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      walletBalance = 0.0;
+      return;
+    }
+    try {
+      final row = await Supabase.instance.client
+          .from('gebruikers')
+          .select('beursie_balans')
+          .eq('gebr_id', user.id)
+          .maybeSingle();
+      if (row != null && row is Map<String, dynamic>) {
+        final raw = row['beursie_balans'];
+        if (raw is num) walletBalance = raw.toDouble();
+        else walletBalance = double.tryParse('$raw') ?? 0.0;
+      } else {
+        walletBalance = 0.0;
+      }
+    } catch (_) {
+      walletBalance = 0.0;
+    }
+  }
+
+  Future<void> _loadCart() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      setState(() {
+        cart.clear();
+      });
+      return;
+    }
+
+    try {
+      // select mandjie rows for the user and join kos_item fields
+      final data = await Supabase.instance.client.from('mandjie').select(r'''
+        mand_id,
+        qty,
+        kos_item: kos_item_id (
+          kos_item_id,
+          kos_item_naam,
+          kos_item_koste,
+          kos_item_prentjie,
+          is_aktief
+        )
+      ''').eq('gebr_id', user.id);
+
+      final List<Map<String, dynamic>> rows = List<Map<String, dynamic>>.from(data ?? []);
+
+      final List<CartItemModel> loaded = rows.map((r) {
+        final kos = r['kos_item'] as Map<String, dynamic>? ?? <String, dynamic>{};
+        final food = FoodItemModel(
+          id: (kos['kos_item_id'] ?? '').toString(),
+          name: (kos['kos_item_naam'] ?? 'Onbekende Item').toString(),
+          imageUrl: kos['kos_item_prentjie']?.toString(),
+          price: (kos['kos_item_koste'] is num) ? (kos['kos_item_koste'] as num).toDouble() : double.tryParse('${kos['kos_item_koste']}') ?? 0.0,
+          available: kos.containsKey('is_aktief') ? (kos['is_aktief'] == true || kos['is_aktief'].toString().toLowerCase() == 'true') : true,
+        );
+
+        return CartItemModel(
+          id: r['mand_id'].toString(),
+          foodItem: food,
+          quantity: (r['qty'] is int) ? r['qty'] as int : int.tryParse('${r['qty']}') ?? 1,
+        );
+      }).toList();
+
+      setState(() {
+        cart
+          ..clear()
+          ..addAll(loaded);
+      });
+    } catch (e) {
+      // if error, keep existing cart or clear - show snackbar
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Kon nie mandjie laai nie: $e')));
+      }
+    }
+  }
+
+  void updateCartQuantity(String itemId, int newQuantity) async {
+    // keep UI responsive
     setState(() {
       final CartItemModel item = cart.firstWhere((c) => c.id == itemId);
       if (newQuantity <= 0) {
+        // remove locally (DB delete will follow)
         cart.removeWhere((c) => c.id == itemId);
       } else {
         item.quantity = newQuantity.clamp(0, 10);
       }
     });
+
+    try {
+      if (newQuantity <= 0) {
+        await Supabase.instance.client.from('mandjie').delete().eq('mand_id', itemId);
+      } else {
+        await Supabase.instance.client.from('mandjie').update({'qty': newQuantity}).eq('mand_id', itemId);
+      }
+    } catch (e) {
+      // Rollback UI change by reloading cart
+      await _loadCart();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Kon nie hoeveelheid opdateer nie: $e')));
+    }
+
+    // refresh wallet just in case
+    await _loadWalletBalance();
+    if (mounted) setState(() {});
   }
 
-  void removeFromCart(String itemId) {
-    setState(() {
-      cart.removeWhere((c) => c.id == itemId);
-    });
+  void removeFromCart(String itemId) async {
+    setState(() => cart.removeWhere((c) => c.id == itemId));
+    try {
+      await Supabase.instance.client.from('mandjie').delete().eq('mand_id', itemId);
+    } catch (e) {
+      await _loadCart();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Kon nie item verwyder nie: $e')));
+    }
+    await _loadWalletBalance();
   }
 
-  bool placeOrder(String pickup) {
-    // Simulate success and deduct balance
-    if (!hasSufficientFunds) return false;
-    setState(() {
-      walletBalance -= total;
-      cart.clear();
-    });
-    return true;
+  Future<bool> placeOrder(String pickup) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Jy moet eers aanmeld.')));
+      return false;
+    }
+
+    if (cart.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mandjie is leeg.')));
+      return false;
+    }
+
+    // Recompute totals
+    final double orderTotal = subtotal;
+
+    // fetch latest wallet balance
+    await _loadWalletBalance();
+
+    if (walletBalance < orderTotal) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Onvoldoende fondse in beursie.')));
+      return false;
+    }
+
+    // check for unavailable items
+    if (unavailableItems.isNotEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sommige items is nie meer beskikbaar nie. Verwyder hulle voor bestelling.')));
+      return false;
+    }
+
+    // Begin order flow (sequential; Supabase Dart client doesn't provide cross-table transactions here)
+    try {
+      final sb = Supabase.instance.client;
+
+      // 1) create bestelling
+      final bestellingInsert = await sb.from('bestelling').insert({
+        'gebr_id': user.id,
+        'best_volledige_prys': orderTotal,
+        // 'kampus_id': null // optional: map pickup -> kampus if you want
+      }).select().maybeSingle();
+
+      if (bestellingInsert == null || bestellingInsert['best_id'] == null) {
+        throw Exception('Kon nie bestelling skep nie.');
+      }
+      final String bestId = bestellingInsert['best_id'].toString();
+
+      // 2) insert bestelling_kos_item entries
+      for (final c in cart) {
+        await sb.from('bestelling_kos_item').insert({
+          'best_id': bestId,
+          'kos_item_id': c.foodItem.id,
+        });
+      }
+
+      // 3) record beursie_transaksie (uitbetaling)
+      await sb.from('beursie_transaksie').insert({
+        'gebr_id': user.id,
+        'trans_bedrag': orderTotal,
+        'trans_tipe': 'uitbetaling',
+        'trans_beskrywing': 'Bestelling $bestId - afhaallokasie: $pickup',
+      });
+
+      // 4) update gebruikers.beursie_balans
+      final double newBal = (walletBalance - orderTotal);
+      await sb.from('gebruikers').update({'beursie_balans': newBal}).eq('gebr_id', user.id);
+
+      // 5) clear mandjie for user
+      await sb.from('mandjie').delete().eq('gebr_id', user.id);
+
+      // 6) update local state
+      setState(() {
+        walletBalance = newBal;
+        cart.clear();
+      });
+
+      return true;
+    } catch (e) {
+      // If something failed, we surface the error (possible partial writes may have happened)
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Kon nie bestelling plaas nie: $e')));
+      // reload to reflect DB state
+      await _loadEverything();
+      return false;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // If loading, show same UI but with progress
+    if (loading) {
+      return Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     // Empty State
     if (cartIsEmpty) {
       return Scaffold(
@@ -487,8 +655,8 @@ class _CartPageState extends State<CartPage> {
               ElevatedButton(
                 onPressed: (!hasSufficientFunds || pickupLocation == null || unavailableItems.isNotEmpty)
                     ? null
-                    : () {
-                        final bool success = placeOrder(pickupLocation!);
+                    : () async {
+                        final bool success = await placeOrder(pickupLocation!);
                         if (success) context.go('/orders');
                       },
                 style: ElevatedButton.styleFrom(
