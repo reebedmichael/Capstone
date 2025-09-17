@@ -10,7 +10,7 @@ const DAYS = [
   'Sondag',
 ];
 
-const SPECIAL_FILTERS = ['Alle'];
+const SPECIAL_FILTERS = ['Geskiedenis'];
 
 class DayFilters extends StatelessWidget {
   final String selectedDay;
@@ -37,7 +37,7 @@ class DayFilters extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
-              "Dae van week",
+              "Hierdie week",
               style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: theme.hintColor,
@@ -51,7 +51,7 @@ class DayFilters extends StatelessWidget {
                   onDayChange(SPECIAL_FILTERS.first);
                 },
                 icon: const Icon(Icons.filter_list_off, size: 16),
-                label: const Text('Wys alle bestellings'),
+                label: const Text('Bestelling Geskiedenis'),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,

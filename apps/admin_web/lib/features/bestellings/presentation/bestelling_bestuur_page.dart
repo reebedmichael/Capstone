@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import '../../../shared/types/order.dart' as types;
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:spys_api_client/spys_api_client.dart' show SupabaseDb;
+import 'package:spys_api_client/src/admin_bestellings_repository.dart';
+import '../../../shared/types/order.dart';
 import '../../../shared/utils/status_utils.dart';
-import 'mock_orders.dart';
 import '../../../shared/widgets/Bestellings/order_search.dart';
 import '../../../shared/widgets/Bestellings/day_filter_orders.dart';
 import '../../../shared/widgets/Bestellings/day_item_summary.dart';
 import '../../../shared/widgets/Bestellings/order_card.dart';
 import '../../../shared/widgets/Bestellings/order_details.dart';
 import '../../../shared/widgets/Bestellings/bulk_actions.dart';
-import '../../../shared/widgets/Bestellings/status_badge.dart';
 
 // const String CURRENT_DAY = "Donderdag";
 String _getCurrentDayInAfrikaans() {
@@ -33,15 +34,169 @@ class BestellingBestuurPage extends StatefulWidget {
 }
 
 class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
-  List<types.Order> orders = List.from(mockOrders);
+  List<Order> orders = [];
+  bool _isLoading = true;
+  String? _error;
+  late final AdminBestellingRepository _repo;
   String searchQuery = "";
   String selectedDay = _getCurrentDayInAfrikaans();
   String selectedFoodItem = "";
 
+  @override
+  void initState() {
+    super.initState();
+    final client = Supabase.instance.client;
+    _repo = AdminBestellingRepository(SupabaseDb(client));
+    _loadOrders();
+  }
+
+  Future<void> _loadOrders() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final rows = await _repo.getBestellings();
+      final loaded = rows.map(_mapApiOrderToModel).whereType<Order>().toList();
+      setState(() {
+        orders
+          ..clear()
+          ..addAll(loaded);
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // Map repository result to local UI model
+  Order? _mapApiOrderToModel(Map<String, dynamic> row) {
+    try {
+      final bestId = row['best_id'];
+      final idStr = bestId?.toString() ?? '';
+      final email = (row['gebr_epos'] as String?) ?? 'onbekend@epos';
+      final createdAtRaw = row['best_geskep_datum'];
+      DateTime createdAt;
+      try {
+        createdAt = DateTime.parse(
+          createdAtRaw?.toString() ?? DateTime.now().toIso8601String(),
+        );
+      } catch (_) {
+        createdAt = DateTime.now();
+      }
+      final total = (row['best_volledige_prys'] as num?)?.toDouble() ?? 0.0;
+
+      final itemsRaw =
+          (row['kos_items'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
+      final items = <OrderItem>[];
+      final scheduledDays = <String>{};
+
+      for (final it in itemsRaw) {
+        final name = (it['kos_item_naam'] as String?) ?? 'Item';
+        final qty = (it['item_hoev'] as num?)?.toInt() ?? 1;
+        final weekdag = (it['weekdag'] as String?) ?? '';
+        final statusNames =
+            (it['statusse'] as List?)?.whereType<String>().toList() ?? const [];
+        final status = _pickStatusFromNames(statusNames);
+        final bestKosId = (it['best_kos_id']?.toString()) ?? '';
+        scheduledDays.add(weekdag);
+        items.add(
+          OrderItem(
+            id: bestKosId,
+            name: name,
+            quantity: qty,
+            price: 0.0, // price not provided by API
+            status: status,
+            scheduledDay: weekdag,
+          ),
+        );
+      }
+
+      // Derive overall status from items
+      final overallStatus = _recalcOrderStatus(items);
+
+      return Order(
+        id: idStr,
+        customerEmail: email,
+        items: items,
+        scheduledDays: scheduledDays.where((d) => d.isNotEmpty).toList(),
+        status: overallStatus,
+        createdAt: createdAt,
+        totalAmount: total,
+        deliveryPoint: (row['kampus_naam'] as String?) ?? '',
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  OrderStatus _pickStatusFromNames(List<String> names) {
+    // Precedence order from lowest to highest progression
+    const precedence = <OrderStatus>[
+      OrderStatus.pending,
+      OrderStatus.preparing,
+      OrderStatus.readyDelivery,
+      OrderStatus.outForDelivery,
+      OrderStatus.delivered,
+      OrderStatus.readyFetch,
+      OrderStatus.done,
+      OrderStatus.cancelled,
+    ];
+
+    OrderStatus mapOne(String n) {
+      final s = n.toLowerCase();
+      if (s.contains('kansel') || s.contains('cancel'))
+        return OrderStatus.cancelled;
+      if (s.contains('afgehandel') || s == 'done') return OrderStatus.done;
+      if (s.contains('afleweringspunt') ||
+          s.contains('afgelewer') ||
+          s.contains('delivered')) {
+        return OrderStatus.delivered;
+      }
+      if (s.contains('uit vir aflewering') || s.contains('out for')) {
+        return OrderStatus.outForDelivery;
+      }
+      if (s.contains('gereed vir aflewering') || s.contains('ready delivery')) {
+        return OrderStatus.readyDelivery;
+      }
+      if (s.contains('reg vir afhaal') ||
+          s.contains('ready fetch') ||
+          s.contains('pickup')) {
+        return OrderStatus.readyFetch;
+      }
+      if ((s.contains('voorbereiding')) || (s.contains('prepar')))
+        return OrderStatus.preparing;
+      if (s.contains('ontvang') || s.contains('pending'))
+        return OrderStatus.pending;
+      return OrderStatus.pending;
+    }
+
+    if (names.isEmpty) return OrderStatus.pending;
+    final mapped = names.map(mapOne).toSet();
+    // choose highest precedence (last index)
+    OrderStatus best = OrderStatus.pending;
+    int bestIdx = -1;
+    for (final st in mapped) {
+      final idx = precedence.indexOf(st);
+      if (idx > bestIdx) {
+        bestIdx = idx;
+        best = st;
+      }
+    }
+    return best;
+  }
+
   // Filtering logic
-  List<types.Order> get filteredOrders {
-    if (selectedDay == "Alle") {
-      return orders.toList()
+  List<Order> get filteredOrders {
+    if (selectedDay == "Geskiedenis") {
+      return orders.where((order) => order.status == OrderStatus.done).toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     }
 
@@ -66,26 +221,22 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
           );
 
           final statuses = filteredDayItems.map((i) => i.status).toList();
-          types.OrderStatus dayStatus = types.OrderStatus.pending;
+          OrderStatus dayStatus = OrderStatus.pending;
 
-          if (statuses.every((s) => s == types.OrderStatus.done)) {
-            dayStatus = types.OrderStatus.done;
-          } else if (statuses.every((s) => s == types.OrderStatus.readyFetch)) {
-            dayStatus = types.OrderStatus.readyFetch;
-          } else if (statuses.every((s) => s == types.OrderStatus.delivered)) {
-            dayStatus = types.OrderStatus.delivered;
-          } else if (statuses.any((s) => s == types.OrderStatus.cancelled)) {
-            dayStatus = types.OrderStatus.cancelled;
-          } else if (statuses.any(
-            (s) => s == types.OrderStatus.outForDelivery,
-          )) {
-            dayStatus = types.OrderStatus.outForDelivery;
-          } else if (statuses.any(
-            (s) => s == types.OrderStatus.readyDelivery,
-          )) {
-            dayStatus = types.OrderStatus.readyDelivery;
-          } else if (statuses.any((s) => s == types.OrderStatus.preparing)) {
-            dayStatus = types.OrderStatus.preparing;
+          if (statuses.every((s) => s == OrderStatus.done)) {
+            dayStatus = OrderStatus.done;
+          } else if (statuses.every((s) => s == OrderStatus.readyFetch)) {
+            dayStatus = OrderStatus.readyFetch;
+          } else if (statuses.every((s) => s == OrderStatus.delivered)) {
+            dayStatus = OrderStatus.delivered;
+          } else if (statuses.any((s) => s == OrderStatus.cancelled)) {
+            dayStatus = OrderStatus.cancelled;
+          } else if (statuses.any((s) => s == OrderStatus.outForDelivery)) {
+            dayStatus = OrderStatus.outForDelivery;
+          } else if (statuses.any((s) => s == OrderStatus.readyDelivery)) {
+            dayStatus = OrderStatus.readyDelivery;
+          } else if (statuses.any((s) => s == OrderStatus.preparing)) {
+            dayStatus = OrderStatus.preparing;
           }
 
           return order.copyWith(
@@ -95,7 +246,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
             scheduledDays: [selectedDay],
           );
         })
-        .whereType<types.Order>()
+        .whereType<Order>()
         .where(
           (order) =>
               searchQuery.isEmpty ||
@@ -108,8 +259,8 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
   }
 
   // === Status update handlers ===
-  void handleUpdateOrderStatus(String orderId, types.OrderStatus status) {
-    if (selectedDay == "Alle") return;
+  void handleUpdateOrderStatus(String orderId, OrderStatus status) {
+    if (selectedDay == "Geskiedenis") return;
 
     setState(() {
       orders = orders.map((order) {
@@ -148,7 +299,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
   void handleUpdateItemStatus(
     String orderId,
     String itemId,
-    types.OrderStatus status,
+    OrderStatus status,
   ) {
     setState(() {
       orders = orders.map((order) {
@@ -174,14 +325,14 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
   }
 
   void handleCancelOrder(String orderId) {
-    if (selectedDay == "Alle") return;
+    if (selectedDay == "Geskiedenis") return;
 
     setState(() {
       orders = orders.map((order) {
         if (order.id == orderId) {
           final updatedItems = order.items.map((i) {
             if (i.scheduledDay == selectedDay && canBeCancelled(i.status)) {
-              return i.copyWith(status: types.OrderStatus.cancelled);
+              return i.copyWith(status: OrderStatus.cancelled);
             }
             return i;
           }).toList();
@@ -196,8 +347,8 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
     });
   }
 
-  void handleBulkUpdate(List<String> orderIds, types.OrderStatus status) {
-    if (selectedDay == "Alle") return;
+  void handleBulkUpdate(List<String> orderIds, OrderStatus status) {
+    if (selectedDay == "Geskiedenis") return;
 
     setState(() {
       orders = orders.map((order) {
@@ -221,23 +372,23 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
   }
 
   // === Helpers ===
-  types.OrderStatus _recalcOrderStatus(List<types.OrderItem> items) {
-    if (items.every((i) => i.status == types.OrderStatus.done)) {
-      return types.OrderStatus.done;
-    } else if (items.every((i) => i.status == types.OrderStatus.readyFetch)) {
-      return types.OrderStatus.readyFetch;
-    } else if (items.every((i) => i.status == types.OrderStatus.delivered)) {
-      return types.OrderStatus.delivered;
-    } else if (items.every((i) => i.status == types.OrderStatus.cancelled)) {
-      return types.OrderStatus.cancelled;
-    } else if (items.any((i) => i.status == types.OrderStatus.outForDelivery)) {
-      return types.OrderStatus.outForDelivery;
-    } else if (items.any((i) => i.status == types.OrderStatus.readyDelivery)) {
-      return types.OrderStatus.readyDelivery;
-    } else if (items.any((i) => i.status == types.OrderStatus.preparing)) {
-      return types.OrderStatus.preparing;
+  OrderStatus _recalcOrderStatus(List<OrderItem> items) {
+    if (items.every((i) => i.status == OrderStatus.done)) {
+      return OrderStatus.done;
+    } else if (items.every((i) => i.status == OrderStatus.readyFetch)) {
+      return OrderStatus.readyFetch;
+    } else if (items.every((i) => i.status == OrderStatus.delivered)) {
+      return OrderStatus.delivered;
+    } else if (items.every((i) => i.status == OrderStatus.cancelled)) {
+      return OrderStatus.cancelled;
+    } else if (items.any((i) => i.status == OrderStatus.outForDelivery)) {
+      return OrderStatus.outForDelivery;
+    } else if (items.any((i) => i.status == OrderStatus.readyDelivery)) {
+      return OrderStatus.readyDelivery;
+    } else if (items.any((i) => i.status == OrderStatus.preparing)) {
+      return OrderStatus.preparing;
     }
-    return types.OrderStatus.pending;
+    return OrderStatus.pending;
   }
 
   void handleFoodItemClick(String foodItem) {
@@ -260,7 +411,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
   // === UI ===
   @override
   Widget build(BuildContext context) {
-    final stats = _computeViewStats();
+    // final stats = _computeViewStats();
 
     return Scaffold(
       // backgroundColor: Theme.of(context).colorScheme.background,
@@ -285,7 +436,21 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
 
             const SizedBox(height: 16),
 
-            // Search + Badge
+            // Loading / Error
+            if (_isLoading) ...[
+              const SizedBox(height: 16),
+              const Center(child: CircularProgressIndicator()),
+              const SizedBox(height: 16),
+            ] else if (_error != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Search
             Row(
               children: [
                 Expanded(
@@ -323,7 +488,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
 
             const SizedBox(height: 16),
 
-            // // Summary stats
+            // // Summary stats (optional)
             // _buildSummaryCard(stats),
             const SizedBox(height: 16),
 
@@ -350,14 +515,14 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
                         children: [
                           Expanded(
                             child: Text(
-                              selectedDay == "Alle"
-                                  ? "Alle Bestellings (${filteredOrders.length})"
+                              selectedDay == "Geskiedenis"
+                                  ? "Bestelling Geskiedenis (${filteredOrders.length})"
                                   : "Bestellings vir $selectedDay (${filteredOrders.length})",
                               style: Theme.of(context).textTheme.titleLarge,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (selectedDay != "Alle")
+                          if (selectedDay != "Geskiedenis")
                             BulkActions(
                               orders: filteredOrders,
                               onBulkUpdate: handleBulkUpdate,
@@ -370,10 +535,10 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
                       for (var order in filteredOrders)
                         OrderCard(
                           order: order,
-                          selectedDay: selectedDay != "Alle"
+                          selectedDay: selectedDay != "Geskiedenis"
                               ? selectedDay
                               : null,
-                          isPastOrder: selectedDay == "Alle",
+                          isPastOrder: selectedDay == "Geskiedenis",
                           onViewDetails: (order) =>
                               _showOrderDetails(context, order),
                           onUpdateStatus: handleUpdateOrderStatus,
@@ -387,52 +552,15 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
     );
   }
 
-  Map<String, dynamic> _computeViewStats() {
-    if (selectedDay == "Alle") {
-      final deliveredOrders = filteredOrders;
-      final totalOrders = deliveredOrders.length;
-      final totalItems = deliveredOrders.fold<int>(
-        0,
-        (sum, o) => sum + o.items.length,
-      );
+  // Summary stats currently not displayed; method removed to avoid unused warnings.
 
-      return {
-        "totalOrders": totalOrders,
-        "totalItems": totalItems,
-        "statusCounts": {types.OrderStatus.delivered: totalItems},
-      };
-    }
-
-    var dayItems = orders
-        .expand((o) => o.items.where((i) => i.scheduledDay == selectedDay))
-        .toList();
-
-    if (selectedFoodItem.isNotEmpty) {
-      dayItems = dayItems.where((i) => i.name == selectedFoodItem).toList();
-    }
-
-    final totalItems = dayItems.length;
-    final totalOrders = filteredOrders.length;
-
-    final Map<types.OrderStatus, int> statusCounts = {};
-    for (final item in dayItems) {
-      statusCounts[item.status] = (statusCounts[item.status] ?? 0) + 1;
-    }
-
-    return {
-      "totalOrders": totalOrders,
-      "totalItems": totalItems,
-      "statusCounts": statusCounts,
-    };
-  }
-
-  void _showOrderDetails(BuildContext context, types.Order order) {
+  void _showOrderDetails(BuildContext context, Order order) {
     showDialog(
       context: context,
       barrierDismissible: true,
       builder: (context) => OrderDetailsModal(
         order: order,
-        selectedDay: selectedDay != "Alle" ? selectedDay : null,
+        selectedDay: selectedDay != "Geskiedenis" ? selectedDay : null,
         isOpen: true,
         onClose: () => Navigator.of(context).pop(),
         onUpdateItemStatus: handleUpdateItemStatus,

@@ -45,8 +45,6 @@ class OrderItem {
   }
 }
 
-// In your order.dart file
-
 class Order {
   final String id;
   final String customerEmail;
@@ -55,6 +53,7 @@ class Order {
   final OrderStatus status;
   final DateTime createdAt;
   final double totalAmount;
+  final String deliveryPoint;
 
   // --- ADD THESE NEW OPTIONAL FIELDS ---
   final String? originalOrderId;
@@ -68,6 +67,7 @@ class Order {
     required this.status,
     required this.createdAt,
     required this.totalAmount,
+    required this.deliveryPoint,
     // Add to constructor
     this.originalOrderId,
     this.foodType,
@@ -81,6 +81,7 @@ class Order {
     OrderStatus? status,
     DateTime? createdAt,
     double? totalAmount,
+    String? deliveryPoint,
     // Add to copyWith
     String? originalOrderId,
     String? foodType,
@@ -93,6 +94,7 @@ class Order {
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
       totalAmount: totalAmount ?? this.totalAmount,
+      deliveryPoint: deliveryPoint ?? this.deliveryPoint,
       // Add to copyWith return
       originalOrderId: originalOrderId ?? this.originalOrderId,
       foodType: foodType ?? this.foodType,

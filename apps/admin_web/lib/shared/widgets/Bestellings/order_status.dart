@@ -91,12 +91,12 @@ class Badge extends StatelessWidget {
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(8),
-        border: border == null ? null : Border.fromBorderSide(border),
+        border: Border.fromBorderSide(border),
       ),
       // whitespace-nowrap: prevent wrapping; show ellipsis if too long
       child: Text(
         text,
-        softWrap: !nowrap ? true : false,
+        softWrap: !nowrap,
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(
           color: textColor,
