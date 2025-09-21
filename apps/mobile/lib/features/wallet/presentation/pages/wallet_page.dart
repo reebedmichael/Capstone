@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../app/presentation/widgets/app_bottom_nav.dart';
@@ -349,12 +348,10 @@ class _WalletPageState extends State<WalletPage>
                           style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary),
                           onPressed: () async {
-                            // DUMMY ACTION: Show snackbar
-                            final prefs = await SharedPreferences.getInstance();
-                            final current = prefs.getDouble("beursie_balaans");
-
-                            await prefs.setDouble("beursie_balaans", current! + double.parse(topUpAmount));
-
+                            // TODO: Implement proper wallet top-up with Supabase backend
+                            // This should update the user's wallet balance in the database
+                            // instead of using SharedPreferences
+                            
                             ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                     content: Text('Fondse Bygevoeg.')));
