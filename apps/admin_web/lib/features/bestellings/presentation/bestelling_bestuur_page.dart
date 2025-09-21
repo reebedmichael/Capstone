@@ -4,6 +4,8 @@ import 'package:spys_api_client/spys_api_client.dart' show SupabaseDb;
 import 'package:spys_api_client/src/admin_bestellings_repository.dart';
 import '../../../shared/types/order.dart';
 import '../../../shared/utils/status_utils.dart';
+import '../../../shared/constants/order_constants.dart';
+import '../../../shared/widgets/common_widgets.dart';
 import '../../../shared/widgets/Bestellings/order_search.dart';
 import '../../../shared/widgets/Bestellings/day_filter_orders.dart';
 import '../../../shared/widgets/Bestellings/day_item_summary.dart';
@@ -11,20 +13,7 @@ import '../../../shared/widgets/Bestellings/order_card.dart';
 import '../../../shared/widgets/Bestellings/order_details.dart';
 import '../../../shared/widgets/Bestellings/bulk_actions.dart';
 
-// const String CURRENT_DAY = "Donderdag";
-String _getCurrentDayInAfrikaans() {
-  const dayNames = {
-    1: "Maandag",
-    2: "Dinsdag",
-    3: "Woensdag",
-    4: "Donderdag",
-    5: "Vrydag",
-    6: "Saterdag",
-    7: "Sondag",
-  };
-
-  return dayNames[DateTime.now().weekday] ?? "Onbekend";
-}
+// Use shared constants
 
 class BestellingBestuurPage extends StatefulWidget {
   const BestellingBestuurPage({super.key});
@@ -39,7 +28,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
   String? _error;
   late final AdminBestellingRepository _repo;
   String searchQuery = "";
-  String selectedDay = _getCurrentDayInAfrikaans();
+  String selectedDay = OrderConstants.getCurrentDayInAfrikaans();
   String selectedFoodItem = "";
 
   @override
@@ -82,6 +71,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
       final bestId = row['best_id'];
       final idStr = bestId?.toString() ?? '';
       final email = (row['gebr_epos'] as String?) ?? 'onbekend@epos';
+      final id = (row['gebr_id'] as String?) ?? '1';
       final createdAtRaw = row['best_geskep_datum'];
       DateTime createdAt;
       try {
@@ -100,19 +90,20 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
 
       for (final it in itemsRaw) {
         final name = (it['kos_item_naam'] as String?) ?? 'Item';
+        final price = (it['kos_item_koste'] as num?)?.toDouble() ?? 1;
         final qty = (it['item_hoev'] as num?)?.toInt() ?? 1;
         final weekdag = (it['weekdag'] as String?) ?? '';
         final statusNames =
             (it['statusse'] as List?)?.whereType<String>().toList() ?? const [];
-        final status = _pickStatusFromNames(statusNames);
+        final status = mapStatusFromNames(statusNames);
         final bestKosId = (it['best_kos_id']?.toString()) ?? '';
         scheduledDays.add(weekdag);
         items.add(
           OrderItem(
             id: bestKosId,
             name: name,
+            price: price,
             quantity: qty,
-            price: 0.0, // price not provided by API
             status: status,
             scheduledDay: weekdag,
           ),
@@ -125,6 +116,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
       return Order(
         id: idStr,
         customerEmail: email,
+        customerId: id,
         items: items,
         scheduledDays: scheduledDays.where((d) => d.isNotEmpty).toList(),
         status: overallStatus,
@@ -137,238 +129,344 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
     }
   }
 
-  OrderStatus _pickStatusFromNames(List<String> names) {
-    // Precedence order from lowest to highest progression
-    const precedence = <OrderStatus>[
-      OrderStatus.pending,
-      OrderStatus.preparing,
-      OrderStatus.readyDelivery,
-      OrderStatus.outForDelivery,
-      OrderStatus.delivered,
-      OrderStatus.readyFetch,
-      OrderStatus.done,
-      OrderStatus.cancelled,
-    ];
-
-    OrderStatus mapOne(String n) {
-      final s = n.toLowerCase();
-      if (s.contains('kansel') || s.contains('cancel'))
-        return OrderStatus.cancelled;
-      if (s.contains('afgehandel') || s == 'done') return OrderStatus.done;
-      if (s.contains('afleweringspunt') ||
-          s.contains('afgelewer') ||
-          s.contains('delivered')) {
-        return OrderStatus.delivered;
-      }
-      if (s.contains('uit vir aflewering') || s.contains('out for')) {
-        return OrderStatus.outForDelivery;
-      }
-      if (s.contains('gereed vir aflewering') || s.contains('ready delivery')) {
-        return OrderStatus.readyDelivery;
-      }
-      if (s.contains('reg vir afhaal') ||
-          s.contains('ready fetch') ||
-          s.contains('pickup')) {
-        return OrderStatus.readyFetch;
-      }
-      if ((s.contains('voorbereiding')) || (s.contains('prepar')))
-        return OrderStatus.preparing;
-      if (s.contains('ontvang') || s.contains('pending'))
-        return OrderStatus.pending;
-      return OrderStatus.pending;
-    }
-
-    if (names.isEmpty) return OrderStatus.pending;
-    final mapped = names.map(mapOne).toSet();
-    // choose highest precedence (last index)
-    OrderStatus best = OrderStatus.pending;
-    int bestIdx = -1;
-    for (final st in mapped) {
-      final idx = precedence.indexOf(st);
-      if (idx > bestIdx) {
-        bestIdx = idx;
-        best = st;
-      }
-    }
-    return best;
-  }
-
-  // Filtering logic
+  // Filtering logic: Splits orders by food item for the daily view.
   List<Order> get filteredOrders {
+    List<Order> baseOrders;
+    // Geskiedenis (History) view: Show original orders that are fully completed.
     if (selectedDay == "Geskiedenis") {
-      return orders.where((order) => order.status == OrderStatus.done).toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    }
+      baseOrders =
+          orders.where((order) => order.status == OrderStatus.done).toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    } else {
+      final List<Order> splitOrders = [];
 
-    return orders
-        .map((order) {
-          final dayItems = order.items
-              .where((item) => item.scheduledDay == selectedDay)
-              .toList();
+      for (final order in orders) {
+        // 1. Filter items for the selected day that are NOT yet "done".
+        final dayItems = order.items
+            .where(
+              (item) =>
+                  item.scheduledDay == selectedDay &&
+                  item.status != OrderStatus.done &&
+                  item.status != OrderStatus.cancelled,
+            )
+            .toList();
 
-          var filteredDayItems = dayItems;
-          if (selectedFoodItem.isNotEmpty) {
-            filteredDayItems = filteredDayItems
-                .where((item) => item.name == selectedFoodItem)
-                .toList();
+        if (dayItems.isEmpty) continue;
+
+        // 2. Group these items by food name.
+        final itemsByFoodType = <String, List<OrderItem>>{};
+        for (final item in dayItems) {
+          (itemsByFoodType[item.name] ??= []).add(item);
+        }
+
+        // 3. Create a new "split" order for each food group.
+        itemsByFoodType.forEach((foodName, foodItems) {
+          // Apply the food item filter if one is selected.
+          if (selectedFoodItem.isNotEmpty && foodName != selectedFoodItem) {
+            return; // Skip this food group.
           }
 
-          if (filteredDayItems.isEmpty) return null;
-
-          final dayTotalAmount = filteredDayItems.fold<double>(
+          final foodTotalAmount = foodItems.fold<double>(
             0,
             (sum, item) => sum + item.price * item.quantity,
           );
+          final foodOrderStatus = _recalcOrderStatus(foodItems);
 
-          final statuses = filteredDayItems.map((i) => i.status).toList();
-          OrderStatus dayStatus = OrderStatus.pending;
+          // Create a new, unique ID for this view from the original ID and food name.
+          final splitOrderId = '${order.id}__$foodName';
 
-          if (statuses.every((s) => s == OrderStatus.done)) {
-            dayStatus = OrderStatus.done;
-          } else if (statuses.every((s) => s == OrderStatus.readyFetch)) {
-            dayStatus = OrderStatus.readyFetch;
-          } else if (statuses.every((s) => s == OrderStatus.delivered)) {
-            dayStatus = OrderStatus.delivered;
-          } else if (statuses.any((s) => s == OrderStatus.cancelled)) {
-            dayStatus = OrderStatus.cancelled;
-          } else if (statuses.any((s) => s == OrderStatus.outForDelivery)) {
-            dayStatus = OrderStatus.outForDelivery;
-          } else if (statuses.any((s) => s == OrderStatus.readyDelivery)) {
-            dayStatus = OrderStatus.readyDelivery;
-          } else if (statuses.any((s) => s == OrderStatus.preparing)) {
-            dayStatus = OrderStatus.preparing;
-          }
-
-          return order.copyWith(
-            items: filteredDayItems,
-            totalAmount: dayTotalAmount,
-            status: dayStatus,
-            scheduledDays: [selectedDay],
+          splitOrders.add(
+            order.copyWith(
+              id: splitOrderId,
+              items: foodItems,
+              totalAmount: foodTotalAmount,
+              status: foodOrderStatus,
+              scheduledDays: [selectedDay],
+            ),
           );
-        })
-        .whereType<Order>()
-        .where(
-          (order) =>
-              searchQuery.isEmpty ||
-              order.customerEmail.toLowerCase().contains(
-                searchQuery.toLowerCase(),
-              ) ||
-              order.id.toLowerCase().contains(searchQuery.toLowerCase()),
-        )
-        .toList();
+        });
+      }
+      baseOrders = splitOrders;
+    }
+
+    // 4. Apply search query to the list of split orders.
+    return baseOrders.where((order) {
+      final originalOrderId = order.id.split('__').first;
+      final matchesSearch =
+          searchQuery.isEmpty ||
+          order.customerEmail.toLowerCase().contains(
+            searchQuery.toLowerCase(),
+          ) ||
+          originalOrderId.toLowerCase().contains(searchQuery.toLowerCase());
+      return matchesSearch;
+    }).toList();
   }
 
-  // === Status update handlers ===
-  void handleUpdateOrderStatus(String orderId, OrderStatus status) {
+  // === Status update handlers (Refactored for split orders) ===
+
+  Future<void> handleUpdateOrderStatus(
+    String splitOrderId,
+    OrderStatus status,
+  ) async {
     if (selectedDay == "Geskiedenis") return;
 
-    setState(() {
-      orders = orders.map((order) {
-        if (order.id == orderId) {
-          final currentDayItems = order.items
-              .where((i) => i.scheduledDay == selectedDay)
-              .toList();
+    final parts = splitOrderId.split('__');
+    if (parts.length < 2) return; // Invalid ID format
+    final originalOrderId = parts.first;
+    final foodType = parts.sublist(1).join('__');
 
-          // Check if any items can be updated to the target status
-          final canUpdateAny = currentDayItems.any(
-            (i) => getNextStatus(i.status) == status,
-          );
+    try {
+      // Find the original order and items to update
+      final originalOrder = orders.firstWhere(
+        (order) => order.id == originalOrderId,
+      );
+      final itemsToUpdate = originalOrder.items
+          .where(
+            (item) =>
+                item.scheduledDay == selectedDay &&
+                item.name == foodType &&
+                getNextStatus(item.status) == status,
+          )
+          .toList();
 
-          if (!canUpdateAny) return order;
+      // Update each item in the database
+      for (final item in itemsToUpdate) {
+        final statusName = getDatabaseStatusName(status);
+        await _repo.updateStatus(
+          bestKosId: item.id,
+          statusNaam: statusName,
+          gebrId: originalOrder.customerId,
+          refundAmount: item.price * item.quantity,
+        );
+      }
 
-          final updatedItems = order.items
-              .map(
-                (i) =>
-                    i.scheduledDay == selectedDay &&
-                        getNextStatus(i.status) == status
-                    ? i.copyWith(status: status)
-                    : i,
+      // Update local state after successful database update
+      setState(() {
+        orders = orders.map((order) {
+          if (order.id == originalOrderId) {
+            final updatedItems = order.items.map((item) {
+              if (item.scheduledDay == selectedDay &&
+                  item.name == foodType &&
+                  getNextStatus(item.status) == status) {
+                return item.copyWith(status: status);
+              }
+              return item;
+            }).toList();
+
+            return order.copyWith(
+              items: updatedItems,
+              status: _recalcOrderStatus(updatedItems),
+            );
+          }
+          return order;
+        }).toList();
+      });
+    } catch (e) {
+      // Show error to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fout by opdatering: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> handleUpdateItemStatus(
+    String splitOrderId,
+    String itemId,
+    OrderStatus status,
+  ) async {
+    final originalOrderId = splitOrderId.split('__').first;
+
+    try {
+      // Find the item to update
+      final originalOrder = orders.firstWhere(
+        (order) => order.id == originalOrderId,
+      );
+      final targetItem = originalOrder.items.firstWhere(
+        (item) => item.id == itemId,
+      );
+
+      if (getNextStatus(targetItem.status) != status) return;
+
+      // Update in database
+      final statusName = getDatabaseStatusName(status);
+      await _repo.updateStatus(bestKosId: itemId, statusNaam: statusName);
+
+      // Update local state after successful database update
+      setState(() {
+        orders = orders.map((order) {
+          if (order.id == originalOrderId) {
+            final updatedItems = order.items
+                .map((i) => i.id == itemId ? i.copyWith(status: status) : i)
+                .toList();
+
+            return order.copyWith(
+              items: updatedItems,
+              status: _recalcOrderStatus(updatedItems),
+            );
+          }
+          return order;
+        }).toList();
+      });
+    } catch (e) {
+      // Show error to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fout by opdatering: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> handleCancelOrder(String splitOrderId) async {
+    if (selectedDay == "Geskiedenis") return;
+
+    final parts = splitOrderId.split('__');
+    if (parts.length < 2) return;
+    final originalOrderId = parts.first;
+    final foodType = parts.sublist(1).join('__');
+
+    try {
+      // Find the original order and items to cancel
+      final originalOrder = orders.firstWhere(
+        (order) => order.id == originalOrderId,
+      );
+      final itemsToCancel = originalOrder.items
+          .where(
+            (item) =>
+                item.scheduledDay == selectedDay &&
+                item.name == foodType &&
+                canBeCancelled(item.status),
+          )
+          .toList();
+
+      // Cancel each item in the database
+      for (final item in itemsToCancel) {
+        final statusName = getDatabaseStatusName(OrderStatus.cancelled);
+        await _repo.updateStatus(
+          bestKosId: item.id,
+          statusNaam: statusName,
+          gebrId:
+              originalOrder.customerId, // Using actual customer ID for refund
+          refundAmount: item.price * item.quantity, // Calculate refund amount
+        );
+      }
+
+      // Update local state after successful database update
+      setState(() {
+        orders = orders.map((order) {
+          if (order.id == originalOrderId) {
+            final updatedItems = order.items.map((item) {
+              if (item.scheduledDay == selectedDay &&
+                  item.name == foodType &&
+                  canBeCancelled(item.status)) {
+                return item.copyWith(status: OrderStatus.cancelled);
+              }
+              return item;
+            }).toList();
+
+            return order.copyWith(
+              items: updatedItems,
+              status: _recalcOrderStatus(updatedItems),
+            );
+          }
+          return order;
+        }).toList();
+      });
+    } catch (e) {
+      // Show error to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fout by kansellasie: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> handleBulkUpdate(
+    List<String> splitOrderIds,
+    OrderStatus status,
+  ) async {
+    if (selectedDay == "Geskiedenis") return;
+
+    final Map<String, Set<String>> updatesByOriginalId = {};
+
+    for (final splitId in splitOrderIds) {
+      final parts = splitId.split('__');
+      if (parts.length < 2) continue;
+      final originalId = parts.first;
+      final foodType = parts.sublist(1).join('__');
+      (updatesByOriginalId[originalId] ??= {}).add(foodType);
+    }
+
+    try {
+      // Update all items in the database
+      for (final order in orders) {
+        if (updatesByOriginalId.containsKey(order.id)) {
+          final foodTypesToUpdate = updatesByOriginalId[order.id]!;
+          final itemsToUpdate = order.items
+              .where(
+                (item) =>
+                    item.scheduledDay == selectedDay &&
+                    foodTypesToUpdate.contains(item.name) &&
+                    getNextStatus(item.status) == status,
               )
               .toList();
 
-          return order.copyWith(
-            items: updatedItems,
-            status: _recalcOrderStatus(updatedItems),
-          );
+          for (final item in itemsToUpdate) {
+            final statusName = getDatabaseStatusName(status);
+            await _repo.updateStatus(
+              bestKosId: item.id,
+              statusNaam: statusName,
+            );
+          }
         }
-        return order;
-      }).toList();
-    });
-  }
+      }
 
-  void handleUpdateItemStatus(
-    String orderId,
-    String itemId,
-    OrderStatus status,
-  ) {
-    setState(() {
-      orders = orders.map((order) {
-        if (order.id == orderId) {
-          final targetIndex = order.items.indexWhere((i) => i.id == itemId);
-          if (targetIndex == -1) return order;
-          final target = order.items[targetIndex];
+      // Update local state after successful database updates
+      setState(() {
+        orders = orders.map((order) {
+          if (updatesByOriginalId.containsKey(order.id)) {
+            final foodTypesToUpdate = updatesByOriginalId[order.id]!;
 
-          if (getNextStatus(target.status) != status) return order;
+            final updatedItems = order.items.map((item) {
+              if (item.scheduledDay == selectedDay &&
+                  foodTypesToUpdate.contains(item.name) &&
+                  getNextStatus(item.status) == status) {
+                return item.copyWith(status: status);
+              }
+              return item;
+            }).toList();
 
-          final updatedItems = order.items
-              .map((i) => i.id == itemId ? i.copyWith(status: status) : i)
-              .toList();
-
-          return order.copyWith(
-            items: updatedItems,
-            status: _recalcOrderStatus(updatedItems),
-          );
-        }
-        return order;
-      }).toList();
-    });
-  }
-
-  void handleCancelOrder(String orderId) {
-    if (selectedDay == "Geskiedenis") return;
-
-    setState(() {
-      orders = orders.map((order) {
-        if (order.id == orderId) {
-          final updatedItems = order.items.map((i) {
-            if (i.scheduledDay == selectedDay && canBeCancelled(i.status)) {
-              return i.copyWith(status: OrderStatus.cancelled);
-            }
-            return i;
-          }).toList();
-
-          return order.copyWith(
-            items: updatedItems,
-            status: _recalcOrderStatus(updatedItems),
-          );
-        }
-        return order;
-      }).toList();
-    });
-  }
-
-  void handleBulkUpdate(List<String> orderIds, OrderStatus status) {
-    if (selectedDay == "Geskiedenis") return;
-
-    setState(() {
-      orders = orders.map((order) {
-        if (orderIds.contains(order.id)) {
-          final updatedItems = order.items.map((i) {
-            if (i.scheduledDay == selectedDay &&
-                getNextStatus(i.status) == status) {
-              return i.copyWith(status: status);
-            }
-            return i;
-          }).toList();
-
-          return order.copyWith(
-            items: updatedItems,
-            status: _recalcOrderStatus(updatedItems),
-          );
-        }
-        return order;
-      }).toList();
-    });
+            return order.copyWith(
+              items: updatedItems,
+              status: _recalcOrderStatus(updatedItems),
+            );
+          }
+          return order;
+        }).toList();
+      });
+    } catch (e) {
+      // Show error to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fout by bulk opdatering: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   // === Helpers ===
@@ -408,13 +506,10 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
     });
   }
 
-  // === UI ===
+  // === UI (No changes needed below this line) ===
   @override
   Widget build(BuildContext context) {
-    // final stats = _computeViewStats();
-
     return Scaffold(
-      // backgroundColor: Theme.of(context).colorScheme.background,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -437,18 +532,11 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
             const SizedBox(height: 16),
 
             // Loading / Error
-            if (_isLoading) ...[
-              const SizedBox(height: 16),
-              const Center(child: CircularProgressIndicator()),
-              const SizedBox(height: 16),
-            ] else if (_error != null) ...[
-              const SizedBox(height: 16),
-              Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-              const SizedBox(height: 16),
-            ],
+            LoadingErrorWidget(
+              isLoading: _isLoading,
+              error: _error,
+              child: const SizedBox.shrink(),
+            ),
 
             // Search
             Row(
@@ -470,8 +558,9 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
                             value: searchQuery,
                             onChange: (val) =>
                                 setState(() => searchQuery = val),
-                            placeholder:
-                                "Soek vir kliënt e-pos of bestelling ID...",
+                            placeholder: OrderConstants.getUiString(
+                              'searchPlaceholder',
+                            ),
                           ),
                         ),
                       );
@@ -488,12 +577,10 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
 
             const SizedBox(height: 16),
 
-            // // Summary stats (optional)
-            // _buildSummaryCard(stats),
             const SizedBox(height: 16),
 
             DayItemsSummary(
-              orders: orders,
+              orders: filteredOrders,
               selectedDay: selectedDay,
               selectedFoodItem: selectedFoodItem,
               onFoodItemClick: handleFoodItemClick,
@@ -502,7 +589,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
             filteredOrders.isEmpty
                 ? Center(
                     child: Text(
-                      "Geen bestellings",
+                      OrderConstants.getUiString('noOrdersFound'),
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
                   )
@@ -516,8 +603,8 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
                           Expanded(
                             child: Text(
                               selectedDay == "Geskiedenis"
-                                  ? "Bestelling Geskiedenis (${filteredOrders.length})"
-                                  : "Bestellings vir $selectedDay (${filteredOrders.length})",
+                                  ? "${OrderConstants.getUiString('orderHistory')} (${filteredOrders.length})"
+                                  : "${OrderConstants.getUiString('ordersForDay')} $selectedDay (${filteredOrders.length})",
                               style: Theme.of(context).textTheme.titleLarge,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -551,8 +638,6 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
       ),
     );
   }
-
-  // Summary stats currently not displayed; method removed to avoid unused warnings.
 
   void _showOrderDetails(BuildContext context, Order order) {
     showDialog(

@@ -2,17 +2,18 @@
 import 'package:flutter/material.dart';
 import '../../types/order.dart';
 import '../../utils/status_utils.dart';
+import '../../constants/order_constants.dart';
 import 'cancel_confirmation.dart';
-import 'status_badge.dart'; // for StatusBadge
+import 'status_badge.dart';
 
 class OrderDetailsModal extends StatefulWidget {
   final Order order;
   final String? selectedDay;
   final bool isOpen;
   final VoidCallback onClose;
-  final void Function(String orderId, String itemId, OrderStatus status)
+  final Future<void> Function(String orderId, String itemId, OrderStatus status)
   onUpdateItemStatus;
-  final void Function(String orderId) onCancelOrder;
+  final Future<void> Function(String orderId) onCancelOrder;
 
   const OrderDetailsModal({
     super.key,
@@ -31,20 +32,26 @@ class OrderDetailsModal extends StatefulWidget {
 class _OrderDetailsModalState extends State<OrderDetailsModal> {
   String? editingItem;
 
-  void handleUpdateItemStatus(String itemId, OrderStatus newStatus) {
-    widget.onUpdateItemStatus(widget.order.id, itemId, newStatus);
+  Future<void> handleUpdateItemStatus(
+    String itemId,
+    OrderStatus newStatus,
+  ) async {
+    await widget.onUpdateItemStatus(widget.order.id, itemId, newStatus);
     setState(() => editingItem = null);
   }
 
-  void handleProgressItem(String itemId, OrderStatus currentStatus) {
+  Future<void> handleProgressItem(
+    String itemId,
+    OrderStatus currentStatus,
+  ) async {
     final nextStatus = getNextStatus(currentStatus);
     if (nextStatus != null) {
-      widget.onUpdateItemStatus(widget.order.id, itemId, nextStatus);
+      await widget.onUpdateItemStatus(widget.order.id, itemId, nextStatus);
     }
   }
 
-  void handleCancelOrder() {
-    widget.onCancelOrder(widget.order.id);
+  Future<void> handleCancelOrder() async {
+    await widget.onCancelOrder(widget.order.id);
     // setState(() => showCancelDialog = false);
   }
 
@@ -83,27 +90,29 @@ class _OrderDetailsModalState extends State<OrderDetailsModal> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        "Bestelling besonderhede",
-                        style: TextStyle(
+                      Text(
+                        OrderConstants.getUiString('orderDetails'),
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Row(
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "Bestelling ID: ${widget.order.id}",
+                            "${OrderConstants.getUiString('orderId')} ${widget.order.id}",
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
-                          const SizedBox(width: 12),
                           Text(
-                            "Kliënt: ${widget.order.customerEmail}",
+                            "${OrderConstants.getUiString('client')} ${widget.order.customerEmail}",
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
-                          const SizedBox(width: 12),
-                          StatusBadge(status: widget.order.status),
+                          Text(
+                            "Aflaai punt: ${widget.order.deliveryPoint}",
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
                         ],
                       ),
                     ],
@@ -214,9 +223,9 @@ class _OrderDetailsModalState extends State<OrderDetailsModal> {
                                             if (editingItem == items[i].id)
                                               DropdownButton<OrderStatus>(
                                                 value: items[i].status,
-                                                onChanged: (value) {
+                                                onChanged: (value) async {
                                                   if (value != null) {
-                                                    handleUpdateItemStatus(
+                                                    await handleUpdateItemStatus(
                                                       items[i].id,
                                                       value,
                                                     );
@@ -275,7 +284,7 @@ class _OrderDetailsModalState extends State<OrderDetailsModal> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "Totaal: \R${widget.order.totalAmount.toStringAsFixed(2)}",
+                      "${OrderConstants.getUiString('total')} \R${widget.order.totalAmount.toStringAsFixed(2)}",
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -322,7 +331,7 @@ class _OrderDetailsModalState extends State<OrderDetailsModal> {
                         const SizedBox(width: 8),
                         OutlinedButton(
                           onPressed: widget.onClose,
-                          child: const Text("Maak toe"),
+                          child: Text(OrderConstants.getUiString('close')),
                         ),
                       ],
                     ),
@@ -343,8 +352,8 @@ class _OrderDetailsModalState extends State<OrderDetailsModal> {
       builder: (context) => CancelConfirmationDialog(
         isOpen: true,
         onClose: () => Navigator.of(context).pop(),
-        onConfirm: () {
-          handleCancelOrder();
+        onConfirm: () async {
+          await handleCancelOrder();
           Navigator.of(context).pop();
         },
         orderNumber: widget.order.id,

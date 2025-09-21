@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../types/order.dart';
+import '../../constants/order_constants.dart';
 
 class DayItemsSummary extends StatelessWidget {
   final List<Order> orders;
@@ -57,7 +58,7 @@ class DayItemsSummary extends StatelessWidget {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            "Items",
+                            OrderConstants.getUiString('items'),
                             style: theme.textTheme.bodySmall?.copyWith(
                               fontWeight: FontWeight.w500,
                               color: Colors.orange.shade700,
@@ -77,7 +78,7 @@ class DayItemsSummary extends StatelessWidget {
                           border: Border.all(color: Colors.orange.shade200),
                         ),
                         child: Text(
-                          "$totalItems totaal",
+                          "$totalItems ${OrderConstants.getUiString('totalItems')}",
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
@@ -97,7 +98,7 @@ class DayItemsSummary extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          "Gefiltreer",
+                          OrderConstants.getUiString('filtered'),
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.orange.shade600,
@@ -227,8 +228,8 @@ class DayItemsSummary extends StatelessWidget {
                       minimumSize: const Size(0, 30),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: const Text(
-                      "Vee filter uit om alle items te wys",
+                    child: Text(
+                      OrderConstants.getUiString('clearFilter'),
                       style: TextStyle(color: Colors.red),
                     ),
                   ),

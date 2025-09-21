@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import '../../constants/order_constants.dart';
 
 class CancelConfirmationDialog extends StatelessWidget {
   final bool isOpen;
   final VoidCallback onClose;
-  final VoidCallback onConfirm;
+  final Future<void> Function() onConfirm;
   final String orderNumber;
   final String customerEmail;
   final String? selectedDay;
@@ -20,9 +21,9 @@ class CancelConfirmationDialog extends StatelessWidget {
     this.itemCount,
   });
 
-  void _handleConfirm(BuildContext context) {
+  Future<void> _handleConfirm(BuildContext context) async {
     // Navigator.of(context).pop();
-    onConfirm();
+    await onConfirm();
     onClose();
     // Navigator.of(context).pop();
   }
@@ -70,12 +71,12 @@ class CancelConfirmationDialog extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Bevestig Kanselasie",
+                          OrderConstants.getUiString('confirmCancellation'),
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          "Hierdie aksie kan nie ongedaan gemaak word nie.",
+                          OrderConstants.getUiString('irreversibleAction'),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
@@ -98,28 +99,32 @@ class CancelConfirmationDialog extends StatelessWidget {
                 child: Column(
                   children: [
                     _buildDetailRow(
-                      "Bestelling:",
+                      "${OrderConstants.getUiString('orderId')} ",
                       orderNumber,
                       context,
                       highlight: true,
                     ),
-                    _buildDetailRow("Kliënt:", customerEmail, context),
+                    _buildDetailRow(
+                      "${OrderConstants.getUiString('client')} ",
+                      customerEmail,
+                      context,
+                    ),
                     if (selectedDay != null) ...[
                       _buildDetailRow(
-                        "Dag:",
+                        "${OrderConstants.getUiString('day')} ",
                         selectedDay!,
                         context,
                         highlight: true,
                         highlightColor: Theme.of(context).colorScheme.error,
                       ),
-                      if (itemCount != null)
-                        _buildDetailRow(
-                          "Items om te kanseleer:",
-                          "$itemCount item${itemCount != 1 ? 's' : ''}",
-                          context,
-                          highlight: true,
-                          highlightColor: Theme.of(context).colorScheme.error,
-                        ),
+                      // if (itemCount != null)
+                      //   _buildDetailRow(
+                      //     "${OrderConstants.getUiString('itemsToCancel')} ",
+                      //     "$itemCount item${itemCount != 1 ? 's' : ''}",
+                      //     context,
+                      //     highlight: true,
+                      //     highlightColor: Theme.of(context).colorScheme.error,
+                      //   ),
                     ],
                   ],
                 ),
@@ -148,7 +153,7 @@ class CancelConfirmationDialog extends StatelessWidget {
                       onClose();
                       // Navigator.of(context).pop();
                     },
-                    child: const Text("Hou bestelling"),
+                    child: Text(OrderConstants.getUiString('keepOrder')),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
@@ -156,11 +161,11 @@ class CancelConfirmationDialog extends StatelessWidget {
                       backgroundColor: Theme.of(context).colorScheme.error,
                       foregroundColor: Theme.of(context).colorScheme.onError,
                     ),
-                    onPressed: () => _handleConfirm(context),
+                    onPressed: () async => await _handleConfirm(context),
                     child: Text(
                       selectedDay != null
-                          ? "Kanseleer $selectedDay se items"
-                          : "Kanseleer bestelling",
+                          ? "${OrderConstants.getUiString('cancelItems')} $selectedDay se items"
+                          : "${OrderConstants.getUiString('cancelItems')} bestelling",
                     ),
                   ),
                 ],
@@ -182,21 +187,31 @@ class CancelConfirmationDialog extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start, // align texts at the top
         children: [
-          Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+          Flexible(
+            flex: 2,
+            child: Text(
+              label,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              softWrap: true,
+            ),
           ),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: highlight
-                  ? (highlightColor ?? Theme.of(context).colorScheme.primary)
-                  : null,
-              fontWeight: highlight ? FontWeight.w600 : null,
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: highlight
+                    ? (highlightColor ?? Theme.of(context).colorScheme.primary)
+                    : null,
+                fontWeight: highlight ? FontWeight.w600 : null,
+              ),
+              softWrap: true,
+              overflow: TextOverflow.visible,
             ),
           ),
         ],
@@ -212,7 +227,7 @@ void showCancelConfirmationDialog(
   required String customerEmail,
   String? selectedDay,
   int? itemCount,
-  required VoidCallback onConfirm,
+  required Future<void> Function() onConfirm,
 }) {
   showDialog(
     context: context,

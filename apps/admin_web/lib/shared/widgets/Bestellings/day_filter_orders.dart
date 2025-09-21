@@ -1,16 +1,5 @@
 import 'package:flutter/material.dart';
-
-const DAYS = [
-  'Maandag',
-  'Dinsdag',
-  'Woensdag',
-  'Donderdag',
-  'Vrydag',
-  'Saterdag',
-  'Sondag',
-];
-
-const SPECIAL_FILTERS = ['Geskiedenis'];
+import '../../constants/order_constants.dart';
 
 class DayFilters extends StatelessWidget {
   final String selectedDay;
@@ -26,7 +15,9 @@ class DayFilters extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // A day filter is considered active if the selection is one of the weekdays.
-    final bool isDayFilterActive = DAYS.contains(selectedDay);
+    final bool isDayFilterActive = OrderConstants.weekDays.contains(
+      selectedDay,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -37,7 +28,7 @@ class DayFilters extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
-              "Hierdie week",
+              OrderConstants.getUiString('thisWeek'),
               style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: theme.hintColor,
@@ -48,10 +39,10 @@ class DayFilters extends StatelessWidget {
               TextButton.icon(
                 onPressed: () {
                   // Reset the filter to the default "Historical View"
-                  onDayChange(SPECIAL_FILTERS.first);
+                  onDayChange(OrderConstants.specialFilters.first);
                 },
                 icon: const Icon(Icons.filter_list_off, size: 16),
-                label: const Text('Bestelling Geskiedenis'),
+                label: Text(OrderConstants.getUiString('orderHistory')),
                 style: TextButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -71,7 +62,7 @@ class DayFilters extends StatelessWidget {
         Wrap(
           spacing: 20,
           runSpacing: 8,
-          children: DAYS.map((option) {
+          children: OrderConstants.weekDays.map((option) {
             final bool isSelected = selectedDay == option;
             return ConstrainedBox(
               constraints: const BoxConstraints(

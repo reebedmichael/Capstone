@@ -131,10 +131,13 @@ class AdminBestellingRepository {
               .whereType<String>()
               .toList();
 
+          final kosItemData = kosItemMap[kosItemId];
+
           assembledItems.add({
             'best_kos_id': bestKosId,
             'kos_item_id': kosItemId,
-            'kos_item_naam': kosItemMap[kosItemId],
+            'kos_item_naam': kosItemData?['naam'],
+            'kos_item_koste': kosItemData?['koste'],
             'item_hoev': itemHoev,
             'best_datum': bestDatumRaw,
             'weekdag': weekdag,
@@ -163,47 +166,87 @@ class AdminBestellingRepository {
     }
   }
 
+  /// Kry status ID deur status naam
+  Future<String?> getStatusIdByName(String statusName) async {
+    try {
+      final result = await _sb
+          .from('kos_item_statusse')
+          .select('kos_stat_id')
+          .eq('kos_stat_naam', statusName)
+          .single();
+      return result['kos_stat_id'] as String?;
+    } catch (e) {
+      print('Fout in getStatusIdByName: $e');
+      return null;
+    }
+  }
+
   /// Dateer die status van 'n `bestelling_kos_item` op.
   Future<void> updateStatus({
     required String bestKosId, // GEWYSIG NA STRING
-    required String newKosStatId, // GEWYSIG NA STRING
     required String statusNaam,
     String? gebrId, // GEWYSIG NA STRING
     double? refundAmount,
   }) async {
     try {
+      //Step 1: Get status ID by name
+      final statusId = await getStatusIdByName(statusNaam);
+      if (statusId == null) {
+        throw Exception('Status "$statusNaam" nie gevind nie');
+      }
+      print(gebrId);
+      //Step 2: Update the item status
       await _sb
           .from('best_kos_item_statusse')
           .update({
-            'kos_stat_id': newKosStatId,
-            'best_wysig_datum': DateTime.now().toIso8601String(),
+            'kos_stat_id': statusId,
+            'best_kos_wysig_datum': DateTime.now().toIso8601String(),
           })
           .eq('best_kos_id', bestKosId);
 
-      if (statusNaam == 'Gekanseleer') {
+      //Step 3: Handle cancellation refunds
+      if (statusNaam == 'Gekanselleer') {
         if (gebrId == null || refundAmount == null || refundAmount <= 0) {
           throw ArgumentError(
             'Vir kansellasie is `gebrId` en `refundAmount` verpligtend.',
           );
         }
-
+        //Step 3: Find the transaction type
         final transTipeData = await _sb
             .from('transaksie_tipe')
             .select('trans_tipe_id')
             .eq('trans_tipe_naam', 'admin kanselasie')
             .single();
+        if (transTipeData['trans_tipe_id'] == null) {
+          throw Exception("Transaksie tipe 'admin kanselasie' nie gevind nie.");
+        }
 
         final transTipeId = transTipeData['trans_tipe_id'];
+        print(transTipeId);
         if (transTipeId == null) {
           throw Exception("Transaksie tipe 'admin kanselasie' nie gevind nie.");
+        }
+        //Step 4: Refund the user's wallet
+        print('Looking for gebruiker with ID: $gebrId');
+
+        // First check if the user exists
+        final gebruikerCheck = await _sb
+            .from('gebruikers')
+            .select('gebr_id')
+            .eq('gebr_id', gebrId)
+            .maybeSingle();
+
+        if (gebruikerCheck == null) {
+          throw Exception('Gebruiker met ID $gebrId nie gevind nie');
         }
 
         final gebruikerData = await _sb
             .from('gebruikers')
-            .select('beursie_balans')
+            .select('gebr_id, beursie_balans')
             .eq('gebr_id', gebrId)
             .single();
 
+        print('Found gebruiker: ${gebruikerData['gebr_id']}');
         final currentBalance =
             (gebruikerData['beursie_balans'] as num?)?.toDouble() ?? 0.0;
 
@@ -260,17 +303,23 @@ class AdminBestellingRepository {
     return m;
   }
 
-  // Helper om kos_item id -> kos_item_naam
-  Future<Map<String, String>> _fetchKosItemMap(List<String> kosItemIds) async {
+  // Helper om kos_item id -> {naam, koste}
+  Future<Map<String, Map<String, dynamic>>> _fetchKosItemMap(
+    List<String> kosItemIds,
+  ) async {
     if (kosItemIds.isEmpty) return {};
     final rows = await _sb
         .from('kos_item')
-        .select('kos_item_id, kos_item_naam')
+        .select('kos_item_id, kos_item_naam, kos_item_koste')
         .inFilter('kos_item_id', kosItemIds);
-    final Map<String, String> m = {};
+
+    final Map<String, Map<String, dynamic>> m = {};
     for (final r in rows) {
-      if (r['kos_item_id'] != null && r['kos_item_naam'] != null) {
-        m[r['kos_item_id'] as String] = r['kos_item_naam'] as String;
+      if (r['kos_item_id'] != null) {
+        m[r['kos_item_id'] as String] = {
+          'naam': r['kos_item_naam'],
+          'koste': r['kos_item_koste'],
+        };
       }
     }
     return m;

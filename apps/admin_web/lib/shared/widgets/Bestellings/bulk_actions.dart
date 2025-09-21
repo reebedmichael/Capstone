@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../types/order.dart'; // <-- adjust path if needed
-import '../../utils/status_utils.dart'; // <-- must export getNextStatus(OrderStatus?), canProgress(OrderStatus)
+import '../../types/order.dart';
+import '../../utils/status_utils.dart';
+import '../../constants/order_constants.dart';
 
 typedef BulkUpdateCallback =
-    void Function(List<String> orderIds, OrderStatus status);
+    Future<void> Function(List<String> orderIds, OrderStatus status);
 
 /// A widget for performing bulk status updates on a list of orders.
 class BulkActions extends StatefulWidget {
@@ -39,24 +40,7 @@ class _BulkActionsState extends State<BulkActions> {
 
   /// Helper to map OrderStatus enum to a human-readable label.
   String _getStatusLabel(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.pending:
-        return 'Bestelling Ontvang';
-      case OrderStatus.preparing:
-        return 'Besig met Voorbereiding';
-      case OrderStatus.readyDelivery:
-        return 'Gereed vir aflewering';
-      case OrderStatus.readyFetch:
-        return 'Reg vir afhaal';
-      case OrderStatus.outForDelivery:
-        return 'Uit vir aflewering';
-      case OrderStatus.delivered:
-        return 'By afleweringspunt';
-      case OrderStatus.done:
-        return 'Afgehandel';
-      case OrderStatus.cancelled:
-        return 'Gekanselleer';
-    }
+    return OrderConstants.getStatusLabel(status.name);
   }
 
   /// Filters the input orders to only those that can progress to a new status.
@@ -86,13 +70,18 @@ class _BulkActionsState extends State<BulkActions> {
   }
 
   /// Handles the bulk update action, calling the callback and resetting state.
-  void _handleBulkUpdate() {
+  Future<void> _handleBulkUpdate() async {
     if (_selectedOrders.isNotEmpty && _bulkStatus != null) {
-      widget.onBulkUpdate(_selectedOrders.toList(), _bulkStatus!);
-      setState(() {
-        _selectedOrders.clear();
-        _bulkStatus = null;
-      });
+      try {
+        await widget.onBulkUpdate(_selectedOrders.toList(), _bulkStatus!);
+        setState(() {
+          _selectedOrders.clear();
+          _bulkStatus = null;
+        });
+      } catch (e) {
+        // Error handling is done in the parent widget
+        rethrow;
+      }
     }
   }
 
@@ -133,7 +122,7 @@ class _BulkActionsState extends State<BulkActions> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
-            'Bevorder na:',
+            OrderConstants.getUiString('bulkUpdate'),
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -146,7 +135,7 @@ class _BulkActionsState extends State<BulkActions> {
               height: 40, // Compact height
               child: DropdownButtonFormField<OrderStatus?>(
                 value: currentBulkStatus,
-                hint: const Text('Kies aksie'),
+                hint: Text(OrderConstants.getUiString('selectAction')),
                 isExpanded: true,
                 decoration: const InputDecoration(
                   contentPadding: EdgeInsets.symmetric(horizontal: 12),
@@ -154,9 +143,9 @@ class _BulkActionsState extends State<BulkActions> {
                   // isDense: true,
                 ),
                 items: [
-                  const DropdownMenuItem<OrderStatus?>(
+                  DropdownMenuItem<OrderStatus?>(
                     value: null,
-                    child: Text("Kies aksie"),
+                    child: Text(OrderConstants.getUiString('selectAction')),
                   ),
                   ...allOptions.map((opt) {
                     return DropdownMenuItem<OrderStatus?>(
@@ -174,17 +163,19 @@ class _BulkActionsState extends State<BulkActions> {
             if (currentBulkStatus != null)
               if (_selectedOrders.isNotEmpty)
                 ElevatedButton(
-                  onPressed: _handleBulkUpdate,
+                  onPressed: () async => await _handleBulkUpdate(),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  child: Text('Opdateer ${_selectedOrders.length}'),
+                  child: Text(
+                    '${OrderConstants.getUiString('updateCount')} ${_selectedOrders.length}',
+                  ),
                 )
               else
                 Expanded(
                   child: Text(
-                    'Geen kwalifiserende bestellings nie',
+                    OrderConstants.getUiString('noEligibleOrders'),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
@@ -194,7 +185,7 @@ class _BulkActionsState extends State<BulkActions> {
             // "No actions available" message
             Expanded(
               child: Text(
-                'Geen aksies beskikbaar nie',
+                OrderConstants.getUiString('noActionsAvailable'),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),

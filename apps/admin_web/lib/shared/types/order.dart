@@ -48,6 +48,7 @@ class OrderItem {
 class Order {
   final String id;
   final String customerEmail;
+  final String customerId;
   final List<OrderItem> items;
   final List<String> scheduledDays;
   final OrderStatus status;
@@ -62,6 +63,7 @@ class Order {
   Order({
     required this.id,
     required this.customerEmail,
+    required this.customerId,
     required this.items,
     required this.scheduledDays,
     required this.status,
@@ -76,6 +78,7 @@ class Order {
   Order copyWith({
     String? id,
     String? customerEmail,
+    String? customerId,
     List<OrderItem>? items,
     List<String>? scheduledDays,
     OrderStatus? status,
@@ -89,6 +92,7 @@ class Order {
     return Order(
       id: id ?? this.id,
       customerEmail: customerEmail ?? this.customerEmail,
+      customerId: customerId ?? this.customerId,
       items: items ?? this.items,
       scheduledDays: scheduledDays ?? this.scheduledDays,
       status: status ?? this.status,

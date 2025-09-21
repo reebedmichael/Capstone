@@ -27,18 +27,18 @@ class StatusBadge extends StatelessWidget {
     OrderStatus.preparing: StatusConfig(
       label: "Besig met Voorbereiding",
       backgroundColor: Color(0xFFBBDEFB), // light blue
-      textColor: Color(0xFF1565C0), // deep blue
+      textColor: Colors.black,
     ),
     OrderStatus.readyDelivery: StatusConfig(
       label: "Gereed vir aflewering",
-      backgroundColor: Color.fromARGB(255, 211, 1, 253),
-      textColor: Color.fromARGB(255, 18, 0, 31),
+      backgroundColor: Color.fromARGB(255, 240, 168, 255),
+      textColor: Colors.black,
     ),
 
     OrderStatus.outForDelivery: StatusConfig(
       label: "Uit vir aflewering",
-      backgroundColor: Color(0xFFE1BEE7), // light purple
-      textColor: Color(0xFF6A1B9A), // deep purple
+      backgroundColor: Color.fromARGB(255, 255, 162, 233), // light purple
+      textColor: Colors.black, // deep purple
     ),
     OrderStatus.delivered: StatusConfig(
       label: "By afleweringspunt",
@@ -48,12 +48,12 @@ class StatusBadge extends StatelessWidget {
     OrderStatus.readyFetch: StatusConfig(
       label: "Reg vir afhaal",
       backgroundColor: Color(0xFFC8E6C9), // light green
-      textColor: Color(0xFF2E7D32), // deep green
+      textColor: Colors.black,
     ),
     OrderStatus.done: StatusConfig(
       label: "Afgehandel",
       backgroundColor: Color.fromARGB(255, 255, 255, 255), // light green
-      textColor: Color.fromARGB(255, 1, 26, 0), // deep green
+      textColor: Colors.black,
     ),
     OrderStatus.cancelled: StatusConfig(
       label: "Gekanselleer",

@@ -76,7 +76,6 @@ StatusInfo getStatusInfo(OrderStatus status) {
         backgroundColor: Color(0xFFC8E6C9), // light green
         textColor: Color(0xFF2E7D32), // deep green
       );
-
     case OrderStatus.outForDelivery:
       return const StatusInfo(
         label: "Uit vir aflewering",
@@ -108,4 +107,80 @@ StatusInfo getStatusInfo(OrderStatus status) {
         textColor: Color(0xFFB71C1C), // deep red
       );
   }
+}
+
+/// Map OrderStatus enum to database status names
+const Map<OrderStatus, String> statusToDatabaseName = {
+  OrderStatus.pending: 'Bestelling Ontvang',
+  OrderStatus.preparing: 'Besig met Voorbereiding',
+  OrderStatus.readyDelivery: 'Gereed vir aflewering',
+  OrderStatus.outForDelivery: 'Uit vir aflewering',
+  OrderStatus.delivered: 'By afleweringspunt',
+  OrderStatus.readyFetch: 'Reg vir afhaal',
+  OrderStatus.done: 'Afgehandel',
+  OrderStatus.cancelled: 'Gekanselleer',
+};
+
+/// Get database status name for an OrderStatus
+String getDatabaseStatusName(OrderStatus status) {
+  return statusToDatabaseName[status] ??
+      statusToDatabaseName[OrderStatus.pending]!;
+}
+
+/// Map API status names to OrderStatus enum
+OrderStatus mapStatusFromNames(List<String> names) {
+  if (names.isEmpty) return OrderStatus.pending;
+
+  // Precedence order from lowest to highest progression
+  const precedence = <OrderStatus>[
+    OrderStatus.pending,
+    OrderStatus.preparing,
+    OrderStatus.readyDelivery,
+    OrderStatus.outForDelivery,
+    OrderStatus.delivered,
+    OrderStatus.readyFetch,
+    OrderStatus.done,
+    OrderStatus.cancelled,
+  ];
+
+  OrderStatus mapOne(String n) {
+    final s = n.toLowerCase();
+    if (s.contains('kansel') || s.contains('cancel'))
+      return OrderStatus.cancelled;
+    if (s.contains('afgehandel') || s == 'done') return OrderStatus.done;
+    if (s.contains('afleweringspunt') ||
+        s.contains('afgelewer') ||
+        s.contains('delivered')) {
+      return OrderStatus.delivered;
+    }
+    if (s.contains('uit vir aflewering') || s.contains('out for')) {
+      return OrderStatus.outForDelivery;
+    }
+    if (s.contains('gereed vir aflewering') || s.contains('ready delivery')) {
+      return OrderStatus.readyDelivery;
+    }
+    if (s.contains('reg vir afhaal') ||
+        s.contains('ready fetch') ||
+        s.contains('pickup')) {
+      return OrderStatus.readyFetch;
+    }
+    if (s.contains('voorbereiding') || s.contains('prepar'))
+      return OrderStatus.preparing;
+    if (s.contains('ontvang') || s.contains('pending'))
+      return OrderStatus.pending;
+    return OrderStatus.pending;
+  }
+
+  final mapped = names.map(mapOne).toSet();
+  // choose highest precedence (last index)
+  OrderStatus best = OrderStatus.pending;
+  int bestIdx = -1;
+  for (final st in mapped) {
+    final idx = precedence.indexOf(st);
+    if (idx > bestIdx) {
+      bestIdx = idx;
+      best = st;
+    }
+  }
+  return best;
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../types/order.dart';
 import '../../utils/status_utils.dart';
+import '../../constants/order_constants.dart';
+import '../common_widgets.dart';
 import 'cancel_confirmation.dart';
 import 'status_badge.dart';
 
@@ -9,8 +11,9 @@ class OrderCard extends StatefulWidget {
   final String? selectedDay;
   final bool isPastOrder;
   final void Function(Order order) onViewDetails;
-  final void Function(String orderId, OrderStatus status) onUpdateStatus;
-  final void Function(String orderId) onCancelOrder;
+  final Future<void> Function(String orderId, OrderStatus status)
+  onUpdateStatus;
+  final Future<void> Function(String orderId) onCancelOrder;
 
   const OrderCard({
     super.key,
@@ -132,7 +135,7 @@ class _OrderCardState extends State<OrderCard> {
       children: [
         _buildOrderInfoSection(context),
         const Divider(height: 24.0),
-        _MobileInfoRow(
+        LabeledRow(
           label: 'Items: ',
           child: Text(
             "$totalItems item${totalItems != 1 ? 's' : ''} / R${widget.order.totalAmount.toStringAsFixed(2)}",
@@ -141,7 +144,7 @@ class _OrderCardState extends State<OrderCard> {
           ),
         ),
         const SizedBox(height: 20.0),
-        _MobileInfoRow(
+        LabeledRow(
           label: 'Status:',
           child: _buildStatusSection(context, canProgressStatus, nextStatus),
         ),
@@ -169,6 +172,17 @@ class _OrderCardState extends State<OrderCard> {
           widget.order.customerEmail,
           style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
         ),
+        const SizedBox(height: 2),
+        Row(
+          children: [
+            Text("Aflaai punt: "),
+            Text(
+              widget.order.deliveryPoint,
+              style: TextStyle(color: const Color.fromARGB(255, 10, 67, 0)),
+            ),
+          ],
+        ),
+
         // if (widget.isPastOrder)
         //   Padding(
         //     padding: const EdgeInsets.only(top: 4),
@@ -215,15 +229,12 @@ class _OrderCardState extends State<OrderCard> {
       children: [
         StatusBadge(status: widget.order.status),
         if (canProgressStatus && nextStatus != null)
-          OutlinedButton.icon(
-            onPressed: () => widget.onUpdateStatus(widget.order.id, nextStatus),
-            icon: const Icon(Icons.arrow_forward, size: 16),
-            label: const Text("Opdateer"),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              textStyle: const TextStyle(fontSize: 12),
-              visualDensity: VisualDensity.compact,
-            ),
+          ActionButton(
+            onPressed: () async =>
+                await widget.onUpdateStatus(widget.order.id, nextStatus),
+            icon: Icons.arrow_forward,
+            label: OrderConstants.getUiString('updateStatus'),
+            isOutlined: true,
           ),
       ],
     );
@@ -240,26 +251,23 @@ class _OrderCardState extends State<OrderCard> {
       runSpacing: 8.0,
       alignment: WrapAlignment.end,
       children: [
-        OutlinedButton.icon(
+        ActionButton(
           onPressed: () => widget.onViewDetails(widget.order),
-          icon: const Icon(Icons.visibility, size: 16),
-          label: const Text("Besigtig"),
-          style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+          icon: Icons.visibility,
+          label: OrderConstants.getUiString('viewDetails'),
+          isOutlined: true,
         ),
         if (canCancel && cancellableItemsCount > 0)
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red[700],
-              foregroundColor: Colors.white,
-              visualDensity: VisualDensity.compact,
-            ),
+          ActionButton(
             onPressed: () => _showCancelDialog(
               context,
               widget.order.id,
               cancellableItemsCount,
             ),
-            icon: const Icon(Icons.delete, size: 16),
-            label: const Text("Kanseleer"),
+            icon: Icons.delete,
+            label: OrderConstants.getUiString('cancelOrder'),
+            isOutlined: false,
+            isDestructive: true,
           ),
       ],
     );
@@ -276,8 +284,8 @@ class _OrderCardState extends State<OrderCard> {
       builder: (context) => CancelConfirmationDialog(
         isOpen: true,
         onClose: () => Navigator.of(context).pop(),
-        onConfirm: () {
-          widget.onCancelOrder(orderId);
+        onConfirm: () async {
+          await widget.onCancelOrder(orderId);
           // Navigator.of(context).pop();
         },
         orderNumber: orderId,
@@ -285,32 +293,6 @@ class _OrderCardState extends State<OrderCard> {
         selectedDay: widget.selectedDay,
         itemCount: cancellableItemsCount,
       ),
-    );
-  }
-}
-
-/// A helper widget to create a labeled row for the mobile layout.
-class _MobileInfoRow extends StatelessWidget {
-  final String label;
-  final Widget child;
-
-  const _MobileInfoRow({required this.label, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Text(
-          label,
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(width: 16),
-        Flexible(child: child),
-      ],
     );
   }
 }
