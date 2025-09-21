@@ -6,6 +6,9 @@ import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
 import 'package:capstone_mobile/core/theme/app_typography.dart';
+import 'package:spys_api_client/spys_api_client.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../locator.dart';
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});
@@ -18,64 +21,9 @@ class _OrdersPageState extends State<OrdersPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool refreshing = false;
-  final int _bottomIndex = 1;
+  bool isLoading = true;
 
-  List<Map<String, dynamic>> orders = [
-    {
-      'id': '123',
-      'status': 'Wag vir afhaal',
-      'orderDate': DateTime.now().subtract(const Duration(hours: 1)),
-      'pickupLocation': 'Spys Kiosk',
-      'total': 150.50,
-      'items': [
-        {
-          'quantity': 2,
-          'foodItem': {'name': 'Burger', 'price': 50.00, 'imageUrl': ''},
-        },
-        {
-          'quantity': 2,
-          'foodItem': {'name': 'Chips', 'price': 25.25, 'imageUrl': ''},
-        },
-      ],
-      'feedback': null,
-    },
-    {
-      'id': '255',
-      'status': 'In voorbereiding',
-      'orderDate': DateTime.now().subtract(const Duration(hours: 1)),
-      'pickupLocation': 'Kafetaria',
-      'total': 75.00,
-      'items': [
-        {
-          'quantity': 1,
-          'foodItem': {'name': 'Pizza', 'price': 75.00, 'imageUrl': ''},
-        },
-      ],
-      'feedback': null,
-    },
-    {
-      'id': '456',
-      'status': 'Afgehaal',
-      'orderDate': DateTime.now().subtract(const Duration(days: 1)),
-      'pickupLocation': 'Kafetaria',
-      'total': 75.00,
-      'items': [
-        {
-          'quantity': 1,
-          'foodItem': {
-            'name': 'Pizza',
-            'price': 75.00,
-            // 'imageUrl': 'https://via.placeholder.com/150',
-          },
-        },
-      ],
-      'feedback': {
-        'liked': true,
-        'selectedFeedback': 'Baie lekker!',
-        'date': DateTime.now().subtract(const Duration(hours: 10)),
-      },
-    },
-  ];
+  List<Map<String, dynamic>> orders = [];
 
   @override
   void initState() {
@@ -84,6 +32,7 @@ class _OrdersPageState extends State<OrdersPage>
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) setState(() {});
     });
+    _loadOrders();
   }
 
   String formatDate(DateTime date) {
@@ -110,22 +59,182 @@ class _OrdersPageState extends State<OrdersPage>
     return months[month - 1];
   }
 
+  Future<void> _loadOrders() async {
+    setState(() => isLoading = true);
+    
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      debugPrint('Current user: ${user?.id}');
+      
+      if (user == null) {
+        debugPrint('No user found');
+        setState(() {
+          orders = [];
+          isLoading = false;
+        });
+        return;
+      }
+
+      // Try direct Supabase call first to see if the data exists
+      final directData = await Supabase.instance.client
+          .from('bestelling')
+          .select('*')
+          .eq('gebr_id', user.id)
+          .order('best_geskep_datum', ascending: false);
+      
+      debugPrint('Direct Supabase data: $directData');
+      
+      // Also try repository method
+      final bestellingRepository = sl<BestellingRepository>();
+      final ordersData = await bestellingRepository.lysBestellings(user.id);
+      
+      debugPrint('Repository data: $ordersData');
+      
+      // If no orders found, create some test orders for debugging
+      if (ordersData.isEmpty) {
+        debugPrint('No orders found, creating test orders...');
+        await _createTestOrders(user.id);
+        // Reload after creating test orders
+        final newOrdersData = await bestellingRepository.lysBestellings(user.id);
+        debugPrint('After creating test orders: $newOrdersData');
+        setState(() {
+          orders = newOrdersData;
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          orders = ordersData;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading orders: $e');
+      setState(() {
+        orders = [];
+        isLoading = false;
+      });
+      Fluttertoast.showToast(msg: 'Fout met laai van bestellings: $e');
+    }
+  }
+
+  Future<void> _createTestOrders(String userId) async {
+    try {
+      // Get a kampus ID first
+      final kampusData = await Supabase.instance.client
+          .from('kampus')
+          .select('kampus_id')
+          .limit(1);
+      
+      if (kampusData.isEmpty) {
+        debugPrint('No kampus found');
+        return;
+      }
+      
+      final kampusId = kampusData.first['kampus_id'];
+      
+      // Get some kos items
+      final kosItemsData = await Supabase.instance.client
+          .from('kos_item')
+          .select('kos_item_id, kos_item_koste')
+          .limit(2);
+      
+      if (kosItemsData.isEmpty) {
+        debugPrint('No kos items found');
+        return;
+      }
+      
+      // Create test order 1
+      final order1 = await Supabase.instance.client
+          .from('bestelling')
+          .insert({
+            'gebr_id': userId,
+            'kampus_id': kampusId,
+            'best_volledige_prys': 45.00,
+          })
+          .select()
+          .single();
+      
+      // Add items to order 1
+      await Supabase.instance.client
+          .from('bestelling_kos_item')
+          .insert({
+            'best_id': order1['best_id'],
+            'kos_item_id': kosItemsData[0]['kos_item_id'],
+          });
+      
+      // Create test order 2
+      final order2 = await Supabase.instance.client
+          .from('bestelling')
+          .insert({
+            'gebr_id': userId,
+            'kampus_id': kampusId,
+            'best_volledige_prys': 55.00,
+          })
+          .select()
+          .single();
+      
+      // Add items to order 2
+      if (kosItemsData.length > 1) {
+        await Supabase.instance.client
+            .from('bestelling_kos_item')
+            .insert({
+              'best_id': order2['best_id'],
+              'kos_item_id': kosItemsData[1]['kos_item_id'],
+            });
+      }
+      
+      debugPrint('Test orders created successfully');
+    } catch (e) {
+      debugPrint('Error creating test orders: $e');
+    }
+  }
+
   void handleRefresh() {
     setState(() => refreshing = true);
-    Future.delayed(const Duration(seconds: 1), () {
+    _loadOrders().then((_) {
       setState(() => refreshing = false);
       Fluttertoast.showToast(msg: "Bestellings opgedateer");
     });
   }
 
-  bool cancelOrder(String orderId) {
-    final orderIndex = orders.indexWhere((o) => o['id'] == orderId);
-    if (orderIndex == -1) return false;
-    setState(() {
-      orders[orderIndex]['status'] = 'Gekanselleer';
-    });
-    Fluttertoast.showToast(msg: 'Bestelling gekanselleer');
-    return true;
+  Future<bool> cancelOrder(String orderId) async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return false;
+
+      // Get the status ID for "Gekanselleer"
+      final statusData = await Supabase.instance.client
+          .from('kos_item_statusse')
+          .select('kos_stat_id')
+          .eq('kos_stat_naam', 'Gekanselleer')
+          .single();
+
+      // Get all bestelling_kos_item records for this order
+      final orderItems = await Supabase.instance.client
+          .from('bestelling_kos_item')
+          .select('best_kos_id')
+          .eq('best_id', orderId);
+
+      // Update status for all items in the order
+      for (final item in orderItems) {
+        await Supabase.instance.client
+            .from('best_kos_item_statusse')
+            .insert({
+              'best_kos_id': item['best_kos_id'],
+              'kos_stat_id': statusData['kos_stat_id'],
+            });
+      }
+
+      // Reload orders to get updated data
+      await _loadOrders();
+      
+      Fluttertoast.showToast(msg: 'Bestelling gekanselleer');
+      return true;
+    } catch (e) {
+      debugPrint('Error cancelling order: $e');
+      Fluttertoast.showToast(msg: 'Fout met kansellasie van bestelling');
+      return false;
+    }
   }
 
   void handleCancelOrder(String orderId) {
@@ -142,9 +251,9 @@ class _OrdersPageState extends State<OrdersPage>
             child: const Text("Nee"),
           ),
           ElevatedButton(
-            onPressed: () {
-              cancelOrder(orderId);
+            onPressed: () async {
               Navigator.pop(context);
+              await cancelOrder(orderId);
             },
             child: const Text("Ja"),
           ),
@@ -154,7 +263,9 @@ class _OrdersPageState extends State<OrdersPage>
   }
 
   bool canCancelOrder(Map<String, dynamic> order) {
-    return order['status'] == 'In voorbereiding';
+    final status = _getOrderStatus(order);
+    // Only allow cancellation for orders that are NOT "Wag vir afhaal" and are in active statuses
+    return status != 'Wag vir afhaal' && status != 'Afgehandel' && status != 'Gekanselleer';
   }
 
   Color _statusColor(String status) {
@@ -163,7 +274,7 @@ class _OrdersPageState extends State<OrdersPage>
         return Colors.orange.shade100;
       case 'In voorbereiding':
         return Colors.blue.shade100;
-      case 'Afgehaal':
+      case 'Afgehandel':
         return Colors.green.shade100;
       case 'Gekanselleer':
         return Colors.red.shade100;
@@ -178,7 +289,7 @@ class _OrdersPageState extends State<OrdersPage>
         return const Icon(FeatherIcons.package, color: Colors.orange, size: 16);
       case 'In voorbereiding':
         return const Icon(FeatherIcons.clock, color: Colors.blue, size: 16);
-      case 'Afgehaal':
+      case 'Afgehandel':
         return const Icon(
           FeatherIcons.checkCircle,
           color: Colors.green,
@@ -193,18 +304,23 @@ class _OrdersPageState extends State<OrdersPage>
 
   @override
   Widget build(BuildContext context) {
-    final activeOrders = orders
-        .where(
-          (o) =>
-              o['status'] == 'Wag vir afhaal' ||
-              o['status'] == 'In voorbereiding',
-        )
-        .toList();
-    final completedOrders = orders
-        .where(
-          (o) => o['status'] == 'Afgehaal' || o['status'] == 'Gekanselleer',
-        )
-        .toList();
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+        bottomNavigationBar: AppBottomNav(currentIndex: 1),
+      );
+    }
+
+    // Filter orders based on their actual status
+    final activeOrders = orders.where((order) {
+      final status = _getOrderStatus(order);
+      return status != 'Afgehandel' && status != 'Gekanselleer';
+    }).toList();
+    
+    final completedOrders = orders.where((order) {
+      final status = _getOrderStatus(order);
+      return status == 'Afgehandel' || status == 'Gekanselleer';
+    }).toList();
 
     final displayedOrders = _tabController.index == 0
         ? activeOrders
@@ -229,7 +345,7 @@ class _OrdersPageState extends State<OrdersPage>
           controller: _tabController,
           onTap: (_) => setState(() {}),
           tabs: [
-            Tab(text: 'Aktief (${activeOrders.length})'),
+            Tab(text: 'Bestellings (${activeOrders.length})'),
             Tab(text: 'Voltooi (${completedOrders.length})'),
           ],
         ),
@@ -248,6 +364,57 @@ class _OrdersPageState extends State<OrdersPage>
     );
   }
 
+  String _getOrderStatus(Map<String, dynamic> order) {
+    try {
+      final items = order['bestelling_kos_item'] as List? ?? [];
+      if (items.isEmpty) return 'Wag vir afhaal';
+      
+      // Check if any item has a status
+      for (final item in items) {
+        final statuses = item['best_kos_item_statusse'] as List? ?? [];
+        if (statuses.isNotEmpty) {
+          final latestStatus = statuses.last;
+          final statusInfo = latestStatus['kos_item_statusse'] as Map<String, dynamic>? ?? {};
+          final statusName = statusInfo['kos_stat_naam'] as String? ?? '';
+          if (statusName.isNotEmpty) {
+            return statusName;
+          }
+        }
+      }
+      
+      return 'Wag vir afhaal';
+    } catch (e) {
+      debugPrint('Error getting order status: $e');
+      return 'Wag vir afhaal';
+    }
+  }
+
+
+  String _getOrderTitle(Map<String, dynamic> order) {
+    try {
+      final items = order['bestelling_kos_item'] as List? ?? [];
+      if (items.isEmpty) {
+        final bestId = order['best_id']?.toString() ?? '';
+        return 'Bestelling #${bestId.length > 8 ? bestId.substring(0, 8) : bestId}...';
+      }
+      
+      // Get the first item's name
+      final firstItem = items.first;
+      final kosItem = firstItem['kos_item'] as Map<String, dynamic>? ?? {};
+      final itemName = kosItem['kos_item_naam'] as String? ?? 'Onbekende item';
+      
+      if (items.length == 1) {
+        return itemName;
+      } else {
+        return '$itemName + ${items.length - 1} ander';
+      }
+    } catch (e) {
+      debugPrint('Error getting order title: $e');
+      final bestId = order['best_id']?.toString() ?? '';
+      return 'Bestelling #${bestId.length > 8 ? bestId.substring(0, 8) : bestId}...';
+    }
+  }
+
   Widget _buildOrderCard(Map<String, dynamic> order) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -259,62 +426,69 @@ class _OrdersPageState extends State<OrdersPage>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Bestelling #${order['id']}',
-                      style: AppTypography.labelLarge.copyWith(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(FeatherIcons.clock, size: 14),
-                        const SizedBox(width: 4),
-                        Text(
-                          formatDate(order['orderDate']),
-                          style: const TextStyle(fontSize: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _getOrderTitle(order),
+                        style: AppTypography.labelLarge.copyWith(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
                         ),
-                      ],
-                    ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'R${order['total'].toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _statusColor(order['status']),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                      const SizedBox(height: 4),
+                      Row(
                         children: [
-                          _statusIcon(order['status']),
-                          const SizedBox(width: 6),
+                          const Icon(FeatherIcons.clock, size: 14),
+                          const SizedBox(width: 4),
                           Text(
-                            order['status'],
+                            formatDate(DateTime.parse(order['best_geskep_datum'])),
                             style: const TextStyle(fontSize: 12),
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'R${order['best_volledige_prys'].toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _statusColor(_getOrderStatus(order)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _statusIcon(_getOrderStatus(order)),
+                            const SizedBox(width: 6),
+                            Text(
+                              _getOrderStatus(order),
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -325,7 +499,7 @@ class _OrdersPageState extends State<OrdersPage>
                 const Icon(FeatherIcons.mapPin, size: 14),
                 const SizedBox(width: 6),
                 Text(
-                  order['pickupLocation'] ?? '',
+                  'Kafetaria', // TODO: Get actual pickup location from database
                   style: const TextStyle(fontSize: 12),
                 ),
               ],
@@ -333,8 +507,8 @@ class _OrdersPageState extends State<OrdersPage>
             const SizedBox(height: 12),
             // Items
             Column(
-              children: (order['items'] as List).map<Widget>((item) {
-                final food = item['foodItem'] ?? {};
+              children: (order['bestelling_kos_item'] as List? ?? []).map<Widget>((item) {
+                final food = item['kos_item'] ?? {};
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(8),
@@ -347,10 +521,10 @@ class _OrdersPageState extends State<OrdersPage>
                       ClipRRect(
                         borderRadius: BorderRadius.circular(6),
                         child:
-                            (food['imageUrl'] != null &&
-                                (food['imageUrl'] as String).isNotEmpty)
+                            (food['kos_item_prentjie'] != null &&
+                                (food['kos_item_prentjie'] as String).isNotEmpty)
                             ? Image.network(
-                                food['imageUrl'] as String,
+                                food['kos_item_prentjie'] as String,
                                 width: 48,
                                 height: 48,
                                 fit: BoxFit.cover,
@@ -369,18 +543,18 @@ class _OrdersPageState extends State<OrdersPage>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              food['name'] ?? '',
+                              food['kos_item_naam'] ?? '',
                               style: const TextStyle(fontSize: 14),
                             ),
                             Text(
-                              '${item['quantity']} x R${food['price']}',
+                              '${item['item_hoev'] ?? 1} x R${food['kos_item_koste']}',
                               style: const TextStyle(fontSize: 12),
                             ),
                           ],
                         ),
                       ),
                       Text(
-                        'R${(item['quantity'] * (food['price'] ?? 0)).toStringAsFixed(2)}',
+                        'R${((food['kos_item_koste'] as num? ?? 0.0) * (item['item_hoev'] as int? ?? 1)).toStringAsFixed(2)}',
                         style: const TextStyle(fontSize: 14),
                       ),
                     ],
@@ -390,13 +564,13 @@ class _OrdersPageState extends State<OrdersPage>
             ),
 
             // Feedback for completed orders
-            if (order['status'] == 'Afgehaal') ...[
+            if (_getOrderStatus(order) == 'Afgehandel') ...[
               const Divider(height: 20),
               FeedbackPage(
                 order: order,
                 onFeedbackUpdated: (updatedOrder) {
                   final idx = orders.indexWhere(
-                    (o) => o['id'] == updatedOrder['id'],
+                    (o) => o['best_id'] == updatedOrder['best_id'],
                   );
                   if (idx != -1) {
                     setState(() {
@@ -411,9 +585,10 @@ class _OrdersPageState extends State<OrdersPage>
             const Divider(height: 20),
             Row(
               children: [
-                if (order['status'] == 'Wag vir afhaal')
+                if (_getOrderStatus(order) == 'Wag vir afhaal')
                   Expanded(
                     child: ElevatedButton.icon(
+                      icon: const Icon(FeatherIcons.smartphone, size: 16),
                       label: const Text('Wys QR Kode'),
                       onPressed: () async {
                         final updatedOrder =
@@ -426,7 +601,7 @@ class _OrdersPageState extends State<OrdersPage>
 
                         if (updatedOrder != null) {
                           final idx = orders.indexWhere(
-                            (o) => o['id'] == updatedOrder['id'],
+                            (o) => o['best_id'] == updatedOrder['best_id'],
                           );
                           if (idx != -1) {
                             setState(() {
@@ -438,12 +613,13 @@ class _OrdersPageState extends State<OrdersPage>
                     ),
                   ),
                 const SizedBox(width: 8),
-                if (canCancelOrder(order))
+                // Only show cancel button in the "Bestellings" tab (index 0) and for cancellable orders
+                if (_tabController.index == 0 && canCancelOrder(order))
                   Expanded(
                     child: OutlinedButton.icon(
                       icon: const Icon(FeatherIcons.alertCircle, size: 16),
                       label: const Text('Kanselleer'),
-                      onPressed: () => handleCancelOrder(order['id']),
+                      onPressed: () => handleCancelOrder(order['best_id']),
                     ),
                   ),
               ],
