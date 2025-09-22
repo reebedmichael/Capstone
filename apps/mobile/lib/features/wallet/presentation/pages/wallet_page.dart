@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:spys_api_client/spys_api_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../app/presentation/widgets/app_bottom_nav.dart';
@@ -20,6 +22,9 @@ class _WalletPageState extends State<WalletPage>
   int? selectedAmount;
   String topUpAmount = '';
   String paymentMethod = 'card'; // current selected payment method
+  double beursieBalans = 0.0;
+  bool isLaaiing = false;
+  List<Map<String, dynamic>> transactions = [];
 
   // Bank Card input fields (dummy for now)
   String cardNumber = '';
@@ -27,37 +32,38 @@ class _WalletPageState extends State<WalletPage>
   String cvv = '';
   String cardHolder = '';
 
-  // Mock transactions
-  final List<Map<String, dynamic>> transactions = [
-    {
-      'type': 'debit',
-      'amount': 45.00,
-      'description': 'Boerewors en Pap - Hoofkampus Kafeteria',
-      'date': '20 Jul 2024 12:30',
-      'status': 'completed'
-    },
-    {
-      'type': 'credit',
-      'amount': 200.00,
-      'description': 'Beursie Top-up - Bankkaart',
-      'date': '19 Jul 2024 14:15',
-      'status': 'completed'
-    },
-    {
-      'type': 'debit',
-      'amount': 38.00,
-      'description': 'Vegetariese Pasta - Hoofkampus Kafeteria',
-      'date': '18 Jul 2024 13:45',
-      'status': 'completed'
-    },
-  ];
-
   final quickAmounts = [50, 100, 200, 500];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _laaiBeursieData();
+  }
+
+  // ----------------------------
+  // DATA LAADING METHODS
+  // ----------------------------
+  Future<void> _laaiBeursieData() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final beursieRepo = BeursieRepository(SupabaseDb(Supabase.instance.client));
+      
+      // Laai beursie balans
+      final balans = await beursieRepo.kryBeursieBalans(user.id);
+      
+      // Laai transaksies
+      final transaksies = await beursieRepo.lysTransaksies(user.id);
+      
+      setState(() {
+        beursieBalans = balans;
+        transactions = transaksies;
+      });
+    } catch (e) {
+      print('Fout met laai beursie data: $e');
+    }
   }
 
   // ----------------------------
@@ -74,6 +80,78 @@ class _WalletPageState extends State<WalletPage>
     setState(() {
       paymentMethod = method;
     });
+  }
+
+  Future<void> _laaiBeursieOp() async {
+    if (topUpAmount.isEmpty || double.tryParse(topUpAmount) == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Voer \'n geldige bedrag in')),
+      );
+      return;
+    }
+
+    final bedrag = double.parse(topUpAmount);
+    if (bedrag < 10 || bedrag > 1000) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bedrag moet tussen R10 en R1000 wees')),
+      );
+      return;
+    }
+
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Jy moet eers aanmeld')),
+      );
+      return;
+    }
+
+    setState(() {
+      isLaaiing = true;
+    });
+
+    try {
+      final beursieRepo = BeursieRepository(SupabaseDb(Supabase.instance.client));
+      
+      // Simuleer betaling
+      final betalingSuksesvol = await beursieRepo.simuleerBetaling(paymentMethod, bedrag);
+      
+      if (betalingSuksesvol) {
+        // Laai beursie op
+        final sukses = await beursieRepo.laaiBeursieOp(user.id, bedrag, paymentMethod);
+        
+        if (sukses) {
+          // Herlaai data
+          await _laaiBeursieData();
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('R$bedrag suksesvol bygevoeg aan jou beursie!')),
+          );
+          
+          // Reset form
+          setState(() {
+            topUpAmount = '';
+            selectedAmount = null;
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Fout met laai beursie op. Probeer weer.')),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Betaling het gefaal. Probeer weer.')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Fout: $e')),
+      );
+    } finally {
+      setState(() {
+        isLaaiing = false;
+      });
+    }
   }
 
   @override
@@ -117,8 +195,8 @@ class _WalletPageState extends State<WalletPage>
                                 style: TextStyle(
                                     fontSize: 12, color: Colors.grey)),
                             const SizedBox(height: 8),
-                            const Text('R0.00',
-                                style: TextStyle(
+                            Text('R${beursieBalans.toStringAsFixed(2)}',
+                                style: const TextStyle(
                                     fontSize: 24, fontWeight: FontWeight.bold)),
                             const Text('Laas opgedateer: Vandag',
                                 style: TextStyle(
@@ -347,18 +425,21 @@ class _WalletPageState extends State<WalletPage>
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary),
-                          onPressed: () async {
-                            // TODO: Implement proper wallet top-up with Supabase backend
-                            // This should update the user's wallet balance in the database
-                            // instead of using SharedPreferences
-                            
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('Fondse Bygevoeg.')));
-                          },
-                          icon: const Icon(Icons.add),
+                          onPressed: isLaaiing ? null : _laaiBeursieOp,
+                          icon: isLaaiing 
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : const Icon(Icons.add),
                           label: Text(
-                              'Laai R${topUpAmount.isEmpty ? '0' : topUpAmount}'),
+                              isLaaiing 
+                                  ? 'Laai...' 
+                                  : 'Laai R${topUpAmount.isEmpty ? '0' : topUpAmount}'),
                         ),
                       )
                     ],
@@ -368,40 +449,59 @@ class _WalletPageState extends State<WalletPage>
                 // ----------------------------
                 // HISTORY TAB
                 // ----------------------------
-                ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: transactions.length,
-                  itemBuilder: (context, index) {
-                    final t = transactions[index];
-                    return Card(
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: t['type'] == 'credit'
-                              ? Colors.green.shade100
-                              : Colors.red.shade100,
-                          child: Icon(
-                            t['type'] == 'credit'
-                                ? Icons.arrow_upward
-                                : Icons.arrow_downward,
-                            color: t['type'] == 'credit'
-                                ? Colors.green
-                                : Colors.red,
+                transactions.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(32.0),
+                          child: Text(
+                            'Geen transaksies gevind nie',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
                           ),
                         ),
-                        title: Text(t['description']),
-                        subtitle: Text(t['date']),
-                        trailing: Text(
-                          '${t['type'] == 'credit' ? '+' : '-'}R${t['amount'].toStringAsFixed(2)}',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: t['type'] == 'credit'
-                                  ? Colors.green
-                                  : Colors.red),
-                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: transactions.length,
+                        itemBuilder: (context, index) {
+                          final t = transactions[index];
+                          final isInbetaling = t['transaksie_tipe'] != null && 
+                              t['transaksie_tipe']['trans_tipe_naam'] == 'inbetaling';
+                          final bedrag = (t['trans_bedrag'] as num?)?.toDouble() ?? 0.0;
+                          final datum = DateTime.parse(t['trans_geskep_datum']);
+                          final datumFormaat = '${datum.day} ${_kryMaandNaam(datum.month)} ${datum.year} ${datum.hour.toString().padLeft(2, '0')}:${datum.minute.toString().padLeft(2, '0')}';
+                          
+                          return Card(
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: isInbetaling
+                                    ? Colors.green.shade100
+                                    : Colors.red.shade100,
+                                child: Icon(
+                                  isInbetaling
+                                      ? Icons.arrow_upward
+                                      : Icons.arrow_downward,
+                                  color: isInbetaling
+                                      ? Colors.green
+                                      : Colors.red,
+                                ),
+                              ),
+                              title: Text(t['trans_beskrywing'] ?? 'Transaksie'),
+                              subtitle: Text(datumFormaat),
+                              trailing: Text(
+                                '${isInbetaling ? '+' : '-'}R${bedrag.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: isInbetaling
+                                        ? Colors.green
+                                        : Colors.red),
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
               ],
             ),
           ),
@@ -410,6 +510,17 @@ class _WalletPageState extends State<WalletPage>
 
       bottomNavigationBar: const AppBottomNav(currentIndex: 2),
     );
+  }
+
+  // ----------------------------
+  // HELPER METHODS
+  // ----------------------------
+  String _kryMaandNaam(int maand) {
+    const maande = [
+      'Jan', 'Feb', 'Mrt', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des'
+    ];
+    return maande[maand - 1];
   }
 
   // ----------------------------

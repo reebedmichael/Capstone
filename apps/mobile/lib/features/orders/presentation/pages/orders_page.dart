@@ -60,6 +60,7 @@ class _OrdersPageState extends State<OrdersPage>
   }
 
   Future<void> _loadOrders() async {
+    if (!mounted) return;
     setState(() => isLoading = true);
     
     try {
@@ -68,10 +69,12 @@ class _OrdersPageState extends State<OrdersPage>
       
       if (user == null) {
         debugPrint('No user found');
-        setState(() {
-          orders = [];
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            orders = [];
+            isLoading = false;
+          });
+        }
         return;
       }
 
@@ -97,23 +100,29 @@ class _OrdersPageState extends State<OrdersPage>
         // Reload after creating test orders
         final newOrdersData = await bestellingRepository.lysBestellings(user.id);
         debugPrint('After creating test orders: $newOrdersData');
-        setState(() {
-          orders = newOrdersData;
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            orders = newOrdersData;
+            isLoading = false;
+          });
+        }
       } else {
-        setState(() {
-          orders = ordersData;
-          isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            orders = ordersData;
+            isLoading = false;
+          });
+        }
       }
     } catch (e) {
       debugPrint('Error loading orders: $e');
-      setState(() {
-        orders = [];
-        isLoading = false;
-      });
-      Fluttertoast.showToast(msg: 'Fout met laai van bestellings: $e');
+      if (mounted) {
+        setState(() {
+          orders = [];
+          isLoading = false;
+        });
+        Fluttertoast.showToast(msg: 'Fout met laai van bestellings: $e');
+      }
     }
   }
 
@@ -190,10 +199,13 @@ class _OrdersPageState extends State<OrdersPage>
   }
 
   void handleRefresh() {
+    if (!mounted) return;
     setState(() => refreshing = true);
     _loadOrders().then((_) {
-      setState(() => refreshing = false);
-      Fluttertoast.showToast(msg: "Bestellings opgedateer");
+      if (mounted) {
+        setState(() => refreshing = false);
+        Fluttertoast.showToast(msg: "Bestellings opgedateer");
+      }
     });
   }
 
