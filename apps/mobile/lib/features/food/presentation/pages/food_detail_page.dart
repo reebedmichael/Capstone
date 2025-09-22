@@ -257,29 +257,16 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     }
 
     try {
-      final sb = Supabase.instance.client;
+      // Let op: construct SupabaseDb with the real client
+      final mandjieRepo = MandjieRepository(SupabaseDb(Supabase.instance.client));
 
-      // Check of die item alreeds in mandjie bestaan vir hierdie gebruiker
-      final existing = await sb
-          .from('mandjie')
-          .select('mand_id, qty')
-          .eq('gebr_id', user.id)
-          .eq('kos_item_id', item['kos_item_id'])
-          .maybeSingle();
-
-      if (existing != null && existing is Map<String, dynamic> && existing['mand_id'] != null) {
-        // indien dit bestaan, update qty (voeg by)
-        final int oldQty = (existing['qty'] is int) ? existing['qty'] as int : int.tryParse('${existing['qty']}') ?? 0;
-        final int newQty = (oldQty + quantity).clamp(1, 9999);
-        await sb.from('mandjie').update({'qty': newQty}).eq('mand_id', existing['mand_id']);
-      } else {
-        // anders: insert nuwe ry
-        await sb.from('mandjie').insert({
-          'gebr_id': user.id,
-          'kos_item_id': item['kos_item_id'],
-          'qty': quantity,
-        });
-      }
+      // Voeg item by mandjie en skryf ook die week dag naam (indien beskikbaar)
+      await mandjieRepo.voegByMandjie(
+        gebrId: user.id,
+        kosItemId: item['kos_item_id'].toString(),
+        aantal: quantity,
+        weekDagNaam: _day.isNotEmpty ? _day : null,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -294,6 +281,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       }
     }
   }
+
   // ----------------------------------------------------
 
   @override
