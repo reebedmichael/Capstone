@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../shared/constants/strings_af.dart';
 import '../../../../shared/constants/spacing.dart';
 import '../../../../shared/widgets/spys_primary_button.dart';
@@ -84,16 +83,13 @@ class LoginPage extends ConsumerWidget
 
                       try {
                         final authService = ref.read(authServiceProvider);
-                        final response = await authService.signInWithEmail(
+                        await authService.signInWithEmail(
                           email: 'swanepoel.jacques.za@gmail.com', 
                           password: 'Game4sloop'
                         );
 
-                        final prefs = await SharedPreferences.getInstance();
-                        await prefs.setString("gebr_id", response.user!.id);
-
-                        //TODO: Fix hierdie
-                        prefs.setDouble("beursie_balaans", 200.0);
+                        // User data is now managed by Supabase authentication
+                        // No need for manual SharedPreferences storage
 
                         if (context.mounted) { context.go('/home'); }
                       } catch (e) {
@@ -205,13 +201,10 @@ class LoginPage extends ConsumerWidget
 
                             try {
                               final authService = ref.read(authServiceProvider);
-                              final response = await authService.signInWithEmail(email: email, password: password);
+                              await authService.signInWithEmail(email: email, password: password);
 
-                              final prefs = await SharedPreferences.getInstance();
-                              await prefs.setString("gebr_id", response.user!.id);
-
-                              //TODO: Fix hierdie
-                              prefs.setDouble("beursie_balaans", 200.0);
+                              // User data is now managed by Supabase authentication
+                              // No need for manual SharedPreferences storage
 
                               if (context.mounted) { context.go('/home'); }
                             } catch (e) {

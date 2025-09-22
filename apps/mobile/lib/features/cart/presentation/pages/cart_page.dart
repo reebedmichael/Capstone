@@ -25,11 +25,13 @@ class CartItemModel {
   final String id; // mand_id from mandjie table
   final FoodItemModel foodItem;
   int quantity;
+  final String? weekDag;
 
   CartItemModel({
     required this.id,
     required this.foodItem,
     this.quantity = 1,
+    this.weekDag,
   });
 }
 
@@ -93,8 +95,11 @@ class _CartPageState extends State<CartPage> {
           .maybeSingle();
       if (row != null && row is Map<String, dynamic>) {
         final raw = row['beursie_balans'];
-        if (raw is num) walletBalance = raw.toDouble();
-        else walletBalance = double.tryParse('$raw') ?? 0.0;
+        if (raw is num) {
+          walletBalance = raw.toDouble();
+        } else {
+          walletBalance = double.tryParse('$raw') ?? 0.0;
+        }
       } else {
         walletBalance = 0.0;
       }
@@ -117,6 +122,7 @@ class _CartPageState extends State<CartPage> {
       final data = await Supabase.instance.client.from('mandjie').select(r'''
         mand_id,
         qty,
+        week_dag_naam,
         kos_item: kos_item_id (
           kos_item_id,
           kos_item_naam,
@@ -125,6 +131,7 @@ class _CartPageState extends State<CartPage> {
           is_aktief
         )
       ''').eq('gebr_id', user.id);
+
 
       final List<Map<String, dynamic>> rows = List<Map<String, dynamic>>.from(data ?? []);
 
@@ -142,6 +149,7 @@ class _CartPageState extends State<CartPage> {
           id: r['mand_id'].toString(),
           foodItem: food,
           quantity: (r['qty'] is int) ? r['qty'] as int : int.tryParse('${r['qty']}') ?? 1,
+          weekDag: r['week_dag_naam']?.toString(),
         );
       }).toList();
 
@@ -213,99 +221,88 @@ class _CartPageState extends State<CartPage> {
     throw Exception('Kon transaksie tipe nie kry of skep nie ($name).');
   }
 
-  Future<bool> placeOrder(String pickup) async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Jy moet eers aanmeld.'))); 
-      return false;
+Future<bool> placeOrder(String pickup) async {
+  final user = Supabase.instance.client.auth.currentUser;
+  if (user == null) return false;
+
+  if (cart.isEmpty) return false;
+
+  final sb = Supabase.instance.client;
+  final double orderTotal = subtotal;
+
+  // Load latest wallet balance
+  await _loadWalletBalance();
+  if (walletBalance < orderTotal) return false;
+
+  try {
+    // 1️⃣ Ensure transaksie_tipe 'uitbetaling'
+    final transTypeId = await _ensureTransTypeId('uitbetaling');
+
+    // 2️⃣ Create bestelling
+    final bestellingInsert = await sb.from('bestelling').insert({
+      'gebr_id': user.id,
+      'best_volledige_prys': orderTotal,
+    }).select().maybeSingle();
+
+    if (bestellingInsert == null || bestellingInsert['best_id'] == null) {
+      throw Exception('Kon nie bestelling skep nie.');
     }
+    final String bestId = bestellingInsert['best_id'].toString();
 
-    if (cart.isEmpty) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mandjie is leeg.')));
-      return false;
-    }
+    // 3️⃣ Insert bestelling_kos_item rows
+    final List<Map<String, dynamic>> bkItems = cart.map((c) {
+      return {
+        'best_id': bestId,
+        'kos_item_id': c.foodItem.id,
+        'item_hoev': c.quantity,
+      };
+    }).toList();
 
-    // Recompute totals
-    final double orderTotal = subtotal;
+    final insertedItems = await sb.from('bestelling_kos_item').insert(bkItems).select();
+    if (insertedItems == null) throw Exception('Kon items nie insit nie.');
 
-    // fetch latest wallet balance
-    await _loadWalletBalance();
+    // 4️⃣ Insert status for each item ('Bestelling Ontvang')
+    const String initialStatusId = 'aef58a24-1a1d-4940-8855-df4c35ae5d5e';
+    final List<Map<String, dynamic>> statusInserts = List.generate(insertedItems.length, (i) {
+      final bestKosId = insertedItems[i]['best_kos_id'];
+      return {
+        'best_kos_id': bestKosId,
+        'kos_stat_id': initialStatusId,
+      };
+    });
 
-    if (walletBalance < orderTotal) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Onvoldoende fondse in beursie.'))); 
-      return false;
-    }
+    await sb.from('best_kos_item_statusse').insert(statusInserts);
 
-    // check for unavailable items
-    if (unavailableItems.isNotEmpty) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sommige items is nie meer beskikbaar nie. Verwyder hulle voor bestelling.'))); 
-      return false;
-    }
+    // 5️⃣ Record beursie_transaksie
+    await sb.from('beursie_transaksie').insert({
+      'gebr_id': user.id,
+      'trans_bedrag': orderTotal,
+      'trans_tipe_id': transTypeId,
+      'trans_beskrywing': 'Bestelling $bestId - afhaallokasie: $pickup',
+    });
 
-    try {
-      final sb = Supabase.instance.client;
+    // 6️⃣ Update wallet
+    final double newBal = walletBalance - orderTotal;
+    await sb.from('gebruikers').update({'beursie_balans': newBal}).eq('gebr_id', user.id);
 
-      // Ensure we have a transaksie tipe id for 'uitbetaling'
-      final transTypeId = await _ensureTransTypeId('uitbetaling');
+    // 7️⃣ Clear mandjie
+    await sb.from('mandjie').delete().eq('gebr_id', user.id);
 
-      // 1) create bestelling
-      final bestellingInsert = await sb.from('bestelling').insert({
-        'gebr_id': user.id,
-        'best_volledige_prys': orderTotal,
-        // 'kampus_id': null // optional: map pickup -> kampus if you want
-      }).select().maybeSingle();
+    // 8️⃣ Update local state
+    setState(() {
+      walletBalance = newBal;
+      cart.clear();
+    });
 
-      if (bestellingInsert == null || bestellingInsert['best_id'] == null) {
-        throw Exception('Kon nie bestelling skep nie.');
-      }
-      final String bestId = bestellingInsert['best_id'].toString();
-
-      // 2) insert bestelling_kos_item entries in batch
-      final List<Map<String, dynamic>> bkItems = cart.map((c) {
-        return {
-          'best_id': bestId,
-          'kos_item_id': c.foodItem.id,
-          'item_hoev': c.quantity,
-        };
-      }).toList();
-
-      if (bkItems.isNotEmpty) {
-        await sb.from('bestelling_kos_item').insert(bkItems);
-      }
-
-      // 3) record beursie_transaksie (use trans_tipe_id)
-      await sb.from('beursie_transaksie').insert({
-        'gebr_id': user.id,
-        'trans_bedrag': orderTotal,
-        'trans_tipe_id': transTypeId,
-        'trans_beskrywing': 'Bestelling $bestId - afhaallokasie: $pickup',
-      });
-
-      // 4) update gebruikers.beursie_balans (subtract)
-      final double newBal = (walletBalance - orderTotal);
-      await sb.from('gebruikers').update({'beursie_balans': newBal}).eq('gebr_id', user.id);
-
-      // 5) clear mandjie for user
-      await sb.from('mandjie').delete().eq('gebr_id', user.id);
-
-      // 6) update local state
-      setState(() {
-        walletBalance = newBal;
-        cart.clear();
-      });
-
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Bestelling suksesvol geplaas.')));
-
-      return true;
-    } catch (e, st) {
-      debugPrint('Fout tydens plaasBestelling: $e\n$st');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Kon nie bestelling plaas nie: $e')));
-
-      // reload to reflect DB state (in case of partial writes)
-      await _loadEverything();
-      return false;
-    }
+    return true;
+  } catch (e) {
+    debugPrint('Fout tydens plaasBestelling: $e');
+    await _loadEverything(); // reload to reflect DB state
+    return false;
   }
+}
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -527,6 +524,11 @@ class _CartPageState extends State<CartPage> {
                                 Text('R${(item.foodItem.price * item.quantity).toStringAsFixed(2)}', style: AppTypography.labelLarge),
                               ],
                             ),
+                            if (item.weekDag != null && item.weekDag!.isNotEmpty)
+                              Text(
+                                'Vir: ${item.weekDag}',
+                                style: AppTypography.bodySmall.copyWith(color: Colors.black54),
+                              ),
                           ],
                         ),
                       ),

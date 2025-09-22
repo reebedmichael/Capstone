@@ -257,61 +257,98 @@ Future<void> _loadMandjieCount() async {
               ),
             ),
 
-            // Day Tabs
-            Container(
-              color: AppColors.surfaceVariant,
-              height: 48,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: Spacing.screenHPad),
-                itemCount: days.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final day = days[index];
-                  final isSelected = day == selectedDay;
-                  return ChoiceChip(
-                    label: Text(day),
-                    selected: isSelected,
-                    onSelected: (_) => setState(() {
-                      selectedDay = day;
-                      _applyFilters();
-                    }),
-                    selectedColor: AppColors.primary,
-                    labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : AppColors.onSurfaceVariant),
-                  );
-                },
-              ),
+        // Day Tabs
+SizedBox(
+  height: 48,
+  child: Stack(
+    children: [
+      ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.screenHPad),
+        itemCount: days.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final day = days[index];
+          final isSelected = day == selectedDay;
+          return ChoiceChip(
+            label: Text(day),
+            selected: isSelected,
+            onSelected: (_) => setState(() {
+              selectedDay = day;
+              _applyFilters();
+            }),
+            selectedColor: AppColors.primary,
+            labelStyle: TextStyle(
+              color: isSelected ? Colors.white : AppColors.onSurfaceVariant,
             ),
-
-
-            // Category Filters
-            Container(
-              height: 48,
-              padding: const EdgeInsets.symmetric(horizontal: Spacing.screenHPad),
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: categories.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final cat = categories[index];
-                  final isSelected = cat == selectedCategory;
-                  return ChoiceChip(
-                    label: Text(cat),
-                    selected: isSelected,
-                    onSelected: (_) => setState(() {
-                      selectedCategory = cat;
-                      _applyFilters();
-                    }),
-                    selectedColor: AppColors.primary,
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.white : AppColors.primary,
-                    ),
-                    side: BorderSide(color: AppColors.primary),
-                  );
-                },
-              ),
+            labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+          );
+        },
+      ),
+      // Scroll hint arrows (optional)
+      Align(
+        alignment: Alignment.centerRight,
+        child: Container(
+          width: 24,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.transparent, Colors.white.withOpacity(0.8)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
             ),
+          ),
+        ),
+      ),
+    ],
+  ),
+),
+
+// Category Filters (same style as day tabs)
+SizedBox(
+  height: 48,
+  child: Stack(
+    children: [
+      ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.screenHPad),
+        itemCount: categories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final cat = categories[index];
+          final isSelected = cat == selectedCategory;
+          return ChoiceChip(
+            label: Text(cat),
+            selected: isSelected,
+            onSelected: (_) => setState(() {
+              selectedCategory = cat;
+              _applyFilters();
+            }),
+            selectedColor: AppColors.primary,
+            labelStyle: TextStyle(
+              color: isSelected ? Colors.white : AppColors.primary,
+            ),
+            side: BorderSide(color: AppColors.primary),
+            labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+          );
+        },
+      ),
+      Align(
+        alignment: Alignment.centerRight,
+        child: Container(
+          width: 24,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.transparent, Colors.white.withOpacity(0.8)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+          ),
+        ),
+      ),
+    ],
+  ),
+),
+
 
 
             // Food Items List

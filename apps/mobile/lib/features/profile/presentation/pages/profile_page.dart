@@ -5,8 +5,8 @@ import 'package:capstone_mobile/shared/widgets/spys_primary_button.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spys_api_client/spys_api_client.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../app/presentation/widgets/app_bottom_nav.dart';
 
 import '../../../../shared/widgets/name_fields.dart';
@@ -32,10 +32,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   Future<void> _loadUserData() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final id = prefs.getString("gebr_id");
-
-      if (id == null) {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
         setState(() {
           isLoading = false;
         });
@@ -43,7 +41,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       }
 
       final repository = sl<GebruikersRepository>();
-      final data = await repository.kryGebruiker(id);
+      final data = await repository.kryGebruiker(user.id);
 
       if (data != null) {
         setState(() {
@@ -202,36 +200,34 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               text: "Stoor",
                               onPressed: isFormValid
                                   ? () async {
-                                      final gebRepository = sl<GebruikersRepository>();
-                                      // final kamRepository = sl<KampusRepository>();
-                                      // final newKampusID = await kamRepository.kryKampusID(location);
+                                    final user = Supabase.instance.client.auth.currentUser;
+                                    if (user == null) return;
 
-                                      final prefs = await SharedPreferences.getInstance();
-                                      final id = prefs.getString("gebr_id");
+                                    final gebRepository = sl<GebruikersRepository>();
+                                    // final kamRepository = sl<KampusRepository>();
+                                    // final newKampusID = await kamRepository.kryKampusID(location);
 
-                                      if (id != null) {
-                                        await gebRepository.skepOfOpdateerGebruiker({
-                                          "gebr_id": id,
-                                          "gebr_naam": firstName,
-                                          "gebr_van": lastName,
-                                          "gebr_epos": email,
-                                          "gebr_selfoon": cellphone,
-                                          // "kampus_id": newKampusID,
-                                        });
+                                    await gebRepository.skepOfOpdateerGebruiker({
+                                      "gebr_id": user.id,
+                                      "gebr_naam": firstName,
+                                      "gebr_van": lastName,
+                                      "gebr_epos": email,
+                                      "gebr_selfoon": cellphone,
+                                      // "kampus_id": newKampusID,
+                                    });
 
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                                'Gebruiker Inligting Opgedateer!'),
-                                            backgroundColor: Colors.green,
-                                          ),
-                                        );
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'Gebruiker Inligting Opgedateer!'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
 
-                                        // Reload updated user data
-                                        _loadUserData();
-                                      }
-                                    }
-                                  : null,
+                                    // Reload updated user data
+                                    _loadUserData();
+                                  }
+                                : null,
                             ),
                           ],
                         ),

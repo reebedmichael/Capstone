@@ -45,7 +45,11 @@ class BestellingRepository {
           *,
           bestelling_kos_item:bestelling_kos_item(
             *,
-            kos_item:kos_item_id(*)
+            kos_item:kos_item_id(*),
+            best_kos_item_statusse:best_kos_item_statusse(
+              *,
+              kos_item_statusse:kos_stat_id(*)
+            )
           )
         ''')
         .eq('gebr_id', gebrId)

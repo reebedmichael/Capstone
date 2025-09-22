@@ -1,12 +1,11 @@
 import 'package:capstone_admin/locator.dart';
 import 'package:capstone_admin/shared/constants/spacing.dart';
 import 'package:capstone_admin/shared/providers/auth_form_providers.dart';
-import 'package:capstone_admin/shared/providers/auth_providers.dart';
 import 'package:capstone_admin/shared/widgets/spys_primary_button.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spys_api_client/spys_api_client.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../shared/widgets/name_fields.dart';
 import '../../../shared/widgets/email_field.dart';
 import '../../../shared/widgets/cellphone_field.dart';
@@ -31,11 +30,16 @@ class _ProfielPageState extends ConsumerState<ProfielPage> {
 
   Future<void> _loadUserData() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final id = prefs.getString("gebr_id");
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        setState(() {
+          isLoading = false;
+        });
+        return;
+      }
 
       final repository = sl<GebruikersRepository>();
-      final data = await repository.kryGebruiker(id!);
+      final data = await repository.kryGebruiker(user.id);
 
       if (data != null) {
         setState(() {
@@ -170,7 +174,7 @@ class _ProfielPageState extends ConsumerState<ProfielPage> {
                                             const Icon(Icons.calendar_today, size: 14),
                                             const SizedBox(width: 4),
                                             Text(
-                                              "Lid sedert ${createdDate?.toString().split(' ').first ?? "Onbekend"}",
+                                              "Lid sedert ${createdDate.toString().split(' ').first}",
                                             ),
                                           ],
                                         ),
@@ -263,39 +267,75 @@ class _ProfielPageState extends ConsumerState<ProfielPage> {
                               onPressed: isFormValid
                                   ? () async
                                   {
+                                    final user = Supabase.instance.client.auth.currentUser;
+                                    if (user == null) return;
+
                                     final gebRepository = sl<GebruikersRepository>();
                                     final kamRepository = sl<KampusRepository>();
+                                    
+                                    // Debug: Check available kampus options
+                                    final availableKampusse = await kamRepository.kryKampusse();
+                                    debugPrint('Available kampusse: $availableKampusse');
+                                    
                                     final newKampusID = await kamRepository.kryKampusID(location);
+                                    
+                                    debugPrint('Location: "$location"');
+                                    debugPrint('Location length: ${location.length}');
+                                    debugPrint('Kampus ID: $newKampusID');
+                                    
+                                    if (newKampusID == null) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Kampus "$location" nie gevind nie. Kies \'n ander kampus.'),
+                                            backgroundColor: Colors.red,
+                                          ));
+                                      }
+                                      return;
+                                    }
+                                    
                                     //TODO:kyk of email en ander goed bots
                                     // final gebruikersMetEpos = await gebRepository.soekGebruikers(email);
 
-                                    _loadUserData();
-                                    
-                                    if (context.mounted) 
-                                    {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Registrasie suksesvol! Jy kan nou in teken.'),
-                                          backgroundColor: Colors.green,
-                                        ));
-
-                                        debugPrint(firstName);
-
-                                      final prefs = await SharedPreferences.getInstance();
-                                      final id = prefs.getString("gebr_id");
-
+                                    try {
                                       await gebRepository.skepOfOpdateerGebruiker(
                                         {
-                                          //TODO: gebruik local id
-                                          "gebr_id" : id,
+                                          "gebr_id" : user.id,
                                           "gebr_naam" : firstName,
                                           "gebr_van" : lastName,
                                           "gebr_epos" : email,
                                           "gebr_selfoon" : cellphone,
-                                          //TODO: hierdie werk nie
                                           "kampus_id" : newKampusID
                                         }
                                       );
+
+                                      // Reload user data after successful save
+                                      await _loadUserData();
+                                      
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Gebruiker inligting suksesvol opgedateer.'),
+                                            backgroundColor: Colors.green,
+                                          ));
+                                        
+                                        // Force a complete page refresh to ensure all data is properly loaded
+                                        setState(() {
+                                          isLoading = true;
+                                        });
+                                        
+                                        // Reload data one more time to ensure consistency
+                                        await _loadUserData();
+                                      }
+                                    } catch (e) {
+                                      debugPrint('Error updating user: $e');
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Fout met opdateer van gebruiker: $e'),
+                                            backgroundColor: Colors.red,
+                                          ));
+                                      }
                                     }
                                   }
                                   : null,
@@ -322,11 +362,11 @@ class _ProfielPageState extends ConsumerState<ProfielPage> {
                             const SizedBox(height: 12),
                             _buildActivityRow(
                               "Rekening geskep:",
-                              createdDate?.toString().split(' ').first ?? "Onbekend",
+                              createdDate.toString().split(' ').first,
                             ),
                             _buildActivityRow(
                               "Laaste aktiwiteit:",
-                              lastActive?.toString().split(' ').first ?? "Onbekend",
+                              lastActive.toString().split(' ').first,
                             ),
                             _buildActivityRow("Rol:", "Ekstern"),
                           ],
