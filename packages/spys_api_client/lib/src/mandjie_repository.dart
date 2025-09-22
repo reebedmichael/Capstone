@@ -7,19 +7,24 @@ class MandjieRepository {
 
   SupabaseClient get _sb => _db.raw;
 
-  Future<Map<String, dynamic>> voegByMandjie({
-    required String gebrId,
-    required String kosItemId,
-    int aantal = 1,
-  }) async {
-    // Note: schema doesn't support aantal directly, but keeping for future
-    final data = {
-      'gebr_id': gebrId,
-      'kos_item_id': kosItemId,
-    };
-    final result = await _sb.from('mandjie').insert(data).select().single();
-    return Map<String, dynamic>.from(result);
-  }
+Future<Map<String, dynamic>> voegByMandjie({
+  required String gebrId,
+  required String kosItemId,
+  int aantal = 1,
+  String? weekDagNaam,
+}) async {
+  // note: if your schema has 'qty' column on mandjie, include it
+  final data = {
+    'gebr_id': gebrId,
+    'kos_item_id': kosItemId,
+    'qty': aantal,
+    if (weekDagNaam != null) 'week_dag_naam': weekDagNaam,
+  };
+
+  final result = await _sb.from('mandjie').insert(data).select().single();
+  return Map<String, dynamic>.from(result);
+}
+
 
   Future<void> verwyderUitMandjie({
     required String gebrId,
