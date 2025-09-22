@@ -7,6 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart';
 import 'bootstrap.dart';
 import 'locator.dart';
+import 'shared/services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +16,9 @@ Future<void> main() async {
   await bootstrapSupabase();
 
   setupLocator();
+
+  // Initialiseer notifikasie service
+  await NotificationService().initialize();
 
   runApp(const MyApp());
 }

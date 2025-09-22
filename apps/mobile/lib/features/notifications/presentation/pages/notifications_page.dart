@@ -1,26 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:spys_api_client/spys_api_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/constants/spacing.dart';
-
-class MobileNotification {
-  final String id;
-  final String title;
-  final String message;
-  final DateTime date;
-  final String type; // 'order' | 'menu' | 'allowance' | 'general'
-  bool read;
-
-  MobileNotification({
-    required this.id,
-    required this.title,
-    required this.message,
-    required this.date,
-    required this.type,
-    this.read = false,
-  });
-}
+import '../../../../shared/services/notification_service.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -29,640 +14,621 @@ class NotificationsPage extends StatefulWidget {
   State<NotificationsPage> createState() => _NotificationsPageState();
 }
 
-class _NotificationsPageState extends State<NotificationsPage> {
+class _NotificationsPageState extends State<NotificationsPage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  
   String _primaryTab = 'all'; // all | unread | read
   String _secondaryTab = 'all'; // all | orders | menu | allowance
 
-  final List<MobileNotification> _notifications = <MobileNotification>[
-    MobileNotification(
-      id: '1',
-      title: 'Bestelling Bevestig',
-      message: 'Jou bestelling #1234 is bevestig.',
-      date: DateTime.now().subtract(const Duration(minutes: 12)),
-      type: 'order',
-      read: false,
-    ),
-    MobileNotification(
-      id: '2',
-      title: 'Nuwe Spyskaart Items',
-      message: 'Kyk na die nuwe week se spyskaart.',
-      date: DateTime.now().subtract(const Duration(hours: 3)),
-      type: 'menu',
-      read: false,
-    ),
-    MobileNotification(
-      id: '3',
-      title: 'Toelaag Opgedateer',
-      message: 'Jou toelaag is suksesvol aangevul.',
-      date: DateTime.now().subtract(const Duration(days: 1, hours: 2)),
-      type: 'allowance',
-      read: true,
-    ),
-    MobileNotification(
-      id: '4',
-      title: 'Welkom by Spys',
-      message: 'Dankie dat jy aanmeld! Geniet jou ervaring.',
-      date: DateTime.now().subtract(const Duration(days: 6)),
-      type: 'general',
-      read: true,
-    ),
-  ];
+  List<Map<String, dynamic>> _notifications = [];
+  bool _isLoading = true;
+  Map<String, int> _statistieke = {'totaal': 0, 'ongelees': 0, 'gelees': 0};
 
-  int get _unreadCount => _notifications.where((n) => !n.read).length;
-  int get _orderCount => _notifications.where((n) => n.type == 'order').length;
-  int get _menuCount => _notifications.where((n) => n.type == 'menu').length;
-  int get _allowanceCount =>
-      _notifications.where((n) => n.type == 'allowance').length;
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _laaiKennisgewings();
+  }
 
-  List<MobileNotification> get _filteredNotifications {
-    final List<MobileNotification> primaryFiltered = _notifications.where((
-      MobileNotification n,
-    ) {
-      switch (_primaryTab) {
-        case 'unread':
-          return !n.read;
-        case 'read':
-          return n.read;
-        default:
-          return true;
-      }
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _laaiKennisgewings() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final kennisgewingRepo = KennisgewingRepository(SupabaseDb(Supabase.instance.client));
+      
+      // Laai kennisgewings
+      final kennisgewings = await kennisgewingRepo.kryKennisgewings(user.id);
+      
+      // Laai statistieke
+      final stats = await kennisgewingRepo.kryKennisgewingStatistieke(user.id);
+      
+      setState(() {
+        _notifications = kennisgewings;
+        _statistieke = stats;
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('Fout met laai kennisgewings: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _markeerAsGelees(String kennisId) async {
+    try {
+      final kennisgewingRepo = KennisgewingRepository(SupabaseDb(Supabase.instance.client));
+      await kennisgewingRepo.markeerAsGelees(kennisId);
+      
+      // Herlaai kennisgewings
+      await _laaiKennisgewings();
+    } catch (e) {
+      print('Fout met markeer as gelees: $e');
+    }
+  }
+
+  Future<void> _markeerAllesAsGelees() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final kennisgewingRepo = KennisgewingRepository(SupabaseDb(Supabase.instance.client));
+      await kennisgewingRepo.markeerAllesAsGelees(user.id);
+      
+      // Herlaai kennisgewings
+      await _laaiKennisgewings();
+    } catch (e) {
+      print('Fout met markeer alles as gelees: $e');
+    }
+  }
+
+  List<Map<String, dynamic>> get _gefilterdeKennisgewings {
+    return _notifications.where((kennisgewing) {
+      // Primêre filter (alles/ongelees/gelees)
+      final bool primereMatch = _primaryTab == 'all' ||
+          (_primaryTab == 'unread' && !kennisgewing['kennis_gelees']) ||
+          (_primaryTab == 'read' && kennisgewing['kennis_gelees']);
+
+      // Sekondere filter (tipe)
+      final bool sekondereMatch = _secondaryTab == 'all' ||
+          _getKennisgewingTipe(kennisgewing) == _secondaryTab;
+
+      return primereMatch && sekondereMatch;
     }).toList();
-
-    final List<MobileNotification> secondaryFiltered = primaryFiltered.where((
-      MobileNotification n,
-    ) {
-      switch (_secondaryTab) {
-        case 'orders':
-          return n.type == 'order';
-        case 'menu':
-          return n.type == 'menu';
-        case 'allowance':
-          return n.type == 'allowance';
-        default:
-          return true;
-      }
-    }).toList();
-
-    secondaryFiltered.sort((a, b) => b.date.compareTo(a.date));
-    return secondaryFiltered;
   }
 
-  void _markAsRead(String id) {
-    setState(() {
-      final MobileNotification target = _notifications.firstWhere(
-        (n) => n.id == id,
-        orElse: () => _notifications.first,
-      );
-      target.read = true;
-    });
-  }
-
-  void _markAllAsRead() {
-    setState(() {
-      for (final MobileNotification n in _notifications) {
-        n.read = true;
-      }
-    });
-  }
-
-  void _markFilteredAsRead() {
-    setState(() {
-      for (final MobileNotification n in _filteredNotifications.where(
-        (n) => !n.read,
-      )) {
-        n.read = true;
-      }
-    });
+  String _getKennisgewingTipe(Map<String, dynamic> kennisgewing) {
+    final tipeNaam = kennisgewing['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info';
+    
+    // Map kennisgewing tipes na app tipes
+    switch (tipeNaam.toLowerCase()) {
+      case 'bestelling':
+      case 'order':
+        return 'order';
+      case 'spyskaart':
+      case 'menu':
+        return 'menu';
+      case 'toelaag':
+      case 'allowance':
+        return 'allowance';
+      default:
+        return 'general';
+    }
   }
 
   String _formatDate(DateTime date) {
-    final DateTime now = DateTime.now();
-    final int diffInHours = now.difference(date).inHours;
-    if (diffInHours < 1) {
-      final int diffInMinutes = now.difference(date).inMinutes;
-      if (diffInMinutes < 1) return 'Nou net';
-      return '$diffInMinutes minute gelede';
-    } else if (diffInHours < 24) {
-      return '$diffInHours uur gelede';
-    } else {
-      final int diffInDays = (diffInHours / 24).floor();
-      if (diffInDays == 1) return 'Gister';
-      if (diffInDays < 7) return '$diffInDays dae gelede';
-      final bool showYear = date.year != now.year;
-      return '${date.day.toString().padLeft(2, '0')} ${_monthShortAf(date.month)}${showYear ? ' ${date.year}' : ''}';
-    }
-  }
-
-  String _monthShortAf(int month) {
-    const List<String> months = <String>[
-      'Jan',
-      'Feb',
-      'Mrt',
-      'Apr',
-      'Mei',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Okt',
-      'Nov',
-      'Des',
+    const months = [
+      'Jan', 'Feb', 'Mrt', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des'
     ];
-    return months[month - 1];
+    return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} '
+        '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
-  Icon _typeIcon(String type) {
-    switch (type) {
-      case 'order':
-        return const Icon(
-          Icons.shopping_cart,
-          color: AppColors.primary,
-          size: 20,
-        );
-      case 'menu':
-        return const Icon(Icons.restaurant_menu, color: Colors.green, size: 20);
-      case 'allowance':
-        return const Icon(
-          Icons.account_balance_wallet,
-          color: Colors.blue,
-          size: 20,
-        );
-      default:
-        return const Icon(Icons.info_outline, color: Colors.grey, size: 20);
-    }
-  }
-
-  Widget _badge(
-    String text, {
-    Color? backgroundColor,
-    Color? textColor,
-    EdgeInsets padding = const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-  }) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: backgroundColor ?? Colors.black12,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        text,
-        style: AppTypography.labelSmall.copyWith(
-          color: textColor ?? Colors.black87,
+  void _toonKennisgewingDetail(Map<String, dynamic> kennisgewing) {
+    final tipe = _getKennisgewingTipe(kennisgewing);
+    final isGelees = kennisgewing['kennis_gelees'] ?? false;
+    final datum = DateTime.parse(kennisgewing['kennis_geskep_datum']);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
-      ),
-    );
-  }
-
-  Widget _outlineBadge(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.black26),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(text, style: AppTypography.labelSmall),
-    );
-  }
-
-  Widget _chip({
-    required String value,
-    required String label,
-    required String groupValue,
-    required void Function(String) onSelected,
-    Widget? trailing,
-  }) {
-    final bool selected = value == groupValue;
-    return InkWell(
-      onTap: () => onSelected(value),
-      borderRadius: BorderRadius.circular(22),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppColors.primary.withValues(alpha: 0.1)
-              : Colors.transparent,
-          border: Border.all(
-            color: selected ? AppColors.primary : Colors.black12,
-          ),
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Text(
-              label,
-              style: AppTypography.labelMedium.copyWith(
-                color: selected ? AppColors.primary : null,
+        title: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: _getTipeKleur(tipe).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _getTipeKleur(tipe).withOpacity(0.3),
+                  width: 2,
+                ),
+              ),
+              child: Icon(
+                _getTipeIkoon(tipe),
+                color: _getTipeKleur(tipe),
+                size: 20,
               ),
             ),
-            if (trailing != null) ...<Widget>[
-              const SizedBox(width: 6),
-              trailing,
-            ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Kennisgewing Besonderhede',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                  Text(
+                    _formatDate(datum),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: _getTipeKleur(tipe).withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _getTipeKleur(tipe).withOpacity(0.2),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          _getTipeIkoon(tipe),
+                          color: _getTipeKleur(tipe),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          tipe.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: _getTipeKleur(tipe),
+                          ),
+                        ),
+                        const Spacer(),
+                        if (!isGelees)
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: _getTipeKleur(tipe),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      kennisgewing['kennis_beskrywing'] ?? 'Kennisgewing',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(
+                    Icons.access_time,
+                    size: 16,
+                    color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Gestuur op: ${_formatDate(datum)}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    isGelees ? Icons.mark_email_read : Icons.mark_email_unread,
+                    size: 16,
+                    color: isGelees ? Colors.green : Colors.orange,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isGelees ? 'Gelees' : 'Ongelees',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isGelees ? Colors.green : Colors.orange,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          if (!isGelees)
+            TextButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _markeerAsGelees(kennisgewing['kennis_id']);
+              },
+              icon: const Icon(Icons.mark_email_read),
+              label: const Text('Markeer as Gelees'),
+              style: TextButton.styleFrom(
+                foregroundColor: _getTipeKleur(tipe),
+              ),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Maak Toe'),
+          ),
+        ],
       ),
     );
+  }
+
+  IconData _getTipeIkoon(String tipe) {
+    switch (tipe) {
+      case 'order':
+        return Icons.shopping_cart;
+      case 'menu':
+        return Icons.restaurant_menu;
+      case 'allowance':
+        return Icons.account_balance_wallet;
+      default:
+        return Icons.notifications;
+    }
+  }
+
+  Color _getTipeKleur(String tipe) {
+    switch (tipe) {
+      case 'order':
+        return Colors.blue;
+      case 'menu':
+        return Colors.green;
+      case 'allowance':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final List<MobileNotification> filtered = _filteredNotifications;
-    final bool canMarkFiltered =
-        _primaryTab != 'all' && filtered.any((n) => !n.read);
-
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: <Color>[
-              AppColors.primary.withValues(alpha: 0.05),
-              AppColors.secondary.withValues(alpha: 0.05),
-            ],
+      appBar: AppBar(
+        title: const Text('Kennisgewings'),
+        actions: [
+          if (_statistieke['ongelees']! > 0)
+            IconButton(
+              onPressed: _markeerAllesAsGelees,
+              icon: const Icon(Icons.done_all),
+              tooltip: 'Markeer alles as gelees',
+            ),
+          IconButton(
+            onPressed: _laaiKennisgewings,
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Herlaai',
           ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Alle'),
+            Tab(text: 'Ongelees'),
+          ],
         ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(Spacing.screenHPad),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                // Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      onPressed: () {
-                        if (GoRouter.of(context).canPop()) {
-                          context.pop();
-                        } else {
-                          context.go('/home');
-                        }
-                      },
-                    ),
-                    Text(
-                      'Kennisgewings',
-                      style: AppTypography.titleMedium.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (_unreadCount > 0)
-                      TextButton.icon(
-                        onPressed: _markAllAsRead,
-                        icon: const Icon(
-                          Icons.done_all,
-                          size: 18,
-                          color: AppColors.primary,
-                        ),
-                        label: Text(
-                          'Lees Alles',
-                          style: AppTypography.labelMedium.copyWith(
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      )
-                    else
-                      const SizedBox(width: 48),
-                  ],
-                ),
-
-                Spacing.vGap16,
-
-                // Primary filter chips
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: <Widget>[
-                    _chip(
-                      value: 'all',
-                      label: 'Alles',
-                      groupValue: _primaryTab,
-                      onSelected: (v) => setState(() => _primaryTab = v),
-                      trailing: _badge(
-                        '${_notifications.length}',
-                        backgroundColor: Colors.black12,
-                      ),
-                    ),
-                    _chip(
-                      value: 'unread',
-                      label: 'Ongelees',
-                      groupValue: _primaryTab,
-                      onSelected: (v) => setState(() => _primaryTab = v),
-                      trailing: _badge(
-                        '$_unreadCount',
-                        backgroundColor: AppColors.primary,
-                        textColor: Colors.white,
-                      ),
-                    ),
-                    _chip(
-                      value: 'read',
-                      label: 'Gelees',
-                      groupValue: _primaryTab,
-                      onSelected: (v) => setState(() => _primaryTab = v),
-                      trailing: _badge(
-                        '${_notifications.length - _unreadCount}',
-                        backgroundColor: Colors.black12,
-                      ),
-                    ),
-                  ],
-                ),
-
-                Spacing.vGap12,
-
-                // Secondary filter chips
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: <Widget>[
-                    _chip(
-                      value: 'orders',
-                      label: 'Bestellings',
-                      groupValue: _secondaryTab,
-                      onSelected: (v) => setState(() => _secondaryTab = v),
-                      trailing: _orderCount > 0 ? _badge('$_orderCount') : null,
-                    ),
-                    _chip(
-                      value: 'menu',
-                      label: 'Spyskaart',
-                      groupValue: _secondaryTab,
-                      onSelected: (v) => setState(() => _secondaryTab = v),
-                      trailing: _menuCount > 0 ? _badge('$_menuCount') : null,
-                    ),
-                    _chip(
-                      value: 'allowance',
-                      label: 'Toelaag',
-                      groupValue: _secondaryTab,
-                      onSelected: (v) => setState(() => _secondaryTab = v),
-                      trailing: _allowanceCount > 0
-                          ? _badge('$_allowanceCount')
-                          : null,
-                    ),
-                    _chip(
-                      value: 'all',
-                      label: 'Alle Tipes',
-                      groupValue: _secondaryTab,
-                      onSelected: (v) => setState(() => _secondaryTab = v),
-                    ),
-                  ],
-                ),
-
-                if (canMarkFiltered) ...<Widget>[
-                  Spacing.vGap8,
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: OutlinedButton.icon(
-                      onPressed: _markFilteredAsRead,
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppColors.primary),
-                        foregroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                // Statistieke
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _statCard(
+                          'Totaal',
+                          '${_statistieke['totaal']}',
+                          Icons.notifications,
+                          AppColors.primary,
                         ),
                       ),
-                      icon: const Icon(Icons.check, size: 16),
-                      label: const Text('Merk Sigbare As Gelees'),
-                    ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _statCard(
+                          'Ongelees',
+                          '${_statistieke['ongelees']}',
+                          Icons.notifications_active,
+                          Colors.orange,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _statCard(
+                          'Gelees',
+                          '${_statistieke['gelees']}',
+                          Icons.notifications_off,
+                          Colors.grey,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
 
-                Spacing.vGap12,
+                // Filters
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButton<String>(
+                          value: _secondaryTab,
+                          isExpanded: true,
+                          items: const [
+                            DropdownMenuItem(value: 'all', child: Text('Alle tipes')),
+                            DropdownMenuItem(value: 'order', child: Text('Bestellings')),
+                            DropdownMenuItem(value: 'menu', child: Text('Spyskaart')),
+                            DropdownMenuItem(value: 'allowance', child: Text('Toelaag')),
+                            DropdownMenuItem(value: 'general', child: Text('Algemeen')),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _secondaryTab = value ?? 'all';
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
-                if (filtered.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 48),
-                    child: Column(
-                      children: <Widget>[
-                        Icon(
-                          Icons.notifications_none,
-                          size: 64,
-                          color: Colors.black38,
-                        ),
-                        Spacing.vGap12,
-                        Text(
-                          'Geen kennisgewings${_primaryTab == 'unread'
-                              ? ' om te lees'
-                              : _primaryTab == 'read'
-                              ? ' gelees'
-                              : _secondaryTab == 'orders'
-                              ? ' oor bestellings'
-                              : _secondaryTab == 'menu'
-                              ? ' oor spyskaart'
-                              : _secondaryTab == 'allowance'
-                              ? ' oor toelaag'
-                              : ''}',
-                          style: AppTypography.titleSmall.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Spacing.vGap4,
-                        Text(
-                          _primaryTab == 'unread'
-                              ? 'Jy is op hoogte met alles!'
-                              : 'Probeer '
-                                    "'"
-                                    'n ander filter of kom later terug',
-                          style: AppTypography.bodySmall.copyWith(
-                            color: Colors.black54,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  Column(
-                    children: filtered.map((MobileNotification n) {
-                      final bool isUnread = !n.read;
-                      return Card(
-                        elevation: isUnread ? 2 : 0,
-                        color: isUnread
-                            ? AppColors.primary.withValues(alpha: 0.05)
-                            : null,
-                        shape: RoundedRectangleBorder(
-                          side: BorderSide(
-                            color: isUnread
-                                ? AppColors.primary.withValues(alpha: 0.5)
-                                : Colors.black12,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: _typeIcon(n.type),
+                // Kennisgewings lys
+                Expanded(
+                  child: _gefilterdeKennisgewings.isEmpty
+                      ? const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.notifications_none,
+                                size: 64,
+                                color: Colors.grey,
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: <Widget>[
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: <Widget>[
-                                              Text(
-                                                n.title,
-                                                style: AppTypography.labelLarge
-                                                    .copyWith(
-                                                      color: isUnread
-                                                          ? Colors.black87
-                                                          : Colors.black54,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                    ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                n.message,
-                                                style: AppTypography.bodySmall
-                                                    .copyWith(
-                                                      color: isUnread
-                                                          ? Colors.black87
-                                                          : Colors.black54,
-                                                    ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Row(
-                                                children: <Widget>[
-                                                  const Icon(
-                                                    Icons.access_time,
-                                                    size: 12,
-                                                    color: Colors.black45,
-                                                  ),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    _formatDate(n.date),
-                                                    style: AppTypography
-                                                        .labelSmall
-                                                        .copyWith(
-                                                          color: Colors.black54,
-                                                        ),
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  _outlineBadge(
-                                                    n.type == 'order'
-                                                        ? 'Bestelling'
-                                                        : n.type == 'menu'
-                                                        ? 'Spyskaart'
-                                                        : n.type == 'allowance'
-                                                        ? 'Toelaag'
-                                                        : 'Algemeen',
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        if (isUnread)
-                                          IconButton(
-                                            onPressed: () => _markAsRead(n.id),
-                                            icon: const Icon(
-                                              Icons.check,
-                                              color: AppColors.primary,
-                                            ),
-                                          )
-                                        else
-                                          const Row(
-                                            children: <Widget>[
-                                              Icon(
-                                                Icons.done_all,
-                                                color: Colors.green,
-                                                size: 18,
-                                              ),
-                                            ],
-                                          ),
-                                      ],
-                                    ),
-                                  ],
+                              SizedBox(height: 16),
+                              Text(
+                                'Geen kennisgewings nie',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.grey,
                                 ),
                               ),
                             ],
                           ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _gefilterdeKennisgewings.length,
+                          itemBuilder: (context, index) {
+                            final kennisgewing = _gefilterdeKennisgewings[index];
+                            final tipe = _getKennisgewingTipe(kennisgewing);
+                            final isGelees = kennisgewing['kennis_gelees'] ?? false;
+                            final datum = DateTime.parse(kennisgewing['kennis_geskep_datum']);
+                            
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              elevation: isGelees ? 1 : 3,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(
+                                  color: isGelees 
+                                    ? Colors.grey.withOpacity(0.3)
+                                    : _getTipeKleur(tipe).withOpacity(0.3),
+                                  width: isGelees ? 1 : 2,
+                                ),
+                              ),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () => _toonKennisgewingDetail(kennisgewing),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 50,
+                                        height: 50,
+                                        decoration: BoxDecoration(
+                                          color: _getTipeKleur(tipe).withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(25),
+                                          border: Border.all(
+                                            color: _getTipeKleur(tipe).withOpacity(0.3),
+                                            width: 2,
+                                          ),
+                                        ),
+                                        child: Icon(
+                                          _getTipeIkoon(tipe),
+                                          color: _getTipeKleur(tipe),
+                                          size: 24,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    kennisgewing['kennis_beskrywing'] ?? 'Kennisgewing',
+                                                    style: TextStyle(
+                                                      fontWeight: isGelees ? FontWeight.w500 : FontWeight.bold,
+                                                      fontSize: 16,
+                                                      color: isGelees ? Colors.grey[700] : Colors.black87,
+                                                    ),
+                                                    maxLines: 2,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                                if (!isGelees)
+                                                  Container(
+                                                    width: 8,
+                                                    height: 8,
+                                                    decoration: BoxDecoration(
+                                                      color: _getTipeKleur(tipe),
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.access_time,
+                                                  size: 14,
+                                                  color: Colors.grey[600],
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  _formatDate(datum),
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey[600],
+                                                  ),
+                                                ),
+                                                const Spacer(),
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 4,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: _getTipeKleur(tipe).withOpacity(0.1),
+                                                    borderRadius: BorderRadius.circular(12),
+                                                    border: Border.all(
+                                                      color: _getTipeKleur(tipe).withOpacity(0.3),
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    tipe.toUpperCase(),
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: _getTipeKleur(tipe),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      if (!isGelees)
+                                        IconButton(
+                                          onPressed: () => _markeerAsGelees(kennisgewing['kennis_id']),
+                                          icon: const Icon(Icons.mark_email_read),
+                                          tooltip: 'Markeer as gelees',
+                                          color: _getTipeKleur(tipe),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    }).toList(),
-                  ),
-
-                if (_notifications.isNotEmpty) ...<Widget>[
-                  Spacing.vGap16,
-                  Card(
-                    color: Colors.black12.withOpacity(0.1),
-                    shape: RoundedRectangleBorder(
-                      side: const BorderSide(color: Colors.black12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: <Widget>[
-                          _statTile(
-                            title: 'Totaal',
-                            value: '${_notifications.length}',
-                            color: AppColors.primary,
-                          ),
-                          _statTile(
-                            title: 'Ongelees',
-                            value: '$_unreadCount',
-                            color: Colors.orange,
-                          ),
-                          _statTile(
-                            title: 'Gelees',
-                            value: '${_notifications.length - _unreadCount}',
-                            color: Colors.green,
-                          ),
-                          _statTile(
-                            title: 'Bestellings',
-                            value: '$_orderCount',
-                            color: Colors.blue,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ],
             ),
-          ),
-        ),
-      ),
     );
   }
 
-  Widget _statTile({
-    required String title,
-    required String value,
-    required Color color,
-  }) {
-    return Column(
-      children: <Widget>[
-        Text(
-          value,
-          style: AppTypography.titleSmall.copyWith(
-            color: color,
-            fontWeight: FontWeight.w600,
-          ),
+  Widget _statCard(String title, String value, IconData icon, Color color) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          title,
-          style: AppTypography.labelSmall.copyWith(color: Colors.black54),
-        ),
-      ],
+      ),
     );
   }
 }
