@@ -1,6 +1,8 @@
+import 'package:capstone_admin/shared/widgets/Bestellings/kampus_filter.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:spys_api_client/spys_api_client.dart' show SupabaseDb;
+import 'package:spys_api_client/spys_api_client.dart'
+    show SupabaseDb, KampusRepository;
 import 'package:spys_api_client/src/admin_bestellings_repository.dart';
 import '../../../shared/types/order.dart';
 import '../../../shared/utils/status_utils.dart';
@@ -30,13 +32,33 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
   String searchQuery = "";
   String selectedDay = OrderConstants.getCurrentDayInAfrikaans();
   String selectedFoodItem = "";
-
+  String selectedKampus = "Alle Aflaai Punte";
+  List<String> kampusList = [];
+  final Map<String, int> kampusOrderCounts = {};
+  late final KampusRepository _kampusRepo;
   @override
   void initState() {
     super.initState();
     final client = Supabase.instance.client;
     _repo = AdminBestellingRepository(SupabaseDb(client));
+    _kampusRepo = KampusRepository(SupabaseDb(client));
     _loadOrders();
+    _loadKampusse();
+  }
+
+  Future<void> _loadKampusse() async {
+    try {
+      final rows = await _kampusRepo.kryKampusse();
+      final loaded = rows
+          .map((r) => r?['kampus_naam'] as String?)
+          .whereType<String>()
+          .toList();
+      setState(() {
+        kampusList = loaded;
+      });
+    } catch (e) {
+      debugPrint("Kon nie kampusse laai nie: $e");
+    }
   }
 
   Future<void> _loadOrders() async {
@@ -188,6 +210,11 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
       }
       baseOrders = splitOrders;
     }
+    if (selectedKampus != "Alle Aflaai Punte") {
+      baseOrders = baseOrders
+          .where((order) => order.deliveryPoint == selectedKampus)
+          .toList();
+    }
 
     // 4. Apply search query to the list of split orders.
     return baseOrders.where((order) {
@@ -201,7 +228,6 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
       return matchesSearch;
     }).toList();
   }
-
   // === Status update handlers (Refactored for split orders) ===
 
   Future<void> handleUpdateOrderStatus(
@@ -576,7 +602,12 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
             DayFilters(selectedDay: selectedDay, onDayChange: handleDayChange),
 
             const SizedBox(height: 16),
-
+            KampusFilter(
+              selectedKampus: selectedKampus,
+              onKampusChange: (val) => setState(() => selectedKampus = val),
+              kampusList: kampusList,
+              // orderCounts: _buildKampusOrderCounts(),
+            ),
             const SizedBox(height: 16),
 
             DayItemsSummary(
