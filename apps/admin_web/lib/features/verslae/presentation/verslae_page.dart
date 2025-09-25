@@ -15,6 +15,12 @@ class _VerslaePageState extends State<VerslaePage> {
 	bool isLoading = true;
 	String? errorMessage;
 	bool isExporting = false;
+	int selectedSalesDays = 7;
+	
+	// UI State (Terugvoer add form)
+	final TextEditingController _terugNaamController = TextEditingController();
+	final TextEditingController _terugBeskrywingController = TextEditingController();
+	bool isSavingTerugvoer = false;
 	
 	// Data
 	List<Map<String, dynamic>> bestellings = [];
@@ -187,12 +193,8 @@ class _VerslaePageState extends State<VerslaePage> {
 		// Average order value
 		avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0.0;
 		
-		// New users (last 30 days)
-		final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));
-		newUsers = gebruikers.where((user) {
-			final createdDate = DateTime.tryParse(user['gebr_geskep_datum'] ?? '');
-			return createdDate != null && createdDate.isAfter(thirtyDaysAgo);
-		}).length;
+		// Total users
+		newUsers = gebruikers.length;
 	}
 
 	Future<void> _exportAllTablesToCsv() async {
@@ -214,6 +216,50 @@ class _VerslaePageState extends State<VerslaePage> {
 			if (mounted) {
 				setState(() {
 					isExporting = false;
+				});
+			}
+		}
+	}
+
+	Future<void> _addTerugvoer() async {
+		final String naam = _terugNaamController.text.trim();
+		final String beskrywing = _terugBeskrywingController.text.trim();
+		if (naam.isEmpty) {
+			ScaffoldMessenger.of(context).showSnackBar(
+				const SnackBar(content: Text('Voer asseblief \"Naam\" in')),
+			);
+			return;
+		}
+		setState(() {
+			isSavingTerugvoer = true;
+		});
+		try {
+			final inserted = await Supabase.instance.client
+				.from('terugvoer')
+				.insert({
+					'terug_naam': naam,
+					'terug_beskrywing': beskrywing,
+				})
+				.select()
+				.single();
+			// Optimistically update local list
+			setState(() {
+				terugvoerTipes = List<Map<String, dynamic>>.from(terugvoerTipes)
+					..add(Map<String, dynamic>.from(inserted));
+				_terugNaamController.clear();
+				_terugBeskrywingController.clear();
+			});
+			ScaffoldMessenger.of(context).showSnackBar(
+				const SnackBar(content: Text('Terugvoer bygevoeg')),
+			);
+		} catch (e) {
+			ScaffoldMessenger.of(context).showSnackBar(
+				SnackBar(content: Text('Kon nie terugvoer byvoeg nie: $e')),
+			);
+		} finally {
+			if (mounted) {
+				setState(() {
+					isSavingTerugvoer = false;
 				});
 			}
 		}
@@ -417,17 +463,16 @@ class _VerslaePageState extends State<VerslaePage> {
 					),
 					const SizedBox(height: 24),
 
-					// KPI Cards
+					// KPI Cards (responsive, no overflow)
 					LayoutBuilder(builder: (context, constraints) {
 						final int cols = constraints.maxWidth > 1100 ? 4 : constraints.maxWidth > 800 ? 2 : 1;
-						return GridView.count(
-							shrinkWrap: true,
-							physics: const NeverScrollableScrollPhysics(),
-							crossAxisCount: cols,
-							mainAxisSpacing: 16,
-							crossAxisSpacing: 16,
-						childAspectRatio: 3.0,
-							children: kpis.map((k) => _kpiCard(context, k)).toList(),
+						final double spacing = 16;
+						final double totalSpacing = spacing * (cols - 1);
+						final double itemWidth = (constraints.maxWidth - totalSpacing) / cols;
+						return Wrap(
+							spacing: spacing,
+							runSpacing: spacing,
+							children: kpis.map((k) => SizedBox(width: itemWidth, child: _kpiCard(context, k))).toList(),
 						);
 					}),
 
@@ -466,6 +511,8 @@ class _VerslaePageState extends State<VerslaePage> {
 					// Top Items Chart
 					_buildTopItemsChart(context),
 					const SizedBox(height: 24),
+					// Kos Items vs Terugvoer (stacked)
+					_buildKosItemTerugvoerChart(context),
 					
 					// Users by types
 					_buildUsersByTypeCharts(context),
@@ -473,6 +520,9 @@ class _VerslaePageState extends State<VerslaePage> {
 					
 					// Orders per campus
 					_buildOrdersByCampusChart(context),
+					const SizedBox(height: 24),
+					// Terugvoer: view and add
+					_buildTerugvoerSection(context),
 				],
 			),
 		);
@@ -499,15 +549,32 @@ class _VerslaePageState extends State<VerslaePage> {
 	}
 
 	Widget _buildSalesChart(BuildContext context) {
-		final salesData = _getSalesData();
+		final salesData = _getSalesData(selectedSalesDays);
 		
 		return Card(
 			child: Padding(
 				padding: const EdgeInsets.all(16),
 				child: Column(
 					crossAxisAlignment: CrossAxisAlignment.start,
-					children: <Widget>[
-						Text('Verkope – Laaste 7 dae', style: Theme.of(context).textTheme.titleMedium),
+						children: <Widget>[
+							Row(
+								mainAxisAlignment: MainAxisAlignment.spaceBetween,
+								children: [
+									Text('Verkope – Laaste ' + selectedSalesDays.toString() + ' dae', style: Theme.of(context).textTheme.titleMedium),
+									DropdownButton<int>(
+										value: selectedSalesDays,
+										items: const [7, 14, 30]
+											.map((d) => DropdownMenuItem<int>(value: d, child: Text('Laaste ' + d.toString() + ' dae')))
+											.toList(),
+										onChanged: (v) {
+											if (v == null) return;
+											setState(() {
+												selectedSalesDays = v;
+											});
+										},
+									)
+								],
+							),
 						const SizedBox(height: 12),
 						Container(
 							height: 300,
@@ -542,25 +609,23 @@ class _VerslaePageState extends State<VerslaePage> {
 												),
 											),
 											topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-											rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+											rightTitles: AxisTitles(
+												sideTitles: SideTitles(
+													showTitles: true,
+													reservedSize: 40,
+													getTitlesWidget: (value, meta) {
+														final maxAmount = salesData.fold<double>(0.0, (m, e) => e.amount > m ? e.amount : m);
+														final maxCount = salesData.fold<int>(0, (m, e) => e.count > m ? e.count : m);
+														final double scale = (maxCount == 0) ? 0.0 : (maxAmount / maxCount);
+														final count = (scale == 0) ? 0 : (value / scale).round();
+														return Text(count.toString());
+													},
+												),
+											),
 										),
 										minY: 0,
 										borderData: FlBorderData(show: true),
-										lineBarsData: [
-											LineChartBarData(
-												spots: salesData.asMap().entries.map((e) {
-													return FlSpot(e.key.toDouble(), e.value.amount);
-												}).toList(),
-												isCurved: false,
-												color: Theme.of(context).primaryColor,
-												barWidth: 3,
-												dotData: FlDotData(show: true),
-												belowBarData: BarAreaData(
-													show: true,
-													color: Theme.of(context).primaryColor.withOpacity(0.1),
-												),
-											),
-										],
+										lineBarsData: _buildSalesLines(context, salesData),
 									),
 								)
 								: const Center(
@@ -835,6 +900,97 @@ class _VerslaePageState extends State<VerslaePage> {
 		);
 	}
 
+	Widget _buildTerugvoerSection(BuildContext context) {
+		return Card(
+			child: Padding(
+				padding: const EdgeInsets.all(16),
+				child: Column(
+					crossAxisAlignment: CrossAxisAlignment.start,
+					children: <Widget>[
+						Row(
+							mainAxisAlignment: MainAxisAlignment.spaceBetween,
+							children: [
+								Text('Terugvoer (beskikbare tipes)', style: Theme.of(context).textTheme.titleMedium),
+								IconButton(
+									onPressed: () async {
+										final list = await _loadTerugvoerTipes();
+										setState(() {
+											terugvoerTipes = list;
+										});
+									},
+									icon: const Icon(Icons.refresh),
+									tooltip: 'Herlaai Terugvoer',
+								),
+							],
+						),
+						const SizedBox(height: 12),
+						SingleChildScrollView(
+							scrollDirection: Axis.horizontal,
+							child: DataTable(
+								columns: const [
+									DataColumn(label: Text('Naam')),
+									DataColumn(label: Text('Beskrywing')),
+								],
+								rows: (terugvoerTipes..sort((a, b) => (a['terug_naam'] ?? '').toString().compareTo((b['terug_naam'] ?? '').toString())))
+									.map((tv) => DataRow(cells: [
+										DataCell(Text(tv['terug_naam']?.toString() ?? '')),
+										DataCell(Text(tv['terug_beskrywing']?.toString() ?? '')),
+									]))
+									.toList(),
+							),
+						),
+						const SizedBox(height: 16),
+						Divider(color: Colors.grey.shade300),
+						const SizedBox(height: 16),
+						Text('Voeg nuwe Terugvoer by', style: Theme.of(context).textTheme.titleSmall),
+						const SizedBox(height: 8),
+						LayoutBuilder(builder: (context, constraints) {
+							final bool wide = constraints.maxWidth > 800;
+							final children = <Widget>[
+								Expanded(
+									child: TextField(
+										controller: _terugNaamController,
+										decoration: const InputDecoration(
+											labelText: 'Naam',
+											border: OutlineInputBorder(),
+										),
+									),
+								),
+								const SizedBox(width: 12, height: 12),
+								Expanded(
+									flex: 2,
+									child: TextField(
+										controller: _terugBeskrywingController,
+										minLines: 1,
+										maxLines: 3,
+										decoration: const InputDecoration(
+											labelText: 'Beskrywing (opsioneel)',
+											border: OutlineInputBorder(),
+										),
+									),
+								),
+								const SizedBox(width: 12, height: 12),
+								SizedBox(
+									height: 48,
+									child: ElevatedButton.icon(
+										onPressed: isSavingTerugvoer ? null : _addTerugvoer,
+										icon: isSavingTerugvoer
+											? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+											: const Icon(Icons.add),
+										label: const Text('Voeg by'),
+									),
+								),
+							];
+							return wide
+								? Row(children: children)
+								: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children);
+						}),
+					],
+				),
+			),
+		);
+	}
+
 	Widget _simplePie(List<_LabeledCount> data, String title) {
 		if (data.isEmpty) return const Center(child: Text('Geen data'));
 		final colors = [Colors.blue, Colors.orange, Colors.green, Colors.purple, Colors.red, Colors.teal, Colors.indigo];
@@ -879,30 +1035,63 @@ class _VerslaePageState extends State<VerslaePage> {
 	}
 
 	// Data processing methods
-	List<_SalesData> _getSalesData() {
+	List<_SalesData> _getSalesData(int numDays) {
 		final now = DateTime.now();
 		final salesData = <_SalesData>[];
-		
-		for (int i = 6; i >= 0; i--) {
+		for (int i = numDays - 1; i >= 0; i--) {
 			final date = now.subtract(Duration(days: i));
-			final dayName = _getDayName(date.weekday);
-			
-			// Calculate sales for this day
+			final label = '${date.day}/${date.month}';
 			double daySales = 0.0;
+			int dayCount = 0;
 			for (final order in bestellings) {
 				final orderDate = DateTime.tryParse(order['best_geskep_datum'] ?? '');
-				if (orderDate != null && 
+				if (orderDate != null &&
 					orderDate.year == date.year &&
 					orderDate.month == date.month &&
 					orderDate.day == date.day) {
 					daySales += (order['best_volledige_prys'] as num? ?? 0.0).toDouble();
 				}
 			}
-			
-			salesData.add(_SalesData(day: dayName, amount: daySales));
+			// Count items sold for that day using bestellingItems linked to bestelling
+			for (final item in bestellingItems) {
+				final Map<String, dynamic>? best = item['bestelling'] as Map<String, dynamic>?;
+				final String? bestDateStr = best != null ? best['best_geskep_datum'] as String? : null;
+				final orderDate = bestDateStr != null ? DateTime.tryParse(bestDateStr) : null;
+				if (orderDate != null &&
+					orderDate.year == date.year &&
+					orderDate.month == date.month &&
+					orderDate.day == date.day) {
+					dayCount += (item['item_hoev'] as int? ?? 1);
+				}
+			}
+			salesData.add(_SalesData(day: label, amount: daySales, count: dayCount));
 		}
-		
 		return salesData;
+	}
+
+	List<LineChartBarData> _buildSalesLines(BuildContext context, List<_SalesData> data) {
+		final maxAmount = data.fold<double>(0.0, (m, e) => e.amount > m ? e.amount : m);
+		final maxCount = data.fold<int>(0, (m, e) => e.count > m ? e.count : m);
+		final double scale = (maxCount == 0) ? 0.0 : (maxAmount / maxCount);
+		final amountLine = LineChartBarData(
+			spots: data.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.amount)).toList(),
+			isCurved: false,
+			color: Theme.of(context).primaryColor,
+			barWidth: 3,
+			dotData: FlDotData(show: true),
+			belowBarData: BarAreaData(
+				show: true,
+				color: Theme.of(context).primaryColor.withOpacity(0.1),
+			),
+		);
+		final countLine = LineChartBarData(
+			spots: data.asMap().entries.map((e) => FlSpot(e.key.toDouble(), scale == 0.0 ? 0.0 : e.value.count * scale)).toList(),
+			isCurved: false,
+			color: Colors.orange,
+			barWidth: 3,
+			dotData: FlDotData(show: true),
+		);
+		return [amountLine, countLine];
 	}
 
 	List<_StatusData> _getOrderStatusData() {
@@ -964,6 +1153,174 @@ class _VerslaePageState extends State<VerslaePage> {
 		const days = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Sa', 'So'];
 		return days[weekday - 1];
 	}
+
+	Widget _buildKosItemTerugvoerChart(BuildContext context) {
+		final data = _computeKosItemTerugvoerData();
+		if (data.isEmpty) {
+			return Card(
+				child: Padding(
+					padding: const EdgeInsets.all(16),
+					child: Column(
+						crossAxisAlignment: CrossAxisAlignment.start,
+						children: const [
+							Text('Kos Items vs Terugvoer'),
+							SizedBox(height: 12),
+							Text('Geen data beskikbaar'),
+						],
+					),
+				),
+			);
+		}
+
+		// Determine all terugvoer labels
+		final Set<String> terugLabels = {};
+		for (final entry in data.values) {
+			terugLabels.addAll(entry.keys);
+		}
+		final List<String> terugList = terugLabels.toList()..sort();
+		final colors = [
+			Colors.blue,
+			Colors.orange,
+			Colors.green,
+			Colors.purple,
+			Colors.red,
+			Colors.teal,
+			Colors.indigo,
+			Colors.brown,
+		];
+
+		final items = data.entries.toList();
+		// Sort by total count desc and take top 10
+		items.sort((a, b) {
+			final ta = a.value.values.fold<int>(0, (s, v) => s + v);
+			final tb = b.value.values.fold<int>(0, (s, v) => s + v);
+			return tb.compareTo(ta);
+		});
+		final topItems = items.take(10).toList();
+		final maxY = topItems.isEmpty
+			? 10.0
+			: topItems.map((e) => e.value.values.fold<int>(0, (s, v) => s + v)).reduce((a, b) => a > b ? a : b).toDouble() * 1.2;
+
+		return Card(
+			child: Padding(
+				padding: const EdgeInsets.all(16),
+				child: Column(
+					crossAxisAlignment: CrossAxisAlignment.start,
+					children: [
+						Text('Kos Items vs Terugvoer', style: Theme.of(context).textTheme.titleMedium),
+						const SizedBox(height: 12),
+						SizedBox(
+							height: 420,
+							child: BarChart(
+								BarChartData(
+									alignment: BarChartAlignment.spaceBetween,
+									maxY: maxY,
+									titlesData: FlTitlesData(
+										leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40)),
+										bottomTitles: AxisTitles(
+											sideTitles: SideTitles(
+												showTitles: true,
+												getTitlesWidget: (value, meta) {
+													final index = value.toInt();
+													if (index >= 0 && index < topItems.length) {
+														return Transform.rotate(
+															angle: -0.8,
+															child: Padding(
+																padding: const EdgeInsets.only(top: 16),
+																child: Text(topItems[index].key, style: const TextStyle(fontSize: 10)),
+															),
+														);
+													}
+													return const Text('');
+												},
+												reservedSize: 80,
+											),
+										),
+									),
+									borderData: FlBorderData(show: true),
+									barGroups: topItems.asMap().entries.map((entry) {
+										final x = entry.key;
+										final map = entry.value.value;
+										double running = 0.0;
+										final stacks = <BarChartRodStackItem>[];
+										for (int i = 0; i < terugList.length; i++) {
+											final label = terugList[i];
+											final value = (map[label] ?? 0).toDouble();
+											if (value == 0) continue;
+											final start = running;
+											final end = running + value;
+											stacks.add(BarChartRodStackItem(start, end, colors[i % colors.length]));
+											running = end;
+										}
+										return BarChartGroupData(
+											x: x,
+											barRods: [
+												BarChartRodData(
+													toY: running,
+													width: 22,
+													borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+													rodStackItems: stacks,
+												),
+											],
+										);
+									}).toList(),
+								),
+							),
+						),
+						const SizedBox(height: 12),
+						Wrap(
+							spacing: 8,
+							runSpacing: 4,
+							children: terugList.asMap().entries.map((e) {
+								final color = colors[e.key % colors.length];
+								return Row(
+									mainAxisSize: MainAxisSize.min,
+									children: [
+										Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+										const SizedBox(width: 4),
+										Text(e.value, style: const TextStyle(fontSize: 12)),
+									],
+								);
+							}).toList(),
+						),
+					],
+				),
+			),
+		);
+	}
+
+	Map<String, Map<String, int>> _computeKosItemTerugvoerData() {
+		// Map: kos_item_name -> (terug_naam -> count)
+		final Map<String, Map<String, int>> result = {};
+		// Index terugvoer by best_id
+		final Map<String, List<Map<String, dynamic>>> terugByBest = {};
+		for (final bt in bestellingTerugvoer) {
+			final bestId = bt['best_id'] as String?;
+			if (bestId == null) continue;
+			(terugByBest[bestId] ??= <Map<String, dynamic>>[]).add(bt);
+		}
+		for (final item in bestellingItems) {
+			final kos = item['kos_item'] as Map<String, dynamic>?;
+			final bestId = item['best_id'] as String?;
+			if (kos == null || bestId == null) continue;
+			final kosName = (kos['kos_item_naam'] as String?) ?? 'Onbekend';
+			final tvList = terugByBest[bestId] ?? const <Map<String, dynamic>>[];
+			for (final tv in tvList) {
+				final tvMap = tv['terugvoer'] as Map<String, dynamic>?;
+				final label = tvMap != null ? (tvMap['terug_naam'] as String? ?? 'Terugvoer') : 'Terugvoer';
+				final map = result.putIfAbsent(kosName, () => <String, int>{});
+				map[label] = (map[label] ?? 0) + 1;
+			}
+		}
+		return result;
+	}
+
+	@override
+	void dispose() {
+		_terugNaamController.dispose();
+		_terugBeskrywingController.dispose();
+		super.dispose();
+	}
 }
 
 // Helper classes
@@ -978,7 +1335,8 @@ class _KPI {
 class _SalesData {
 	final String day;
 	final double amount;
-	_SalesData({required this.day, required this.amount});
+	final int count;
+	_SalesData({required this.day, required this.amount, required this.count});
 }
 
 class _StatusData {
