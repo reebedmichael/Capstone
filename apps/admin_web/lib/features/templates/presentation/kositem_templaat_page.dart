@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:capstone_admin/features/templates/widgets/kos_item_detail.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:spys_api_client/spys_api_client.dart';
@@ -17,14 +18,11 @@ class KositemTemplaatPage extends StatefulWidget {
 }
 
 class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
-  // final SpyskaartRepository repo = SpyskaartRepository(SupabaseDb());
-
   List<KositemTemplate> templates = [];
-
   List<KositemTemplate> filteredTemplates = [];
   String searchQuery = "";
   String selectedFilter = "Alle";
-
+  List<String> dietCategories = ["Alle"];
   bool isLoading = false;
   String suksesBoodskap = '';
   String foutBoodskap = '';
@@ -38,52 +36,113 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
   final TextEditingController allergeneController = TextEditingController();
   final TextEditingController prysController = TextEditingController();
   final TextEditingController beskrywingController = TextEditingController();
-  String? selectedCategory;
+  List<String> selectedCategories = [];
   String? selectedImage;
 
   late final KosTemplaatRepository repo;
+  late final DieetRepository dieetRepo;
 
   @override
   void initState() {
     super.initState();
-    repo = KosTemplaatRepository(SupabaseDb(Supabase.instance.client));
+    // Initialize repositories
+    final supabaseClient = Supabase.instance.client;
+    repo = KosTemplaatRepository(SupabaseDb(supabaseClient));
+    dieetRepo = DieetRepository(SupabaseDb(supabaseClient));
+
+    // Load initial data
     laaiTemplates();
+    laaiDietCategories();
+  }
+
+  Future<void> laaiDietCategories() async {
+    try {
+      final rows = await dieetRepo.kryDieet();
+      setState(() {
+        dietCategories = ["Alle"]; // Reset and include the default "All" filter
+        dietCategories.addAll(
+          rows
+              .where((row) => row?['dieet_naam'] != null)
+              .map((row) => row!['dieet_naam'] as String)
+              .toList(),
+        );
+      });
+    } catch (e) {
+      setState(() => foutBoodskap = "Kon nie dieet kategorieë laai nie: $e");
+    }
   }
 
   Future<void> laaiTemplates() async {
     setState(() => isLoading = true);
     try {
       final rows = await repo.getKosItems();
+
       templates = rows.map((row) {
+        final kosItemId = row['kos_item_id']?.toString() ?? '';
+
+        // Extract dietary category names from the nested structure
+        final dietEntries = (row['kos_item_dieet_vereistes'] as List?)
+            ?.cast<Map<String, dynamic>>();
+
+        final List<String> dietNames = [];
+        if (dietEntries != null) {
+          for (final entry in dietEntries) {
+            final dieetObj = entry['dieet'];
+            if (dieetObj != null &&
+                dieetObj is Map &&
+                dieetObj['dieet_naam'] != null) {
+              dietNames.add(dieetObj['dieet_naam'].toString());
+            }
+          }
+        }
+
         return KositemTemplate(
-          id: row['kos_item_id'].toString(),
+          id: kosItemId,
           naam: row['kos_item_naam'] ?? '',
           beskrywing: row['kos_item_beskrywing'] ?? '',
           bestanddele:
               (row['kos_item_bestandele'] as List?)?.cast<String>() ?? [],
           allergene: (row['kos_item_allergene'] as List?)?.cast<String>() ?? [],
           prys: (row['kos_item_koste'] as num?)?.toDouble() ?? 0.0,
-          kategorie: row['kos_item_kategorie'] ?? '',
+          dieetKategorie: dietNames, // Use the parsed list of names
           prent: row['kos_item_prentjie'],
         );
       }).toList();
-      applyFilters();
+
+      applyFilters(); // Apply search and filter criteria
     } catch (e) {
-      foutBoodskap = e.toString();
+      setState(() => foutBoodskap = e.toString());
+    } finally {
+      setState(() => isLoading = false);
     }
-    setState(() => isLoading = false);
   }
 
   void applyFilters() {
     setState(() {
       filteredTemplates = templates.where((template) {
-        final matchesSearch = template.naam.toLowerCase().contains(
-          searchQuery.toLowerCase(),
-        );
+        final searchLower = searchQuery.toLowerCase();
+        // Updated search logic to include ingredients
+        final matchesSearch =
+            template.naam.toLowerCase().contains(searchLower) ||
+            template.beskrywing.toLowerCase().contains(searchLower) ||
+            template.bestanddele.any(
+              (ing) => ing.toLowerCase().contains(searchLower),
+            );
+
         final matchesFilter =
-            selectedFilter == "Alle" || template.kategorie == selectedFilter;
+            selectedFilter == "Alle" ||
+            template.dieetKategorie.contains(selectedFilter);
         return matchesSearch && matchesFilter;
       }).toList();
+    });
+  }
+
+  // **NEW**: Method to clear search and filter
+  void _clearFilters() {
+    setState(() {
+      searchQuery = "";
+      selectedFilter = "Alle";
+      applyFilters();
     });
   }
 
@@ -93,7 +152,7 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
     allergeneController.clear();
     beskrywingController.clear();
     prysController.clear();
-    selectedCategory = null;
+    selectedCategories = [];
     selectedImage = null;
     huidigeTemplate = null;
   }
@@ -102,11 +161,9 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
     naamController.text = template.naam;
     beskrywingController.text = template.beskrywing;
     bestanddeleController.text = template.bestanddele.join(', ');
-    allergeneController.text = template.allergene.join(
-      ', ',
-    ); //////////////////////////////////////////////////////////////////////////////////////////
+    allergeneController.text = template.allergene.join(', ');
     prysController.text = template.prys.toString();
-    selectedCategory = template.kategorie;
+    selectedCategories = List<String>.from(template.dieetKategorie);
     selectedImage = template.prent;
     huidigeTemplate = template;
   }
@@ -118,8 +175,7 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
     );
 
     if (result != null && result.files.single.bytes != null) {
-      final bytes = result.files.single.bytes!; // Uint8List
-
+      final bytes = result.files.single.bytes!;
       setState(() => isLoading = true);
 
       try {
@@ -127,9 +183,7 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
             ? 'kositem'
             : naamController.text.trim().replaceAll(' ', '_');
 
-        // upload en kry URL
         final url = await repo.uploadKosItemPrent(bytes, fileName);
-
         setState(() => selectedImage = url);
       } catch (e) {
         setState(() => foutBoodskap = e.toString());
@@ -167,18 +221,21 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
         'kos_item_beskrywing': beskrywingController.text.trim(),
         'kos_item_allergene': allergeneLys,
         'kos_item_koste': double.tryParse(prysController.text.trim()) ?? 0,
-        'kos_item_kategorie': selectedCategory ?? '',
-        // 'kos_item_prentjie': selectedImage, // store URL not bytes
       };
-      // slegs sit die prentjie key as ons 'n URL het (nuwe of reeds ingestel)
+
       if (selectedImage != null && selectedImage!.isNotEmpty) {
         kosItemData['kos_item_prentjie'] = selectedImage!;
       }
+
       if (huidigeTemplate != null) {
-        await repo.updateKosItem(huidigeTemplate!.id, kosItemData);
+        await repo.updateKosItem(
+          huidigeTemplate!.id,
+          kosItemData,
+          selectedCategories,
+        );
         suksesBoodskap = 'Templaat suksesvol gewysig';
       } else {
-        await repo.addKosItem(kosItemData);
+        await repo.addKosItem(kosItemData, selectedCategories);
         suksesBoodskap = 'Templaat suksesvol geskep';
       }
 
@@ -187,15 +244,16 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
         toonVormModal = false;
         resetVorm();
       });
+
       Future.delayed(
         const Duration(seconds: 3),
         () => mounted ? setState(() => suksesBoodskap = '') : null,
       );
     } catch (e) {
-      foutBoodskap = e.toString();
+      setState(() => foutBoodskap = e.toString());
+    } finally {
+      setState(() => isLoading = false);
     }
-
-    setState(() => isLoading = false);
   }
 
   Future<void> verwyderTemplate(KositemTemplate template) async {
@@ -210,21 +268,9 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
         () => mounted ? setState(() => suksesBoodskap = '') : null,
       );
     } catch (e) {
-      foutBoodskap = e.toString();
+      setState(() => foutBoodskap = e.toString());
     }
   }
-  //Hard delete
-  // Future<void> verwyderTemplate(KositemTemplate template) async {
-  //   try {
-  //     await repo.deleteKosItem(template.id);
-  //     await laaiTemplates();
-  //     setState(
-  //       () => suksesBoodskap = "Templaat '${template.naam}' is verwyder",
-  //     );
-  //   } catch (e) {
-  //     foutBoodskap = e.toString();
-  //   }
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -232,13 +278,22 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
       appBar: AppBar(
         title: const Text('Kositem Templates'),
         actions: [
-          ElevatedButton.icon(
-            onPressed: () {
-              resetVorm();
-              setState(() => toonVormModal = true);
-            },
-            icon: const Icon(Icons.add),
-            label: const Text('Skep Nuwe Templaat'),
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                resetVorm();
+                setState(() => toonVormModal = true);
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Skep Templaat'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -246,36 +301,8 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            TextField(
-              decoration: InputDecoration(
-                hintText: "Soek kositem...",
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-              ),
-              onChanged: (val) {
-                searchQuery = val;
-                applyFilters();
-              },
-            ),
-            const SizedBox(height: 12),
-
-            // 🍽️ Filter Buttons
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildFilterButton("Alle"),
-                  _buildFilterButton("Hoofkos"),
-                  _buildFilterButton("Vegetaries"),
-                  _buildFilterButton("Vegan"),
-                  _buildFilterButton("Glutenvry"),
-                  _buildFilterButton("Personeelspesifiek"),
-                ],
-              ),
-            ),
+            // **NEW**: Replaces the old search and filter buttons
+            _buildFilterControls(),
             const SizedBox(height: 16),
 
             if (suksesBoodskap.isNotEmpty)
@@ -286,6 +313,7 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
               ),
             if (foutBoodskap.isNotEmpty)
               _buildFeedbackMessage(foutBoodskap, Colors.red, Icons.error),
+
             Expanded(
               child: isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -304,7 +332,6 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
                             crossAxisSpacing: 10,
                             childAspectRatio: 0.70,
                           ),
-                      // itemCount: templates.length,
                       itemCount: filteredTemplates.length,
                       itemBuilder: (context, index) {
                         final template = filteredTemplates[index];
@@ -313,6 +340,13 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
                           onEdit: () {
                             laaiTemplateInVorm(template);
                             setState(() => toonVormModal = true);
+                          },
+                          onView: () {
+                            showDialog(
+                              context: context,
+                              builder: (_) =>
+                                  KositemDetailDialog(item: template),
+                            );
                           },
                           onDelete: () async {
                             final bevestig = await showDialog<bool>(
@@ -341,7 +375,8 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
               bestanddeleController: bestanddeleController,
               beskrywingController: beskrywingController,
               allergeneController: allergeneController,
-              selectedCategory: selectedCategory,
+              selectedCategories: selectedCategories,
+              allCategories: dietCategories.where((c) => c != "Alle").toList(),
               selectedImage: selectedImage,
               isLoading: isLoading,
               onCancel: () {
@@ -350,10 +385,185 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
               },
               onSave: stoorTemplate,
               onPickImage: kiesPrent,
-              onCategoryChanged: (newVal) =>
-                  setState(() => selectedCategory = newVal),
+              onCategoriesChanged: (newVal) => setState(() {
+                selectedCategories = newVal;
+              }),
             )
           : null,
+    );
+  }
+
+  // **NEW**: Widget for the entire filter section
+  Widget _buildFilterControls() {
+    final theme = Theme.of(context);
+    final bool isFiltered = searchQuery.isNotEmpty || selectedFilter != 'Alle';
+
+    return Column(
+      children: [
+        Card(
+          elevation: 2,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: Colors.orange.shade100, width: 1),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // Use a Row layout for wider screens
+                if (constraints.maxWidth > 700) {
+                  return Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: Row(
+                          children: [
+                            Expanded(child: _buildSearchField()),
+                            const SizedBox(width: 12),
+                            Expanded(child: _buildCategoryFilter()),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      if (isFiltered) ...[
+                        OutlinedButton(
+                          onPressed: _clearFilters,
+                          child: const Text('Maak Skoon'),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                    ],
+                  );
+                }
+                // Use a Column layout for narrower screens
+                return Column(
+                  children: [
+                    _buildSearchField(),
+                    const SizedBox(height: 12),
+                    _buildCategoryFilter(),
+                    if (isFiltered) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: _clearFilters,
+                          child: const Text('Maak Filters Skoon'),
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+        // **NEW**: Filter summary text
+        if (isFiltered)
+          Padding(
+            padding: const EdgeInsets.only(top: 12.0),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: RichText(
+                text: TextSpan(
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey.shade800,
+                  ),
+                  children: [
+                    TextSpan(
+                      text: '${filteredTemplates.length}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const TextSpan(text: ' items gevind'),
+                    if (searchQuery.isNotEmpty) ...[
+                      const TextSpan(text: ' wat ooreenstem met "'),
+                      TextSpan(
+                        text: searchQuery,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const TextSpan(text: '"'),
+                    ],
+                    if (selectedFilter != 'Alle') ...[
+                      const TextSpan(text: ' in die '),
+                      TextSpan(
+                        text: selectedFilter,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const TextSpan(text: ' kategorie'),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // **NEW**: Helper for building the search text field
+  Widget _buildSearchField() {
+    return TextField(
+      onChanged: (value) {
+        setState(() {
+          searchQuery = value;
+          applyFilters();
+        });
+      },
+      decoration: InputDecoration(
+        hintText: "Soek volgens naam, beskrywing...",
+        prefixIcon: const Icon(Icons.search, size: 20),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.orange.shade200),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.orange.shade200),
+        ),
+        filled: true,
+        fillColor: Colors.white70,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+      ),
+    );
+  }
+
+  // **NEW**: Helper for building the category dropdown
+  Widget _buildCategoryFilter() {
+    return DropdownButtonFormField<String>(
+      value: selectedFilter,
+      onChanged: (String? newValue) {
+        if (newValue != null) {
+          setState(() {
+            selectedFilter = newValue;
+            applyFilters();
+          });
+        }
+      },
+      decoration: InputDecoration(
+        prefixIcon: const Icon(Icons.filter_list, size: 20),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.orange.shade200),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.orange.shade200),
+        ),
+        filled: true,
+        fillColor: Colors.white70,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 15,
+        ),
+      ),
+      items: dietCategories.map<DropdownMenuItem<String>>((String value) {
+        return DropdownMenuItem<String>(value: value, child: Text(value));
+      }).toList(),
     );
   }
 
@@ -368,23 +578,6 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
           const SizedBox(width: 8),
           Expanded(child: Text(message)),
         ],
-      ),
-    );
-  }
-
-  Widget _buildFilterButton(String category) {
-    final isSelected = selectedFilter == category;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: ChoiceChip(
-        label: Text(category),
-        selected: isSelected,
-        onSelected: (_) {
-          setState(() {
-            selectedFilter = category;
-            applyFilters();
-          });
-        },
       ),
     );
   }

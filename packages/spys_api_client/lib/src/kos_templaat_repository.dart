@@ -9,13 +9,71 @@ class KosTemplaatRepository {
   KosTemplaatRepository(this._db);
 
   SupabaseClient get _sb => _db.client;
+  //Add kositem to kos_item. Add kos_item_id and dieet_id to kos_item_dieet_vereistes where dieet_id in dieet table and kos_item_id in kos_item table
+  // Future<void> addKosItem(Map<String, dynamic> kosItem) async {
+  //   await _sb.from('kos_item').insert(kosItem);
+  // }
+  Future<void> addKosItem(
+    Map<String, dynamic> kosItem,
+    List<String> selectedCategories,
+  ) async {
+    // final client = _db.client;
 
-  Future<void> addKosItem(Map<String, dynamic> kosItem) async {
-    await _sb.from('kos_item').insert(kosItem);
+    // 1. Insert kos_item
+    final inserted = await _sb
+        .from('kos_item')
+        .insert(kosItem)
+        .select()
+        .single();
+    final kosItemId = inserted['kos_item_id'];
+
+    // 2. Fetch dieet_ids from dieet table for selected categories
+    if (selectedCategories.isNotEmpty) {
+      final dieetRows = await _sb
+          .from('dieet_vereiste')
+          .select('dieet_id, dieet_naam')
+          .inFilter('dieet_naam', selectedCategories);
+
+      // 3. Insert relations into kos_item_dieet_vereistes
+      final inserts = dieetRows.map((row) {
+        return {'kos_item_id': kosItemId, 'dieet_id': row['dieet_id']};
+      }).toList();
+
+      if (inserts.isNotEmpty) {
+        await _sb.from('kos_item_dieet_vereistes').insert(inserts);
+      }
+    }
   }
 
-  Future<void> updateKosItem(String id, Map<String, dynamic> kosItem) async {
+  // Future<void> updateKosItem(String id, Map<String, dynamic> kosItem) async {
+  //   await _sb.from('kos_item').update(kosItem).eq('kos_item_id', id);
+  // }
+  Future<void> updateKosItem(
+    String id,
+    Map<String, dynamic> kosItem,
+    List<String> selectedCategories,
+  ) async {
+    // 1. Update kos_item
     await _sb.from('kos_item').update(kosItem).eq('kos_item_id', id);
+
+    // 2. Clear old relations
+    await _sb.from('kos_item_dieet_vereistes').delete().eq('kos_item_id', id);
+
+    // 3. Re-insert selected categories
+    if (selectedCategories.isNotEmpty) {
+      final dieetRows = await _sb
+          .from('dieet_vereiste')
+          .select('dieet_id, dieet_naam')
+          .inFilter('dieet_naam', selectedCategories);
+
+      final inserts = dieetRows.map((row) {
+        return {'kos_item_id': id, 'dieet_id': row['dieet_id']};
+      }).toList();
+
+      if (inserts.isNotEmpty) {
+        await _sb.from('kos_item_dieet_vereistes').insert(inserts);
+      }
+    }
   }
 
   Future<String> uploadKosItemPrent(
@@ -55,8 +113,19 @@ class KosTemplaatRepository {
     await _sb.from('kos_item').delete().eq('id', id);
   }
 
+  //get all from kos_item where is_aktief =true, get dieet_id(UUiD) from kos_item_dieet_vereistes where kos_item_id, get dieet_naam where dieet_id
+  // Future<List<Map<String, dynamic>>> getKosItems() async {
+  //   final response = await _sb.from('kos_item').select().eq('is_aktief', true);
+  //   return List<Map<String, dynamic>>.from(response as List);
+  // }
   Future<List<Map<String, dynamic>>> getKosItems() async {
-    final response = await _sb.from('kos_item').select().eq('is_aktief', true);
+    final response = await _sb
+        .from('kos_item')
+        .select(
+          '*, kos_item_dieet_vereistes(dieet_id, dieet:dieet_id(dieet_naam))',
+        )
+        .eq('is_aktief', true);
+
     return List<Map<String, dynamic>>.from(response as List);
   }
 

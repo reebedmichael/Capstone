@@ -8,6 +8,7 @@ import '../widgets/week_templaat_card.dart';
 import '../widgets/week_form_modal.dart';
 import '../widgets/delete_modal.dart';
 import '../widgets/week_load_modal.dart';
+import '../widgets/kos_item_detail.dart'; // <-- import your detail dialog
 
 class WeekTemplaatPage extends StatefulWidget {
   const WeekTemplaatPage({super.key});
@@ -92,13 +93,11 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
   }
 
   Future<void> _fetchTemplatesForPicker() async {
-    // Use your existing kos repo; returns active items
     final rows = await kosRepo.getKosItems();
     templates = rows.map(_mapKosRowToTemplate).toList();
   }
 
   KositemTemplate _mapKosRowToTemplate(Map<String, dynamic> r) {
-    // DB columns (lowercased) per your schema; provide safe defaults for UI-only fields
     return KositemTemplate.fromMap({
       'id': r['kos_item_id'],
       'naam': r['kos_item_naam'] ?? '',
@@ -107,12 +106,12 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
       'prys': (r['kos_item_koste'] ?? 0).toDouble(),
       'bestanddele': r['bestanddele'] ?? <String>[],
       'allergene': r['allergene'] ?? <String>[],
-      'prentjie': r['kos_item_prentjie'],
+      'prent': r['kos_item_prentjie'],
+      'kos_item_dieet_vereistes':
+          r['kos_item_dieet_vereistes'] ?? <List<dynamic>>[],
     });
   }
 
-  /// Pulls raw spyskaarte + children and shapes into the UI structure the widgets expect:
-  /// { id, naam, beskrywing, dae: { 'maandag': [KositemMap,...], ... }, geskep }
   Future<void> _fetchWeekTemplates() async {
     final raw = await weekRepo.listWeekTemplatesRaw();
 
@@ -121,11 +120,8 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
       final spyskaartId = row['spyskaart_id'];
       final naam = row['spyskaart_naam'] ?? '';
       final geskep = row['spyskaart_datum'];
-      final beskrywing =
-          row['spyskaart_beskrywing'] ??
-          ''; // will be null if column doesn't exist
+      final beskrywing = row['spyskaart_beskrywing'] ?? '';
 
-      // Prepare day buckets
       final dae = {
         'maandag': <Map<String, dynamic>>[],
         'dinsdag': <Map<String, dynamic>>[],
@@ -146,7 +142,6 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
         final dagNaam = (dag['week_dag_naam'] ?? '').toString().toLowerCase();
         if (!dae.containsKey(dagNaam)) continue;
 
-        // Map DB row -> KositemTemplate map shape for UI
         final itemMap = {
           'id': kos['kos_item_id'],
           'naam': kos['kos_item_naam'] ?? '',
@@ -155,7 +150,9 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
           'prys': (kos['kos_item_koste'] ?? 0).toDouble(),
           'bestanddele': kos['kos_item_bestandele'] ?? <String>[],
           'allergene': kos['kos_item_allergene'] ?? <String>[],
-          'prentjie': kos['kos_item_prentjie'],
+          'prent': kos['kos_item_prentjie'],
+          'kos_item_dieet_vereistes':
+              kos['kos_item_dieet_vereistes'] ?? <List<dynamic>>[],
         };
 
         dae[dagNaam]!.add(itemMap);
@@ -186,7 +183,6 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
   Future<void> saveTemplate() async {
     if (formNameController.text.trim().isEmpty) return;
 
-    // Convert formDays -> Map<String, List<Map>> for repo
     final daeData = formDays.map(
       (dag, lys) => MapEntry(dag, lys.map((k) => k.toMap()).toList()),
     );
@@ -211,7 +207,6 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
     await _fetchWeekTemplates();
     setState(() => showFormModal = false);
 
-    // Auto-hide success banner
     Future.delayed(
       const Duration(seconds: 3),
       () => mounted ? setState(() => successMessage = '') : null,
@@ -236,7 +231,6 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
   }
 
   void editTemplate(Map<String, dynamic> templaat) {
-    // Fill form from shaped templaat
     setState(() {
       formNameController.text = templaat['naam'] ?? '';
       formDescController.text = templaat['beskrywing'] ?? '';
@@ -262,7 +256,6 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
   }
 
   void loadTemplateIntoForm(Map<String, dynamic> templaat) {
-    // Same behavior as your original code
     formNameController.text = templaat['naam'] ?? '';
     formDescController.text = templaat['beskrywing'] ?? '';
 
@@ -287,6 +280,14 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
     });
   }
 
+  // 🔄 Replaced _showItemDetails with reusable KositemDetailDialog
+  void _showItemDetails(KositemTemplate item) {
+    showDialog(
+      context: context,
+      builder: (context) => KositemDetailDialog(item: item),
+    );
+  }
+
   @override
   void dispose() {
     formNameController.dispose();
@@ -308,124 +309,141 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
-    final body = _loading
-        ? const Center(child: CircularProgressIndicator())
-        : Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                TextField(
-                  controller: searchController,
-                  decoration: InputDecoration(
-                    hintText: "Soek 'n spyskaart templaat...",
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                  ),
-                  onChanged: (val) {
-                    setState(() => searchQuery = val);
-                  },
-                ),
-                const SizedBox(height: 12),
-                if (successMessage.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      border: Border.all(color: Colors.green.shade200),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.check_circle, color: Colors.green),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            successMessage,
-                            style: const TextStyle(color: Colors.green),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                Expanded(
-                  child: filteredWeekTemplates.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.calendar_today,
-                                size: 64,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(height: 16),
-                              const Text('Geen Week Templaaie'),
-                              const SizedBox(height: 8),
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.add),
-                                label: const Text('Skep Eerste Templaat'),
-                                onPressed: () {
-                                  resetForm();
-                                  setState(() => showFormModal = true);
-                                },
-                              ),
-                            ],
-                          ),
-                        )
-                      : GridView.builder(
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 16,
-                                crossAxisSpacing: 16,
-                                childAspectRatio: 4 / 3,
-                              ),
-                          itemCount: filteredWeekTemplates.length,
-                          itemBuilder: (context, index) {
-                            final templaat = filteredWeekTemplates[index];
-                            return WeekTemplateCard(
-                              templaat: templaat,
-                              daeVanWeek: daeVanWeek
-                                  .map(
-                                    (m) => {
-                                      'key': m['key']!,
-                                      'label': m['label']!,
-                                    },
-                                  )
-                                  .toList(),
-                              onEdit: () => editTemplate(templaat),
-                              onDelete: () {
-                                activeTemplateId = templaat['id'];
-                                setState(() => showDeleteModal = true);
-                              },
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
-          );
+    // Loading state
+    if (_loading) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        appBar: AppBar(title: const Text('Week Templates')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
 
+    // Helper slivers list
+    final List<Widget> slivers = [];
+
+    // Top padding + header (search + success message)
+    slivers.add(
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        sliver: SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: searchController,
+                decoration: InputDecoration(
+                  hintText: "Soek 'n spyskaart templaat...",
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                ),
+                onChanged: (val) => setState(() => searchQuery = val),
+              ),
+              const SizedBox(height: 12),
+              if (successMessage.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    border: Border.all(color: Colors.green.shade200),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle, color: Colors.green),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          successMessage,
+                          style: const TextStyle(color: Colors.green),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // If empty: use SliverFillRemaining to center the empty state
+    final filtered = filteredWeekTemplates;
+    if (filtered.isEmpty) {
+      slivers.add(
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.calendar_today,
+                    size: 64,
+                    color: Colors.grey,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Geen Week Templaaie'),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('Skep Eerste Templaat'),
+                    onPressed: () {
+                      resetForm();
+                      setState(() => showFormModal = true);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    } else {
+      // non-empty: render a SliverList
+      slivers.add(
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate((context, index) {
+              final templaat = filtered[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: WeekTemplateCard(
+                  templaat: templaat,
+                  daeVanWeek: daeVanWeek
+                      .map((m) => {'key': m['key']!, 'label': m['label']!})
+                      .toList(),
+                  onEdit: () => editTemplate(templaat),
+                  onDelete: () {
+                    activeTemplateId = templaat['id'];
+                    setState(() => showDeleteModal = true);
+                  },
+                  onViewItem: (item) => _showItemDetails(item),
+                ),
+              );
+            }, childCount: filtered.length),
+          ),
+        ),
+      );
+    }
+
+    // Build scaffold with CustomScrollView
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(
         title: const Text('Week Templates'),
         actions: [
-          // OutlinedButton.icon(
-          //   icon: const Icon(Icons.folder_open),
-          //   label: const Text('Laai Templaat'),
-          //   onPressed: () async {
-          //     // Ensure fresh data before showing load modal
-          //     await _fetchWeekTemplates();
-          //     setState(() => showLoadModal = true);
-          //   },
-          // ),
-          // const SizedBox(width: 8),
           OutlinedButton.icon(
             icon: const Icon(Icons.refresh),
             label: const Text('Herlaai'),
@@ -443,9 +461,10 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
           const SizedBox(width: 12),
         ],
       ),
-      body: body,
-
-      // EXACT same modal behavior: one open at a time via floatingActionButton trick
+      body: CustomScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        slivers: slivers,
+      ),
       floatingActionButton: showFormModal
           ? FormModal(
               activeTemplateId: activeTemplateId,

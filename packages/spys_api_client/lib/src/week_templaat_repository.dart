@@ -42,8 +42,6 @@ class WeekTemplaatRepository {
       'spyskaart_is_templaat': true,
       'spyskaart_is_active': false,
       'spyskaart_datum': DateTime.now().toIso8601String(),
-      // If you added a description column, uncomment the next line:
-      // 'spyskaart_beskrywing': beskrywing ?? '',
     };
 
     final spyskaart = await _sb
@@ -88,7 +86,7 @@ class WeekTemplaatRepository {
   }) async {
     final updatePayload = {
       'spyskaart_naam': naam,
-      // 'spyskaart_beskrywing': beskrywing ?? '', // if you add the column
+      'spyskaart_beskrywing': beskrywing ?? '', // if you add the column
     };
 
     await _sb
@@ -132,21 +130,28 @@ class WeekTemplaatRepository {
   }
 
   /// Return raw templates with nested children (for page to shape).
+  /// Return raw templates with nested children (for page to shape).
   Future<List<Map<String, dynamic>>> listWeekTemplatesRaw() async {
     final rows = await _sb
         .from('spyskaart')
         .select('''
-          spyskaart_id,
-          spyskaart_naam,
-          spyskaart_beskrywing,
-          spyskaart_datum,
-          spyskaart_is_templaat,
-          spyskaart_kos_item:spyskaart_kos_item(
-            spyskaart_kos_id,
-            kos_item:kos_item_id(*),
-            week_dag:week_dag_id(*)
-          )
-          ''')
+        spyskaart_id,
+        spyskaart_naam,
+        spyskaart_beskrywing,
+        spyskaart_datum,
+        spyskaart_is_templaat,
+        spyskaart_kos_item:spyskaart_kos_item(
+          spyskaart_kos_id,
+          kos_item:kos_item_id(
+            *,
+            kos_item_dieet_vereistes(
+              dieet_id,
+              dieet:dieet_id(dieet_naam)
+            )
+          ),
+          week_dag:week_dag_id(*)
+        )
+        ''')
         .eq('spyskaart_is_templaat', true)
         .order('spyskaart_datum', ascending: false);
 
@@ -157,16 +162,23 @@ class WeekTemplaatRepository {
     final row = await _sb
         .from('spyskaart')
         .select('''
-          spyskaart_id,
-          spyskaart_naam,
-          spyskaart_datum,
-          spyskaart_is_templaat,
-          spyskaart_kos_item:spyskaart_kos_item(
-            spyskaart_kos_id,
-            kos_item:kos_item_id(*),
-            week_dag:week_dag_id(*)
-          )
-          ''')
+        spyskaart_id,
+        spyskaart_naam,
+        spyskaart_beskrywing,
+        spyskaart_datum,
+        spyskaart_is_templaat,
+        spyskaart_kos_item:spyskaart_kos_item(
+          spyskaart_kos_id,
+          kos_item:kos_item_id(
+            *,
+            kos_item_dieet_vereistes(
+              dieet_id,
+              dieet:dieet_id(dieet_naam)
+            )
+          ),
+          week_dag:week_dag_id(*)
+        )
+        ''')
         .eq('spyskaart_id', spyskaartId)
         .maybeSingle();
 

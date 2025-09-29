@@ -1,14 +1,14 @@
-import 'dart:typed_data';
-
 class KositemTemplate {
   final String id;
   final String naam;
   final List<String> bestanddele;
   final List<String> allergene;
   final double prys;
-  final String kategorie;
   final String beskrywing;
   final String? prent;
+
+  /// NEW: dynamic dieet categories from DB
+  final List<String> dieetKategorie;
 
   KositemTemplate({
     required this.id,
@@ -17,7 +17,7 @@ class KositemTemplate {
     required this.beskrywing,
     required this.allergene,
     required this.prys,
-    required this.kategorie,
+    required this.dieetKategorie,
     this.prent,
   });
 
@@ -28,8 +28,8 @@ class KositemTemplate {
     'beskrywing': beskrywing,
     'allergene': allergene,
     'prys': prys,
-    'kategorie': kategorie,
     'prent': prent,
+    'dieetKategorie': dieetKategorie,
   };
 
   factory KositemTemplate.fromMap(Map<String, dynamic> map) {
@@ -40,8 +40,10 @@ class KositemTemplate {
       bestanddele: List<String>.from(map['bestanddele']),
       allergene: List<String>.from(map['allergene']),
       prys: (map['prys'] as num).toDouble(),
-      kategorie: map['kategorie'],
       prent: map['prent'] as String?,
+      dieetKategorie: (map['kos_item_dieet_vereistes'] as List<dynamic>? ?? [])
+          .map((d) => d['dieet']?['dieet_naam'] as String)
+          .toList(),
     );
   }
 }
