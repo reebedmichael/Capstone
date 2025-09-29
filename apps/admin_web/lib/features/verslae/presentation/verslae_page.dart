@@ -587,15 +587,17 @@ class _VerslaePageState extends State<VerslaePage> {
 									LineChartData(
 										gridData: FlGridData(show: true),
 										titlesData: FlTitlesData(
-											leftTitles: AxisTitles(
-												sideTitles: SideTitles(
-													showTitles: true,
-													reservedSize: 40,
-													getTitlesWidget: (value, meta) {
-														return Text('R${value.toInt()}');
-													},
-												),
-											),
+													leftTitles: AxisTitles(
+														axisNameWidget: const Text('Bedrag (R)'),
+														axisNameSize: 24,
+														sideTitles: SideTitles(
+															showTitles: true,
+															reservedSize: 56,
+															getTitlesWidget: (value, meta) {
+															return Text('R' + value.toInt().toString(), softWrap: false);
+														},
+														),
+													),
 											bottomTitles: AxisTitles(
 												sideTitles: SideTitles(
 													showTitles: true,
@@ -610,15 +612,17 @@ class _VerslaePageState extends State<VerslaePage> {
 											),
 											topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
 											rightTitles: AxisTitles(
+												axisNameWidget: const Text('Aantal Items'),
+												axisNameSize: 24,
 												sideTitles: SideTitles(
 													showTitles: true,
-													reservedSize: 40,
+													reservedSize: 56,
 													getTitlesWidget: (value, meta) {
 														final maxAmount = salesData.fold<double>(0.0, (m, e) => e.amount > m ? e.amount : m);
 														final maxCount = salesData.fold<int>(0, (m, e) => e.count > m ? e.count : m);
 														final double scale = (maxCount == 0) ? 0.0 : (maxAmount / maxCount);
 														final count = (scale == 0) ? 0 : (value / scale).round();
-														return Text(count.toString());
+														return Text(count.toString(), softWrap: false);
 													},
 												),
 											),
@@ -761,20 +765,25 @@ class _VerslaePageState extends State<VerslaePage> {
 									getTitlesWidget: (value, meta) {
 														final index = value.toInt();
 														if (index >= 0 && index < topItems.length) {
-											return Transform.rotate(
-												angle: -0.8,
-												child: Padding(
-													padding: const EdgeInsets.only(top: 16),
-													child: Text(
-														topItems[index].name,
-														style: const TextStyle(fontSize: 10),
-														overflow: TextOverflow.visible,
-													),
-												),
-											);
+															return SideTitleWidget(
+																axisSide: meta.axisSide,
+																space: 16,
+																child: Transform.translate(
+																	offset: const Offset(0, 48),
+																	child: Transform.rotate(
+																		angle: -1.57,
+																		child: Text(
+																			topItems[index].name,
+																			style: const TextStyle(fontSize: 10),
+																			overflow: TextOverflow.visible,
+																		),
+																	),
+																),
+															);
 														}
 														return const Text('');
 													},
+												reservedSize: 140,
 												),
 											),
 											topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -1216,24 +1225,34 @@ class _VerslaePageState extends State<VerslaePage> {
 									alignment: BarChartAlignment.spaceBetween,
 									maxY: maxY,
 									titlesData: FlTitlesData(
-										leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40)),
+											leftTitles: AxisTitles(
+												sideTitles: SideTitles(
+													showTitles: true,
+													reservedSize: 40,
+													getTitlesWidget: (value, meta) => Text(value.toInt().toString()),
+												),
+											),
 										bottomTitles: AxisTitles(
 											sideTitles: SideTitles(
 												showTitles: true,
 												getTitlesWidget: (value, meta) {
 													final index = value.toInt();
 													if (index >= 0 && index < topItems.length) {
-														return Transform.rotate(
-															angle: -0.8,
-															child: Padding(
-																padding: const EdgeInsets.only(top: 16),
-																child: Text(topItems[index].key, style: const TextStyle(fontSize: 10)),
+														return SideTitleWidget(
+															axisSide: meta.axisSide,
+															space: 16,
+															child: Transform.translate(
+																offset: const Offset(0, 36),
+																child: Transform.rotate(
+																	angle: -1.57,
+																	child: Text(topItems[index].key, style: const TextStyle(fontSize: 10)),
+																),
 															),
 														);
 													}
 													return const Text('');
 												},
-												reservedSize: 80,
+												reservedSize: 100,
 											),
 										),
 									),
