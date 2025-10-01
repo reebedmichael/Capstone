@@ -20,6 +20,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
   int quantity = 1;
   bool isFavorite = false;
   bool _initialized = false;
+  int _currentImage = 0; // carousel index
 
   // Helper: try multiple keys and return first non-null
   dynamic _pick(Map<String, dynamic> map, List<String> keys) {
@@ -290,6 +291,13 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     final available = _available;
     final ingredients = _ingredients;
     final allergens = _allergens;
+    final List<String> gallery = (() {
+      final multi = item['images'] ?? item['gallery'] ?? item['prentjies'];
+      if (multi is List) {
+        return multi.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+      }
+      return imageUrl.isNotEmpty ? [imageUrl] : <String>[];
+    })();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -328,44 +336,84 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  // Photo with price badge
+                  // Photo with price badge (carousel + thumbnails)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: Spacing.screenHPad, vertical: 12),
-                    child: Stack(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        AspectRatio(
-                          aspectRatio: 16 / 9,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: imageUrl.isNotEmpty
-                                ? Image.network(
-                                    imageUrl,
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                    loadingBuilder: (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return Container(color: Colors.grey.shade200, child: const Center(child: CircularProgressIndicator()));
-                                    },
-                                    errorBuilder: (context, error, stackTrace) => Container(
-                                      color: Colors.grey.shade200,
-                                      child: const Center(child: Icon(Icons.broken_image, size: 56, color: Colors.black26)),
+                        Stack(
+                          children: [
+                            AspectRatio(
+                              aspectRatio: 16 / 9,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: PageView.builder(
+                                  onPageChanged: (i) => setState(() => _currentImage = i),
+                                  itemCount: gallery.isNotEmpty ? gallery.length : 1,
+                                  itemBuilder: (context, index) {
+                                    final url = gallery.isNotEmpty ? gallery[index] : '';
+                                    if (url.isEmpty) {
+                                      return Container(color: Colors.grey.shade200, child: const Center(child: Icon(Icons.fastfood, size: 56, color: Colors.black38)));
+                                    }
+                                    return Image.network(
+                                      url,
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                      loadingBuilder: (context, child, loadingProgress) {
+                                        if (loadingProgress == null) return child;
+                                        return Container(color: Colors.grey.shade200, child: const Center(child: CircularProgressIndicator()));
+                                      },
+                                      errorBuilder: (context, error, stackTrace) => Container(
+                                        color: Colors.grey.shade200,
+                                        child: const Center(child: Icon(Icons.broken_image, size: 56, color: Colors.black26)),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                            // Price badge bottom-right on image
+                            Positioned(
+                              right: 12,
+                              bottom: 12,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(999), boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2))]),
+                                child: Text('R${_price.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (gallery.length > 1)
+                          SizedBox(
+                            height: 72,
+                            child: ListView.separated(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              scrollDirection: Axis.horizontal,
+                              itemCount: gallery.length,
+                              separatorBuilder: (_, __) => const SizedBox(width: 8),
+                              itemBuilder: (context, index) {
+                                final url = gallery[index];
+                                final isActive = index == _currentImage;
+                                return GestureDetector(
+                                  onTap: () => setState(() => _currentImage = index),
+                                  child: Container(
+                                    width: 88,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: isActive ? AppColors.primary : Colors.grey.shade300, width: isActive ? 2 : 1),
+                                      borderRadius: BorderRadius.circular(8),
+                                      color: Colors.grey.shade100,
+                                      image: url.isNotEmpty ? DecorationImage(image: NetworkImage(url), fit: BoxFit.cover) : null,
                                     ),
-                                  )
-                                : Container(color: Colors.grey.shade200, child: const Center(child: Icon(Icons.fastfood, size: 56, color: Colors.black38))),
+                                    alignment: Alignment.center,
+                                    child: url.isEmpty ? const Icon(Icons.image, size: 24, color: Colors.black26) : null,
+                                  ),
+                                );
+                              },
+                            ),
                           ),
-                        ),
-
-                        // Price badge bottom-right on image
-                        Positioned(
-                          right: 12,
-                          bottom: 12,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(999), boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2))]),
-                            child: Text('R${_price.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                          ),
-                        ),
                       ],
                     ),
                   ),
