@@ -45,7 +45,16 @@ class BestellingRepository {
           *,
           bestelling_kos_item:bestelling_kos_item(
             *,
-            kos_item:kos_item_id(*),
+            kos_item:kos_item_id(
+              *,
+              spyskaart_kos_item:spyskaart_kos_item(
+                spyskaart_kos_afsny_datum,
+                spyskaart_kos_id,
+                spyskaart_id,
+                week_dag_id,
+                kos_item_id
+              )
+            ),
             best_kos_item_statusse:best_kos_item_statusse(
               *,
               kos_item_statusse:kos_stat_id(*)
