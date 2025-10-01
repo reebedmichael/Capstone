@@ -226,6 +226,149 @@ class KennisgewingRepository {
     }
   }
 
+  /// Verwyder globale kennisgewing
+  Future<bool> verwyderGlobaleKennisgewing(String globKennisId) async {
+    try {
+      await _sb.from('globale_kennisgewings')
+          .delete()
+          .eq('glob_kennis_id', globKennisId);
+      return true;
+    } catch (e) {
+      print('Fout met verwyder globale kennisgewing: $e');
+      return false;
+    }
+  }
+
+  /// Opdateer bestaande kennisgewing
+  Future<bool> opdateerKennisgewing({
+    required String kennisId,
+    String? beskrywing,
+    String? tipeNaam,
+  }) async {
+    try {
+      final Map<String, dynamic> updates = {};
+      
+      if (beskrywing != null) {
+        updates['kennis_beskrywing'] = beskrywing;
+      }
+      
+      if (tipeNaam != null) {
+        final tipeId = await _kryOfSkepKennisgewingTipe(tipeNaam);
+        updates['kennis_tipe_id'] = tipeId;
+      }
+      
+      if (updates.isEmpty) return true;
+      
+      await _sb.from('kennisgewings')
+          .update(updates)
+          .eq('kennis_id', kennisId);
+      
+      return true;
+    } catch (e) {
+      print('Fout met opdateer kennisgewing: $e');
+      return false;
+    }
+  }
+
+  /// Opdateer globale kennisgewing
+  Future<bool> opdateerGlobaleKennisgewing({
+    required String globKennisId,
+    String? beskrywing,
+    String? tipeNaam,
+  }) async {
+    try {
+      final Map<String, dynamic> updates = {};
+      
+      if (beskrywing != null) {
+        updates['glob_kennis_beskrywing'] = beskrywing;
+      }
+      
+      if (tipeNaam != null) {
+        final tipeId = await _kryOfSkepKennisgewingTipe(tipeNaam);
+        updates['kennis_tipe_id'] = tipeId;
+      }
+      
+      if (updates.isEmpty) return true;
+      
+      await _sb.from('globale_kennisgewings')
+          .update(updates)
+          .eq('glob_kennis_id', globKennisId);
+      
+      return true;
+    } catch (e) {
+      print('Fout met opdateer globale kennisgewing: $e');
+      return false;
+    }
+  }
+
+  /// Kry alle kennisgewings vir admin (beide gebruiker en globale)
+  Future<List<Map<String, dynamic>>> kryAlleKennisgewingsVirAdmin() async {
+    try {
+      // Kry alle gebruiker kennisgewings met gebruiker inligting
+      final gebruikerKennisgewings = await _sb.from('kennisgewings')
+          .select('''
+            *,
+            kennisgewing_tipes:kennis_tipe_id(kennis_tipe_naam),
+            gebruikers:gebr_id(gebr_naam, gebr_van, gebr_epos)
+          ''')
+          .order('kennis_geskep_datum', ascending: false);
+      
+      // Kry alle globale kennisgewings
+      final globaleKennisgewings = await _sb.from('globale_kennisgewings')
+          .select('''
+            *,
+            kennisgewing_tipes:kennis_tipe_id(kennis_tipe_naam)
+          ''')
+          .order('glob_kennis_geskep_datum', ascending: false);
+      
+      // Kombineer en merk elke item se tipe
+      final alleKennisgewings = <Map<String, dynamic>>[];
+      
+      for (var k in gebruikerKennisgewings) {
+        alleKennisgewings.add({
+          ...k,
+          '_kennisgewing_soort': 'gebruiker',
+        });
+      }
+      
+      for (var k in globaleKennisgewings) {
+        alleKennisgewings.add({
+          ...k,
+          '_kennisgewing_soort': 'globaal',
+        });
+      }
+      
+      // Sorteer alles saam op datum
+      alleKennisgewings.sort((a, b) {
+        final dateA = DateTime.parse(
+          a['kennis_geskep_datum'] ?? a['glob_kennis_geskep_datum']
+        );
+        final dateB = DateTime.parse(
+          b['kennis_geskep_datum'] ?? b['glob_kennis_geskep_datum']
+        );
+        return dateB.compareTo(dateA); // nuutste eerste
+      });
+      
+      return alleKennisgewings;
+    } catch (e) {
+      print('Fout met kry alle kennisgewings vir admin: $e');
+      return [];
+    }
+  }
+
+  /// Tel hoeveel gebruikers 'n spesifieke kennisgewing ontvang het
+  Future<int> telOntvangers(String kennisId) async {
+    try {
+      final result = await _sb.from('kennisgewings')
+          .select('kennis_id')
+          .eq('kennis_beskrywing', kennisId);
+      return result.length;
+    } catch (e) {
+      print('Fout met tel ontvangers: $e');
+      return 0;
+    }
+  }
+
   /// Kry of skep 'n kennisgewing tipe
   Future<String> _kryOfSkepKennisgewingTipe(String tipeNaam) async {
     // Probeer om bestaande tipe te kry
