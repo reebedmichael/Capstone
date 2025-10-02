@@ -125,7 +125,7 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
 
                 return LayoutBuilder(
                   builder: (context, c) {
-                    final cols = c.maxWidth >= 1000 ? 2 : 1;
+                    final cols = c.maxWidth >= 1000 ? 3 : 1;
                     return GridView.builder(
                       padding: const EdgeInsets.all(12),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -165,8 +165,8 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
                                       child: SizedBox(
-                                        width: 72,
-                                        height: 72,
+                                        width: 120,
+                                        height: 120,
                                         child: item.prentBytes != null
                                             ? Image.memory(
                                                 item.prentBytes!,
@@ -189,7 +189,7 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
                                             Expanded(
                                               child: Text(
                                                 item.naam,
-                                                maxLines: 1,
+                                                maxLines: 2,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: Theme.of(
                                                   context,
@@ -238,38 +238,38 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
                                             ),
                                           ),
                                         ],
-                                        if (item.bestanddele.isNotEmpty) ...[
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            item.bestanddele.join(', '),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              color: Theme.of(
-                                                context,
-                                              ).hintColor,
-                                            ),
-                                          ),
-                                        ],
-                                        if (item.allergene.isNotEmpty)
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              top: 6,
-                                            ),
-                                            child: Wrap(
-                                              spacing: 6,
-                                              runSpacing: 6,
-                                              children: item.allergene
-                                                  .map(
-                                                    (a) => Chip(
-                                                      backgroundColor:
-                                                          Colors.red.shade50,
-                                                      label: Text(a),
-                                                    ),
-                                                  )
-                                                  .toList(),
-                                            ),
-                                          ),
+                                        // if (item.bestanddele.isNotEmpty) ...[
+                                        //   const SizedBox(height: 6),
+                                        //   Text(
+                                        //     item.bestanddele.join(', '),
+                                        //     maxLines: 2,
+                                        //     overflow: TextOverflow.ellipsis,
+                                        //     style: TextStyle(
+                                        //       color: Theme.of(
+                                        //         context,
+                                        //       ).hintColor,
+                                        //     ),
+                                        //   ),
+                                        // ],
+                                        // if (item.allergene.isNotEmpty)
+                                        //   Padding(
+                                        //     padding: const EdgeInsets.only(
+                                        //       top: 6,
+                                        //     ),
+                                        //     child: Wrap(
+                                        //       spacing: 6,
+                                        //       runSpacing: 6,
+                                        //       children: item.allergene
+                                        //           .map(
+                                        //             (a) => Chip(
+                                        //               backgroundColor:
+                                        //                   Colors.red.shade50,
+                                        //               label: Text(a),
+                                        //             ),
+                                        //           )
+                                        //           .toList(),
+                                        //     ),
+                                        //   ),
                                       ],
                                     ),
                                   ),
