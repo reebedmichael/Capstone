@@ -1,5 +1,5 @@
 import 'package:capstone_mobile/features/app/presentation/widgets/app_bottom_nav.dart';
-import 'package:capstone_mobile/features/feedback/presentation/pages/feedback_page.dart';
+import 'package:capstone_mobile/features/feedback/presentation/widgets/item_feedback_widget.dart';
 import 'package:capstone_mobile/features/qr/presentation/pages/qr_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
@@ -499,6 +499,16 @@ class _OrdersPageState extends State<OrdersPage>
     }
   }
 
+  String _getKampusName(Map<String, dynamic> order) {
+    try {
+      final kampus = order['kampus'] as Map<String, dynamic>?;
+      return kampus?['kampus_naam'] as String? ?? 'Onbekende lokasie';
+    } catch (e) {
+      debugPrint('Error getting kampus name: $e');
+      return 'Onbekende lokasie';
+    }
+  }
+
   Widget _buildOrderCard(Map<String, dynamic> order) {
     // Only render this order if it has items visible in the current tab
     final List<dynamic> orderItems = (order['bestelling_kos_item'] as List? ?? []);
@@ -593,7 +603,7 @@ class _OrdersPageState extends State<OrdersPage>
                 const Icon(FeatherIcons.mapPin, size: 14),
                 const SizedBox(width: 6),
                 Text(
-                  'Kafetaria', // TODO: Get actual pickup location from database
+                  _getKampusName(order),
                   style: const TextStyle(fontSize: 12),
                 ),
               ],
@@ -646,104 +656,116 @@ class _OrdersPageState extends State<OrdersPage>
                     color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
+                  child: Column(
                     children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child:
-                            (food['kos_item_prentjie'] != null &&
-                                (food['kos_item_prentjie'] as String).isNotEmpty)
-                            ? Image.network(
-                                food['kos_item_prentjie'] as String,
-                                width: 48,
-                                height: 48,
-                                fit: BoxFit.cover,
-                              )
-                            : Container(
-                                width: 48,
-                                height: 48,
-                                color: Colors.grey.shade300,
-                                alignment: Alignment.center,
-                                child: const Icon(Icons.fastfood, size: 20),
-                              ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              food['kos_item_naam'] ?? '',
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                            Text(
-                              '${item['item_hoev'] ?? 1} x R${food['kos_item_koste']}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                      Row(
                         children: [
-                          Text(
-                            'R${((food['kos_item_koste'] as num? ?? 0.0) * (item['item_hoev'] as int? ?? 1)).toStringAsFixed(2)}',
-                            style: const TextStyle(fontSize: 14),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child:
+                                (food['kos_item_prentjie'] != null &&
+                                    (food['kos_item_prentjie'] as String).isNotEmpty)
+                                ? Image.network(
+                                    food['kos_item_prentjie'] as String,
+                                    width: 48,
+                                    height: 48,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Container(
+                                    width: 48,
+                                    height: 48,
+                                    color: Colors.grey.shade300,
+                                    alignment: Alignment.center,
+                                    child: const Icon(Icons.fastfood, size: 20),
+                                  ),
                           ),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: _statusColor(lastStatus ?? ''),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              lastStatus ?? 'Onbekend',
-                              style: const TextStyle(fontSize: 11),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  food['kos_item_naam'] ?? '',
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                                Text(
+                                  '${item['item_hoev'] ?? 1} x R${food['kos_item_koste']}',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          if (_tabController.index == 0 && !(cutoffForTab != null && DateTime.now().isAfter(cutoffForTab)) && !(lastStatus == 'Afgehandel' || lastStatus == 'Gekanselleer'))
-                            OutlinedButton(
-                              onPressed: () {
-                                if (lastStatus == 'Afgehandel' || lastStatus == 'Gekanselleer') return;
-                                if (cutoffForTab != null && DateTime.now().isAfter(cutoffForTab)) return;
-                                // Hide cancel if the item's cutoff is in the past
-                                if (itemCutoff != null && DateTime.now().isAfter(itemCutoff)) {
-                                  return;
-                                }
-                                final bestKosId = item['best_kos_id']?.toString();
-                                if (bestKosId != null) {
-                                  handleCancelOrderItem(bestKosId);
-                                }
-                              },
-                              child: const Text('Kanselleer'),
-                            ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'R${((food['kos_item_koste'] as num? ?? 0.0) * (item['item_hoev'] as int? ?? 1)).toStringAsFixed(2)}',
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: _statusColor(lastStatus ?? ''),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  lastStatus ?? 'Onbekend',
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              if (_tabController.index == 0 && !(cutoffForTab != null && DateTime.now().isAfter(cutoffForTab)) && !(lastStatus == 'Afgehandel' || lastStatus == 'Gekanselleer'))
+                                OutlinedButton(
+                                  onPressed: () {
+                                    if (lastStatus == 'Afgehandel' || lastStatus == 'Gekanselleer') return;
+                                    if (cutoffForTab != null && DateTime.now().isAfter(cutoffForTab)) return;
+                                    // Hide cancel if the item's cutoff is in the past
+                                    if (itemCutoff != null && DateTime.now().isAfter(itemCutoff)) {
+                                      return;
+                                    }
+                                    final bestKosId = item['best_kos_id']?.toString();
+                                    if (bestKosId != null) {
+                                      handleCancelOrderItem(bestKosId);
+                                    }
+                                  },
+                                  child: const Text('Kanselleer'),
+                                ),
+                            ],
+                          ),
                         ],
                       ),
+                      // Add feedback widget for completed items
+                      if (isCompletedItem && lastStatus == 'Afgehandel') ...[
+                        const SizedBox(height: 8),
+                        const Divider(height: 1),
+                        const SizedBox(height: 8),
+                        ItemFeedbackWidget(
+                          bestellingKosItem: item,
+                          onFeedbackUpdated: (updatedItem) {
+                            // Update the item in the orders list
+                            final orderIdx = orders.indexWhere(
+                              (o) => o['best_id'] == order['best_id'],
+                            );
+                            if (orderIdx != -1) {
+                              final itemIdx = (orders[orderIdx]['bestelling_kos_item'] as List).indexWhere(
+                                (i) => i['best_kos_id'] == updatedItem['best_kos_id'],
+                              );
+                              if (itemIdx != -1) {
+                                setState(() {
+                                  (orders[orderIdx]['bestelling_kos_item'] as List)[itemIdx] = updatedItem;
+                                });
+                              }
+                            }
+                          },
+                        ),
+                      ],
                     ],
                   ),
                 );
               }).toList(),
             ),
 
-            // Feedback for completed orders
-            if (_getOrderStatus(order) == 'Afgehandel') ...[
-              const Divider(height: 20),
-              FeedbackPage(
-                order: order,
-                onFeedbackUpdated: (updatedOrder) {
-                  final idx = orders.indexWhere(
-                    (o) => o['best_id'] == updatedOrder['best_id'],
-                  );
-                  if (idx != -1) {
-                    setState(() {
-                      orders[idx] = updatedOrder;
-                    });
-                  }
-                },
-              ),
-            ],
 
             // Order Actions
             const Divider(height: 20),

@@ -35,13 +35,13 @@ CREATE TABLE public.bestelling_kos_item (
   CONSTRAINT bestelling_kos_item_best_id_fkey FOREIGN KEY (best_id) REFERENCES public.bestelling(best_id),
   CONSTRAINT bestelling_kos_item_kos_item_id_fkey FOREIGN KEY (kos_item_id) REFERENCES public.kos_item(kos_item_id)
 );
-CREATE TABLE public.bestelling_terugvoer (
+CREATE TABLE public.bestelling_kos_item_terugvoer (
   best_terug_id uuid NOT NULL DEFAULT gen_random_uuid(),
   geskep_datum timestamp without time zone DEFAULT now(),
-  best_id uuid,
   terug_id uuid,
-  CONSTRAINT bestelling_terugvoer_pkey PRIMARY KEY (best_terug_id),
-  CONSTRAINT bestelling_terugvoer_best_id_fkey FOREIGN KEY (best_id) REFERENCES public.bestelling(best_id),
+  best_kos_id uuid,
+  CONSTRAINT bestelling_kos_item_terugvoer_pkey PRIMARY KEY (best_terug_id),
+  CONSTRAINT bestelling_kos_item_terugvoer_best_kos_id_fkey FOREIGN KEY (best_kos_id) REFERENCES public.bestelling_kos_item(best_kos_id),
   CONSTRAINT bestelling_terugvoer_terug_id_fkey FOREIGN KEY (terug_id) REFERENCES public.terugvoer(terug_id)
 );
 CREATE TABLE public.beursie_transaksie (
@@ -135,6 +135,7 @@ CREATE TABLE public.kos_item (
   kos_item_bestandele ARRAY,
   kos_item_kategorie text,
   kos_item_allergene ARRAY,
+  kos_item_likes integer DEFAULT 0,
   CONSTRAINT kos_item_pkey PRIMARY KEY (kos_item_id)
 );
 CREATE TABLE public.kos_item_dieet_vereistes (
@@ -169,6 +170,7 @@ CREATE TABLE public.mandjie (
   kos_item_id uuid,
   qty integer DEFAULT 1,
   created_at timestamp without time zone DEFAULT now(),
+  week_dag_naam text,
   CONSTRAINT mandjie_pkey PRIMARY KEY (mand_id),
   CONSTRAINT mandjie_gebr_id_fkey FOREIGN KEY (gebr_id) REFERENCES public.gebruikers(gebr_id),
   CONSTRAINT mandjie_kos_item_id_fkey FOREIGN KEY (kos_item_id) REFERENCES public.kos_item(kos_item_id)
@@ -188,6 +190,7 @@ CREATE TABLE public.spyskaart_kos_item (
   spyskaart_id uuid,
   kos_item_id uuid,
   week_dag_id uuid,
+  kos_item_hoeveelheid bigint,
   CONSTRAINT spyskaart_kos_item_pkey PRIMARY KEY (spyskaart_kos_id),
   CONSTRAINT spyskaart_kos_item_spyskaart_id_fkey FOREIGN KEY (spyskaart_id) REFERENCES public.spyskaart(spyskaart_id),
   CONSTRAINT spyskaart_kos_item_kos_item_id_fkey FOREIGN KEY (kos_item_id) REFERENCES public.kos_item(kos_item_id),

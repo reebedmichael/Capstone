@@ -43,6 +43,11 @@ class BestellingRepository {
     final rows = await _sb.from('bestelling')
         .select('''
           *,
+          kampus:kampus_id(
+            kampus_id,
+            kampus_naam,
+            kampus_ligging
+          ),
           bestelling_kos_item:bestelling_kos_item(
             *,
             kos_item:kos_item_id(
