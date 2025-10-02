@@ -57,7 +57,7 @@ class _VerslaePageState extends State<VerslaePage> {
 		'kos_item_statusse',
 		'best_kos_item_statusse',
 		'terugvoer',
-		'bestelling_terugvoer',
+		'bestelling_kos_item_terugvoer',
 		'spyskaart',
 		'spyskaart_kos_item',
 		'week_dag',
@@ -91,6 +91,7 @@ class _VerslaePageState extends State<VerslaePage> {
 		});
 
 		try {
+			debugPrint('Starting to load verslae data...');
 			// Load all data in parallel
 			final results = await Future.wait([
 				_loadBestellings(),
@@ -103,6 +104,7 @@ class _VerslaePageState extends State<VerslaePage> {
 				_loadBestellingTerugvoer(),
 				_loadTerugvoerTipes(),
 			]);
+			debugPrint('Successfully loaded all verslae data');
 
 			bestellings = results[0];
 			bestellingItems = results[1];
@@ -122,6 +124,10 @@ class _VerslaePageState extends State<VerslaePage> {
 				isLoading = false;
 			});
 		} catch (e) {
+			debugPrint('Error loading verslae data: $e');
+			if (e is PostgrestException) {
+				debugPrint('PostgrestException details: ${e.message}, code: ${e.code}, details: ${e.details}');
+			}
 			setState(() {
 				errorMessage = e.toString();
 				isLoading = false;
@@ -140,7 +146,7 @@ class _VerslaePageState extends State<VerslaePage> {
 				*,
 				kos_item:kos_item_id(*),
 				bestelling:best_id(*),
-				best_kos_item_statusse:best_kos_id(
+				best_kos_item_statusse!best_kos_item_statusse_best_kos_id_fkey(
 					*,
 					kos_item_statusse:kos_stat_id(*)
 				)
@@ -169,13 +175,29 @@ class _VerslaePageState extends State<VerslaePage> {
 	}
 
 	Future<List<Map<String, dynamic>>> _loadBestellingTerugvoer() async {
-		return _selectAll(
-			'bestelling_terugvoer',
-			columns: '''
-				*,
-				terugvoer:terug_id(*)
-			''',
-		);
+		try {
+			debugPrint('Loading bestelling terugvoer data...');
+			final result = await _selectAll(
+				'bestelling_kos_item_terugvoer',
+				columns: '''
+					*,
+					terugvoer:terug_id(*),
+					bestelling_kos_item!bestelling_kos_item_terugvoer_best_kos_id_fkey(
+						*,
+						kos_item:kos_item_id(*),
+						bestelling:best_id(*)
+					)
+				''',
+			);
+			debugPrint('Successfully loaded ${result.length} bestelling terugvoer records');
+			return result;
+		} catch (e) {
+			debugPrint('Error loading bestelling terugvoer: $e');
+			if (e is PostgrestException) {
+				debugPrint('PostgrestException loading bestelling terugvoer: ${e.message}, code: ${e.code}, details: ${e.details}');
+			}
+			rethrow;
+		}
 	}
 
 	Future<List<Map<String, dynamic>>> _loadTerugvoerTipes() async {
@@ -208,8 +230,12 @@ class _VerslaePageState extends State<VerslaePage> {
 				try {
 					final rows = await client.from(table).select();
 					await _downloadCsv(table, List<Map<String, dynamic>>.from(rows));
-				} catch (_) {
-					// Ignore tables that do not exist or fail due to RLS
+				} catch (e) {
+					// Log tables that do not exist or fail due to RLS
+					debugPrint('Failed to export table $table: $e');
+					if (e is PostgrestException) {
+						debugPrint('PostgrestException for table $table: ${e.message}, code: ${e.code}');
+					}
 				}
 			}
 		} finally {
@@ -253,6 +279,10 @@ class _VerslaePageState extends State<VerslaePage> {
 				const SnackBar(content: Text('Terugvoer bygevoeg')),
 			);
 		} catch (e) {
+			debugPrint('Error adding terugvoer: $e');
+			if (e is PostgrestException) {
+				debugPrint('PostgrestException adding terugvoer: ${e.message}, code: ${e.code}, details: ${e.details}');
+			}
 			ScaffoldMessenger.of(context).showSnackBar(
 				SnackBar(content: Text('Kon nie terugvoer byvoeg nie: $e')),
 			);
@@ -358,19 +388,29 @@ class _VerslaePageState extends State<VerslaePage> {
 		}).toList()
 			..sort((a, b) => b.count.compareTo(a.count));
 
-		// Top items with feedback (order-level feedback mapped to items)
+		// Top items with feedback (item-level feedback through linking table)
 		final Map<String, int> itemCounts = {};
 		final Map<String, Set<String>> itemFeedbackLabels = {};
+		
+		// Index feedback by best_kos_id (bestelling_kos_item ID)
+		final Map<String, List<Map<String, dynamic>>> feedbackByBestKosId = {};
+		for (final bt in bestellingTerugvoer) {
+			final bestKosId = bt['best_kos_id'] as String?;
+			if (bestKosId == null) continue;
+			(feedbackByBestKosId[bestKosId] ??= <Map<String, dynamic>>[]).add(bt);
+		}
+		
 		for (final item in bestellingItems) {
 			final kos = item['kos_item'] as Map<String, dynamic>?;
 			if (kos == null) continue;
 			final itemName = (kos['kos_item_naam'] as String?) ?? 'Onbekend';
-			final bestId = (item['best_id'] as String?);
+			final bestKosId = (item['best_kos_id'] as String?);
 			final quantity = item['item_hoev'] as int? ?? 1;
 			itemCounts[itemName] = (itemCounts[itemName] ?? 0) + quantity;
-			if (bestId != null) {
-				final feedbackForOrder = bestellingTerugvoer.where((bt) => bt['best_id'] == bestId);
-				for (final bt in feedbackForOrder) {
+			
+			if (bestKosId != null) {
+				final feedbackForItem = feedbackByBestKosId[bestKosId] ?? <Map<String, dynamic>>[];
+				for (final bt in feedbackForItem) {
 					final tv = bt['terugvoer'] as Map<String, dynamic>?;
 					final label = tv != null ? (tv['terug_naam'] as String? ?? 'Terugvoer') : 'Terugvoer';
 					(itemFeedbackLabels[itemName] ??= <String>{}).add(label);
@@ -1206,9 +1246,10 @@ class _VerslaePageState extends State<VerslaePage> {
 			return tb.compareTo(ta);
 		});
 		final topItems = items.take(10).toList();
-		final maxY = topItems.isEmpty
-			? 10.0
-			: topItems.map((e) => e.value.values.fold<int>(0, (s, v) => s + v)).reduce((a, b) => a > b ? a : b).toDouble() * 1.2;
+		final maxCount = topItems.isEmpty
+			? 10
+			: topItems.map((e) => e.value.values.fold<int>(0, (s, v) => s + v)).reduce((a, b) => a > b ? a : b);
+		final maxY = (maxCount * 1.2).ceil().toDouble();
 
 		return Card(
 			child: Padding(
@@ -1224,11 +1265,24 @@ class _VerslaePageState extends State<VerslaePage> {
 								BarChartData(
 									alignment: BarChartAlignment.spaceBetween,
 									maxY: maxY,
+									minY: 0,
+									gridData: FlGridData(
+										show: true,
+										drawVerticalLine: false,
+										horizontalInterval: maxY > 10 ? (maxY / 5).ceilToDouble() : 1,
+										getDrawingHorizontalLine: (value) {
+											return FlLine(
+												color: Colors.grey.withOpacity(0.3),
+												strokeWidth: 1,
+											);
+										},
+									),
 									titlesData: FlTitlesData(
 											leftTitles: AxisTitles(
 												sideTitles: SideTitles(
 													showTitles: true,
 													reservedSize: 40,
+													interval: maxY > 10 ? (maxY / 5).ceilToDouble() : 1,
 													getTitlesWidget: (value, meta) => Text(value.toInt().toString()),
 												),
 											),
@@ -1311,25 +1365,24 @@ class _VerslaePageState extends State<VerslaePage> {
 	Map<String, Map<String, int>> _computeKosItemTerugvoerData() {
 		// Map: kos_item_name -> (terug_naam -> count)
 		final Map<String, Map<String, int>> result = {};
-		// Index terugvoer by best_id
-		final Map<String, List<Map<String, dynamic>>> terugByBest = {};
+		
+		// Now feedback is directly linked to bestelling_kos_item through bestelling_kos_item_terugvoer
 		for (final bt in bestellingTerugvoer) {
-			final bestId = bt['best_id'] as String?;
-			if (bestId == null) continue;
-			(terugByBest[bestId] ??= <Map<String, dynamic>>[]).add(bt);
-		}
-		for (final item in bestellingItems) {
-			final kos = item['kos_item'] as Map<String, dynamic>?;
-			final bestId = item['best_id'] as String?;
-			if (kos == null || bestId == null) continue;
+			final bestKosItem = bt['bestelling_kos_item'] as Map<String, dynamic>?;
+			if (bestKosItem == null) continue;
+			
+			final kos = bestKosItem['kos_item'] as Map<String, dynamic>?;
+			if (kos == null) continue;
+			
 			final kosName = (kos['kos_item_naam'] as String?) ?? 'Onbekend';
-			final tvList = terugByBest[bestId] ?? const <Map<String, dynamic>>[];
-			for (final tv in tvList) {
-				final tvMap = tv['terugvoer'] as Map<String, dynamic>?;
-				final label = tvMap != null ? (tvMap['terug_naam'] as String? ?? 'Terugvoer') : 'Terugvoer';
-				final map = result.putIfAbsent(kosName, () => <String, int>{});
-				map[label] = (map[label] ?? 0) + 1;
-			}
+			final tvMap = bt['terugvoer'] as Map<String, dynamic>?;
+			final label = tvMap != null ? (tvMap['terug_naam'] as String? ?? 'Terugvoer') : 'Terugvoer';
+			
+			// Skip system-generated like entries for this chart
+			if (label == '_LIKE_') continue;
+			
+			final map = result.putIfAbsent(kosName, () => <String, int>{});
+			map[label] = (map[label] ?? 0) + 1;
 		}
 		return result;
 	}
