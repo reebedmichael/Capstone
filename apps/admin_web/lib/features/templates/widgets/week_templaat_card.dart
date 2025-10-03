@@ -53,39 +53,7 @@ class _WeekTemplateCardState extends State<WeekTemplateCard>
     super.dispose();
   }
 
-  void _toggleDay(String dayKey) {
-    setState(() {
-      _expandedDays[dayKey] = !(_expandedDays[dayKey] ?? false);
-    });
-  }
-
-  void _expandAll() {
-    setState(() {
-      for (final key in _expandedDays.keys) {
-        _expandedDays[key] = true;
-      }
-    });
-  }
-
-  void _collapseAll() {
-    setState(() {
-      for (final key in _expandedDays.keys) {
-        _expandedDays[key] = false;
-      }
-    });
-  }
-
   Widget _buildKosItems(List<Map<String, dynamic>> kosMaps) {
-    // if (kosMaps.isEmpty) {
-    //   return const Padding(
-    //     padding: EdgeInsets.all(16),
-    //     child: Text(
-    //       'Geen items beskikbaar',
-    //       style: TextStyle(fontStyle: FontStyle.italic),
-    //     ),
-    //   );
-    // }
-
     // Wrap in LayoutBuilder so cards size to available width
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -114,85 +82,6 @@ class _WeekTemplateCardState extends State<WeekTemplateCard>
           );
         },
       ),
-    );
-  }
-
-  Widget _buildAllTabContent(Map<String, dynamic> daeMap) {
-    // Column with mainAxisSize.min so it can be auto-sized by AnimatedSize
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            TextButton.icon(
-              onPressed: _expandAll,
-              icon: const Icon(Icons.unfold_more),
-              label: const Text("Brei Alles uit"),
-            ),
-            TextButton.icon(
-              onPressed: _collapseAll,
-              icon: const Icon(Icons.unfold_less),
-              label: const Text("Vou alles in"),
-            ),
-          ],
-        ),
-        // Each day rendered as a Card. Cards are part of the Column, so Column can size itself.
-        ...widget.daeVanWeek.map((dag) {
-          final dagKey = dag['key'] ?? '';
-          final dagLabel = dag['label'] ?? '';
-          final isExpanded = _expandedDays[dagKey] ?? false;
-
-          final List<Map<String, dynamic>> kosMaps =
-              (((daeMap[dagKey] as List?) ?? const []) as List)
-                  .map((e) => Map<String, dynamic>.from(e as Map))
-                  .toList();
-
-          return Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ListTile(
-                  title: Text(
-                    dagLabel,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (kosMaps.isNotEmpty)
-                        Text(
-                          '${kosMaps.length} item${kosMaps.length == 1 ? '' : 's'}',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
-                        ),
-                      const SizedBox(width: 8),
-                      Icon(isExpanded ? Icons.expand_less : Icons.expand_more),
-                    ],
-                  ),
-                  onTap: kosMaps.isNotEmpty ? () => _toggleDay(dagKey) : null,
-                ),
-                if (isExpanded) _buildKosItems(kosMaps),
-                if (kosMaps.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
-                    child: Text(
-                      'Geen items vir hierdie dag',
-                      style: TextStyle(fontStyle: FontStyle.italic),
-                    ),
-                  ),
-              ],
-            ),
-          );
-        }).toList(),
-      ],
     );
   }
 
