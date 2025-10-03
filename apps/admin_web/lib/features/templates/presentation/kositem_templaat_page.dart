@@ -327,7 +327,7 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
                   : GridView.builder(
                       gridDelegate:
                           const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 300,
+                            maxCrossAxisExtent: 250,
                             mainAxisSpacing: 10,
                             crossAxisSpacing: 10,
                             childAspectRatio: 0.70,

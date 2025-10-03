@@ -1,38 +1,10 @@
 // models.dart
-import 'dart:typed_data';
+import '../../templates/widgets/kos_item_templaat.dart';
 
 class AppUser {
   final String id;
   final String naam;
   AppUser({required this.id, required this.naam});
-}
-
-class Kositem {
-  final String id;
-  final String naam;
-  final List<String> bestanddele;
-  final List<String> allergene;
-  final double prys;
-  final String kategorie;
-  final Uint8List? prentBytes;
-  final String? prentUrl;
-  final bool beskikbaar;
-  final String beskrywing;
-  final DateTime geskep;
-
-  Kositem({
-    required this.id,
-    required this.naam,
-    required this.bestanddele,
-    required this.allergene,
-    required this.prys,
-    required this.kategorie,
-    this.prentBytes,
-    this.prentUrl,
-    this.beskikbaar = true,
-    required this.beskrywing,
-    DateTime? geskep,
-  }) : geskep = geskep ?? DateTime.now();
 }
 
 class WeekTemplate {
@@ -93,8 +65,8 @@ class WeekSpyskaart {
 
 class AppState {
   final List<WeekSpyskaart> weekSpyskaarte;
-  final List<Kositem> kositems;
-  final List<Kositem> kositemTemplates;
+  final List<KositemTemplate> kositems;
+  final List<KositemTemplate> kositemTemplates;
   final List<WeekTemplate> weekTemplates;
   final AppUser? ingetekenGebruiker;
 
@@ -108,8 +80,8 @@ class AppState {
 
   AppState copyWith({
     List<WeekSpyskaart>? weekSpyskaarte,
-    List<Kositem>? kositems,
-    List<Kositem>? kositemTemplates,
+    List<KositemTemplate>? kositems,
+    List<KositemTemplate>? kositemTemplates,
     List<WeekTemplate>? weekTemplates,
     AppUser? ingetekenGebruiker,
   }) {

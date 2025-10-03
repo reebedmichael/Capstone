@@ -36,27 +36,27 @@ class AdminSpyskaartRepository {
   }
 
   /// Find a spyskaart by exact date (spyskaart_datum) or return null.
-  Future<Map<String, dynamic>?> _findSpyskaartByDate(DateTime date) async {
-    final dateStr = _dateOnly(date);
-    final row = await _sb
-        .from('spyskaart')
-        .select('''
-          spyskaart_id,
-          spyskaart_naam,
-          spyskaart_beskrywing,
-          spyskaart_datum,
-          spyskaart_is_templaat,
-          spyskaart_is_active,
-          spyskaart_kos_item:spyskaart_kos_item(
-            spyskaart_kos_id,
-            kos_item:kos_item_id(*),
-            week_dag:week_dag_id(*)
-          )
-          ''')
-        .eq('spyskaart_datum', dateStr)
-        .maybeSingle();
-    return row;
-  }
+  // Future<Map<String, dynamic>?> _findSpyskaartByDate(DateTime date) async {
+  //   final dateStr = _dateOnly(date);
+  //   final row = await _sb
+  //       .from('spyskaart')
+  //       .select('''
+  //         spyskaart_id,
+  //         spyskaart_naam,
+  //         spyskaart_beskrywing,
+  //         spyskaart_datum,
+  //         spyskaart_is_templaat,
+  //         spyskaart_is_active,
+  //         spyskaart_kos_item:spyskaart_kos_item(
+  //           spyskaart_kos_id,
+  //           kos_item:kos_item_id(*),
+  //           week_dag:week_dag_id(*)
+  //         )
+  //         ''')
+  //       .eq('spyskaart_datum', dateStr)
+  //       .maybeSingle();
+  //   return row;
+  // }
 
   /// Get or create a spyskaart row for the given weekStart date.
   /// Returns the full row (with nested spyskaart_kos_item).
@@ -74,7 +74,15 @@ class AdminSpyskaartRepository {
           spyskaart_is_active,
           spyskaart_kos_item:spyskaart_kos_item(
             spyskaart_kos_id,
-            kos_item:kos_item_id(*),
+            spyskaart_kos_afsny_datum,
+            kos_item_hoeveelheid,
+            kos_item:kos_item_id(
+            *,
+            kos_item_dieet_vereistes(
+              dieet_id,
+              dieet:dieet_id(dieet_naam)
+            )
+          ),
             week_dag:week_dag_id(*)
           )
           ''')
@@ -107,7 +115,15 @@ class AdminSpyskaartRepository {
           spyskaart_is_active,
           spyskaart_kos_item:spyskaart_kos_item(
             spyskaart_kos_id,
-            kos_item:kos_item_id(*),
+            spyskaart_kos_afsny_datum,
+            kos_item_hoeveelheid,
+            kos_item:kos_item_id(
+            *,
+            kos_item_dieet_vereistes(
+              dieet_id,
+              dieet:dieet_id(dieet_naam)
+            )
+          ),
             week_dag:week_dag_id(*)
           )
           ''')

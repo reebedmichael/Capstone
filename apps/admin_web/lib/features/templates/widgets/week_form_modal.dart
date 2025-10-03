@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'kos_item_templaat.dart';
+import '../../spyskaart/widgets/item_search_overlay.dart';
 
 class FormModal extends StatefulWidget {
   final String? activeTemplateId;
@@ -112,96 +113,28 @@ class LargeFoodChip extends StatelessWidget {
 
 class _FormModalState extends State<FormModal> {
   int _currentStep = 0;
+  bool _showSearchOverlay = false;
+  String _currentDayKey = '';
 
-  String _formatCategories(List<String> categories) {
-    if (categories.isEmpty) return "Geen kategorieë";
-    return categories.join(", ");
+  void _openSearchOverlay(String dagKey) {
+    setState(() {
+      _currentDayKey = dagKey;
+      _showSearchOverlay = true;
+    });
   }
 
-  void _showSearchBottomSheet(String dagKey, String dagLabel) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                height: MediaQuery.of(context).size.height * 0.7,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            "Voeg kositems by vir $dagLabel",
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: widget.searchControllers[dagKey],
-                      decoration: InputDecoration(
-                        hintText: 'Soek kositems...',
-                        prefixIcon: const Icon(Icons.search),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onChanged: (_) => setModalState(() {}),
-                    ),
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: ListView(
-                        children: widget.templates
-                            .where(
-                              (t) =>
-                                  t.naam.toLowerCase().contains(
-                                    widget.searchControllers[dagKey]!.text
-                                        .toLowerCase(),
-                                  ) &&
-                                  !widget.formDays[dagKey]!.any(
-                                    (f) => f.id == t.id,
-                                  ),
-                            )
-                            .map(
-                              (t) => ListTile(
-                                title: Text(t.naam),
-                                subtitle: Text(
-                                  "${_formatCategories(t.dieetKategorie)} • R${t.prys.toStringAsFixed(2)}",
-                                ),
-                                trailing: const Icon(Icons.add_circle_outline),
-                                onTap: () {
-                                  setState(() {
-                                    widget.formDays[dagKey]!.add(t);
-                                    widget.searchControllers[dagKey]!.clear();
-                                  });
-                                  Navigator.pop(context);
-                                },
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
+  void _onAddItem(String itemId) {
+    final item = widget.templates.firstWhere((t) => t.id == itemId);
+    setState(() {
+      widget.formDays[_currentDayKey]!.add(item);
+      _showSearchOverlay = false;
+    });
+  }
+
+  void _onCloseSearchOverlay() {
+    setState(() {
+      _showSearchOverlay = false;
+    });
   }
 
   Widget _buildGeneralInfoStep() {
@@ -283,8 +216,7 @@ class _FormModalState extends State<FormModal> {
                         child: ElevatedButton.icon(
                           icon: const Icon(Icons.add),
                           label: const Text("Voeg kositems by"),
-                          onPressed: () =>
-                              _showSearchBottomSheet(dagKey, dagLabel),
+                          onPressed: () => _openSearchOverlay(dagKey),
                         ),
                       ),
                     ],
@@ -338,114 +270,140 @@ class _FormModalState extends State<FormModal> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.9,
-        height: MediaQuery.of(context).size.height * 0.9,
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Header with title + close button in top right
-            Row(
+    return Stack(
+      children: [
+        Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.9,
+            height: MediaQuery.of(context).size.height * 0.9,
+            padding: const EdgeInsets.all(16),
+            child: Column(
               children: [
-                Expanded(
-                  child: Text(
-                    widget.activeTemplateId != null
-                        ? "Wysig Week Templaat"
-                        : "Skep Nuwe Week Templaat",
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
+                // Header with title + close button in top right
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.activeTemplateId != null
+                            ? "Wysig Week Templaat"
+                            : "Skep Nuwe Week Templaat",
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
                     ),
-                  ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: widget.onCancel,
+                      tooltip: 'Sluit',
+                    ),
+                  ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: widget.onCancel,
-                  tooltip: 'Sluit',
+                const SizedBox(height: 8),
+
+                // Stepper - expanded area
+                Expanded(
+                  child: Stepper(
+                    type: StepperType.vertical,
+                    currentStep: _currentStep,
+                    onStepContinue: () {
+                      if (_currentStep < 2) {
+                        setState(() => _currentStep += 1);
+                      } else {
+                        widget.onSave();
+                      }
+                    },
+                    onStepCancel: () {
+                      if (_currentStep > 0) {
+                        setState(() => _currentStep -= 1);
+                      } else {
+                        widget.onCancel();
+                      }
+                    },
+                    // ✅ Allow tapping step headers
+                    onStepTapped: (int step) {
+                      setState(() {
+                        _currentStep = step;
+                      });
+                    },
+                    controlsBuilder: (context, details) {
+                      return Row(
+                        children: [
+                          if (_currentStep > 0)
+                            OutlinedButton(
+                              onPressed: details.onStepCancel,
+                              child: const Text("Terug"),
+                            ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: details.onStepContinue,
+                            child: Text(
+                              _currentStep == 2
+                                  ? (widget.activeTemplateId != null
+                                        ? "Stoor Wysigings"
+                                        : "Skep Templaat")
+                                  : "Volgende",
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                    steps: [
+                      Step(
+                        title: const Text("Algemene Inligting"),
+                        content: _buildGeneralInfoStep(),
+                        isActive: _currentStep == 0,
+                        state: _currentStep > 0
+                            ? StepState.complete
+                            : StepState.indexed,
+                      ),
+                      Step(
+                        title: const Text("Bestuur Kositems"),
+                        content: _buildDayMenusStep(),
+                        isActive: _currentStep == 1,
+                        state: _currentStep > 1
+                            ? StepState.complete
+                            : StepState.indexed,
+                      ),
+                      Step(
+                        title: const Text("Opsomming"),
+                        content: _buildSummaryStep(),
+                        isActive: _currentStep == 2,
+                        state: _currentStep == 2
+                            ? StepState.editing
+                            : StepState.indexed,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-
-            // Stepper - expanded area
-            Expanded(
-              child: Stepper(
-                type: StepperType.vertical,
-                currentStep: _currentStep,
-                onStepContinue: () {
-                  if (_currentStep < 2) {
-                    setState(() => _currentStep += 1);
-                  } else {
-                    widget.onSave();
-                  }
-                },
-                onStepCancel: () {
-                  if (_currentStep > 0) {
-                    setState(() => _currentStep -= 1);
-                  } else {
-                    widget.onCancel();
-                  }
-                },
-                // ✅ Allow tapping step headers
-                onStepTapped: (int step) {
-                  setState(() {
-                    _currentStep = step;
-                  });
-                },
-                controlsBuilder: (context, details) {
-                  return Row(
-                    children: [
-                      if (_currentStep > 0)
-                        OutlinedButton(
-                          onPressed: details.onStepCancel,
-                          child: const Text("Terug"),
-                        ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: details.onStepContinue,
-                        child: Text(
-                          _currentStep == 2
-                              ? (widget.activeTemplateId != null
-                                    ? "Stoor Wysigings"
-                                    : "Skep Templaat")
-                              : "Volgende",
-                        ),
-                      ),
-                    ],
-                  );
-                },
-                steps: [
-                  Step(
-                    title: const Text("Algemene Inligting"),
-                    content: _buildGeneralInfoStep(),
-                    isActive: _currentStep == 0,
-                    state: _currentStep > 0
-                        ? StepState.complete
-                        : StepState.indexed,
+          ),
+        ),
+        // Search overlay
+        if (_showSearchOverlay)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.5),
+              child: Center(
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.8,
+                  height: MediaQuery.of(context).size.height * 0.8,
+                  child: ItemSearchOverlay(
+                    items: widget.templates,
+                    alreadySelectedIds: widget.formDays[_currentDayKey]!
+                        .map((item) => item.id)
+                        .toList(),
+                    onClose: _onCloseSearchOverlay,
+                    onAdd: _onAddItem,
                   ),
-                  Step(
-                    title: const Text("Bestuur Kositems"),
-                    content: _buildDayMenusStep(),
-                    isActive: _currentStep == 1,
-                    state: _currentStep > 1
-                        ? StepState.complete
-                        : StepState.indexed,
-                  ),
-                  Step(
-                    title: const Text("Opsomming"),
-                    content: _buildSummaryStep(),
-                    isActive: _currentStep == 2,
-                    state: _currentStep == 2
-                        ? StepState.editing
-                        : StepState.indexed,
-                  ),
-                ],
+                ),
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+      ],
     );
   }
 }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'models.dart';
+import '../../templates/widgets/kos_item_templaat.dart';
 
 class ItemSearchOverlay extends StatefulWidget {
-  final List<Kositem> items;
+  final List<KositemTemplate> items;
   final List<String> alreadySelectedIds;
   final VoidCallback onClose;
   final void Function(String) onAdd;
@@ -22,13 +22,15 @@ class ItemSearchOverlay extends StatefulWidget {
 class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
   String q = '';
 
-  List<Kositem> get filtered {
+  List<KositemTemplate> get filtered {
     final term = q.trim().toLowerCase();
     if (term.isEmpty) return [];
     return widget.items.where((item) {
       final inName = item.naam.toLowerCase().contains(term);
-      final inCat = item.kategorie.toLowerCase().contains(term);
-      final inDesc = (item.beskrywing ?? '').toLowerCase().contains(term);
+      final inCat = item.dieetKategorie.any(
+        (cat) => cat.toLowerCase().contains(term),
+      );
+      final inDesc = item.beskrywing.toLowerCase().contains(term);
       final inIng = item.bestanddele.any((b) => b.toLowerCase().contains(term));
       final inAlg = item.allergene.any((a) => a.toLowerCase().contains(term));
       return inName || inCat || inDesc || inIng || inAlg;
@@ -85,8 +87,7 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
               autofocus: true,
               decoration: const InputDecoration(
                 prefixIcon: Icon(Icons.search),
-                hintText:
-                    'Soek volgens naam, kategorie, beskrywing of bestanddele...',
+                hintText: 'Soek volgens naam of kategorie...',
               ),
               onChanged: (v) => setState(() => q = v),
             ),
@@ -125,14 +126,14 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
 
                 return LayoutBuilder(
                   builder: (context, c) {
-                    final cols = c.maxWidth >= 1000 ? 3 : 1;
+                    // final cols = c.maxWidth >= 1000 ? 3 : 1;
                     return GridView.builder(
                       padding: const EdgeInsets.all(12),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: cols,
+                      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 400,
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 12,
-                        childAspectRatio: 1.9,
+                        childAspectRatio: 2.1,
                       ),
                       itemCount: results.length,
                       itemBuilder: (context, i) {
@@ -140,7 +141,7 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
                         final isAlreeds = widget.alreadySelectedIds.contains(
                           item.id,
                         );
-                        final beskrywing = (item.beskrywing ?? '').trim();
+                        // final beskrywing = item.beskrywing.trim();
 
                         return InkWell(
                           onTap: () {
@@ -160,22 +161,16 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
                               padding: const EdgeInsets.all(12),
                               child: Row(
                                 children: [
-                                  if (item.prentBytes != null ||
-                                      item.prentUrl != null)
+                                  if (item.prent != null)
                                     ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
                                       child: SizedBox(
                                         width: 120,
                                         height: 120,
-                                        child: item.prentBytes != null
-                                            ? Image.memory(
-                                                item.prentBytes!,
-                                                fit: BoxFit.cover,
-                                              )
-                                            : Image.network(
-                                                item.prentUrl!,
-                                                fit: BoxFit.cover,
-                                              ),
+                                        child: Image.network(
+                                          item.prent!,
+                                          fit: BoxFit.cover,
+                                        ),
                                       ),
                                     ),
                                   const SizedBox(width: 12),
@@ -210,8 +205,10 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
                                           spacing: 6,
                                           runSpacing: 6,
                                           children: [
-                                            if (item.kategorie.isNotEmpty)
-                                              Chip(label: Text(item.kategorie)),
+                                            if (item.dieetKategorie.isNotEmpty)
+                                              ...item.dieetKategorie.map(
+                                                (cat) => Chip(label: Text(cat)),
+                                              ),
                                             if (isAlreeds)
                                               Chip(
                                                 backgroundColor: Colors.green,
@@ -225,19 +222,19 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
                                               ),
                                           ],
                                         ),
-                                        if (beskrywing.isNotEmpty) ...[
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            beskrywing,
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              color: Theme.of(
-                                                context,
-                                              ).hintColor,
-                                            ),
-                                          ),
-                                        ],
+                                        // if (beskrywing.isNotEmpty) ...[
+                                        //   const SizedBox(height: 6),
+                                        //   Text(
+                                        //     beskrywing,
+                                        //     // maxLines: 2,
+                                        //     overflow: TextOverflow.ellipsis,
+                                        //     style: TextStyle(
+                                        //       color: Theme.of(
+                                        //         context,
+                                        //       ).hintColor,
+                                        //     ),
+                                        //   ),
+                                        // ],
                                         // if (item.bestanddele.isNotEmpty) ...[
                                         //   const SizedBox(height: 6),
                                         //   Text(

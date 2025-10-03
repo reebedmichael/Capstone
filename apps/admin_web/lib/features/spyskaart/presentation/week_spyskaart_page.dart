@@ -10,8 +10,9 @@ import '../widgets/week_switcher.dart';
 import '../widgets/week_info_card.dart';
 import '../widgets/day_section.dart';
 import '../widgets/template_dialog.dart';
-import '../widgets/item_detail_dialog.dart';
+import '../../templates/widgets/kos_item_detail.dart';
 import '../widgets/approval_dialog.dart';
+import '../../templates/widgets/kos_item_templaat.dart';
 
 const daeVanWeek = [
   {'key': 'maandag', 'label': 'Maandag'},
@@ -37,7 +38,7 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
   bool toonTemplaatModal = false;
   bool toonStuurModal = false;
   bool toonDetailModal = false;
-  Kositem? gekieseItem;
+  KositemTemplate? gekieseItem;
   String suksesBoodskap = '';
   String foutBoodskap = '';
   bool isLoading = false;
@@ -91,7 +92,7 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
 
   Future<void> _loadKosItems() async {
     final rows = await kosRepo.getKosItems();
-    final items = rows.map((r) => _mapKosRowToKositem(r)).toList();
+    final items = rows.map((r) => _mapKosRowToKositemTemplate(r)).toList();
     // for templates table fallback, fetch kos templates if you have a separate column - here we just use kositems
     setState(
       () => appState = appState.copyWith(
@@ -102,22 +103,26 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
     );
   }
 
-  Kositem _mapKosRowToKositem(Map<String, dynamic> r) {
-    // Map your DB row fields to Kositem model expected by widgets.
-    return Kositem(
+  KositemTemplate _mapKosRowToKositemTemplate(Map<String, dynamic> r) {
+    // Extract dieet categories from kos_item_dieet_vereistes
+    final dieetVereistes = List<Map<String, dynamic>>.from(
+      r['kos_item_dieet_vereistes'] ?? [],
+    );
+    final dieetKategorie = dieetVereistes
+        .map((d) => d['dieet']?['dieet_naam'] as String?)
+        .whereType<String>()
+        .toList();
+
+    // Map your DB row fields to KositemTemplate model expected by widgets.
+    return KositemTemplate(
       id: r['kos_item_id'].toString(),
       naam: r['kos_item_naam'] ?? '',
       bestanddele: List<String>.from(r['kos_item_bestandele'] ?? []),
       beskrywing: r['kos_item_beskrywing'] ?? '',
       allergene: List<String>.from(r['kos_item_allergene'] ?? []),
       prys: (r['kos_item_koste'] ?? 0).toDouble(),
-      kategorie: r['kategorie'] ?? '',
-      beskikbaar: (r['is_aktief'] ?? true) as bool,
-      prentUrl: r['kos_item_prentjie'] as String?,
-      prentBytes: null,
-      geskep: r['kos_item_geskep_datum'] != null
-          ? DateTime.parse(r['kos_item_geskep_datum'])
-          : DateTime.now(),
+      dieetKategorie: dieetKategorie,
+      prent: r['kos_item_prentjie'] as String?,
     );
   }
 
@@ -234,9 +239,9 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
   WeekSpyskaart? get volgendeWeek =>
       appState.weekSpyskaarte.length > 1 ? appState.weekSpyskaarte[1] : null;
 
-  List<Kositem> get alleBeskikbareItems => appState.kositems;
+  List<KositemTemplate> get alleBeskikbareItems => appState.kositems;
 
-  Kositem? kryItem(String id) {
+  KositemTemplate? kryItem(String id) {
     try {
       return alleBeskikbareItems.firstWhere((i) => i.id == id);
     } catch (_) {
@@ -550,7 +555,7 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         showDialog(
           context: context,
-          builder: (_) => ItemDetailDialog(item: gekieseItem!), //
+          builder: (_) => KositemDetailDialog(item: gekieseItem!), //
         );
       });
     }

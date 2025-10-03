@@ -95,6 +95,7 @@ class _KositemTemplateCardState extends State<KositemTemplateCard> {
                       ],
                     ),
                   ),
+                  // Spacer(),
                   Padding(
                     padding: const EdgeInsets.all(12),
                     child: Row(

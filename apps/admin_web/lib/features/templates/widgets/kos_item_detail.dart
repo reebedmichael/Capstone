@@ -53,13 +53,15 @@ class KositemDetailDialog extends StatelessWidget {
               // Image
               // Image with max height
               if (item.prent != null && item.prent!.isNotEmpty)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxHeight: 500),
-                    child: AspectRatio(
-                      aspectRatio: 1,
-                      child: Image.network(item.prent!, fit: BoxFit.cover),
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxHeight: 300),
+                      child: AspectRatio(
+                        aspectRatio: 1,
+                        child: Image.network(item.prent!, fit: BoxFit.cover),
+                      ),
                     ),
                   ),
                 )

@@ -1,7 +1,8 @@
 // day_section.dart
 import 'package:flutter/material.dart';
 import 'models.dart';
-import 'item_card.dart';
+import '../../templates/widgets/kos_item_templaat.dart';
+import '../../templates/widgets/kos_templaat_card.dart';
 import 'item_search_overlay.dart';
 
 class DaySection extends StatefulWidget {
@@ -10,12 +11,12 @@ class DaySection extends StatefulWidget {
   final String aktieweweek;
   final List<Map<String, String>> daeVanWeek;
   final void Function(String) onChangeDag;
-  final Kositem? Function(String) kryItem;
+  final KositemTemplate? Function(String) kryItem;
   final bool Function(WeekSpyskaart?) kanWysig;
   final void Function(WeekSpyskaart, String, String) voegItem;
   final void Function(WeekSpyskaart, String, String) verwyderItem;
-  final void Function(Kositem) openDetail;
-  final List<Kositem> searchItems; // items to search from
+  final void Function(KositemTemplate) openDetail;
+  final List<KositemTemplate> searchItems; // items to search from
 
   const DaySection({
     super.key,
@@ -238,42 +239,38 @@ class _DaySectionState extends State<DaySection> {
                 else
                   LayoutBuilder(
                     builder: (context, c) {
-                      int cols = 1;
-                      if (c.maxWidth >= 1200)
-                        cols = 3;
-                      else if (c.maxWidth >= 800)
-                        cols = 2;
                       return GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: cols,
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          childAspectRatio: 1.05,
-                        ),
+                        gridDelegate:
+                            const SliverGridDelegateWithMaxCrossAxisExtent(
+                              maxCrossAxisExtent: 300,
+                              mainAxisSpacing: 10,
+                              crossAxisSpacing: 10,
+                              childAspectRatio: 0.70,
+                            ),
                         itemCount: items.length,
                         itemBuilder: (ctx, i) {
                           final itemId = items[i];
                           final item = widget.kryItem(itemId);
                           if (item == null) return const SizedBox();
-                          return ItemCard(
-                            item: item,
-                            spyskaart: s,
-                            tipeWeek: widget.aktieweweek,
-                            dagKey: widget.aktieweDag,
-                            canEdit: canEdit,
+                          return KositemTemplateCard(
+                            template: item,
                             onView: () => widget.openDetail(item),
+                            onEdit: () {}, // Not used in this context
                             onDelete: () => widget.verwyderItem(
                               s,
                               widget.aktieweDag,
                               item.id,
                             ),
+                            showEditDeleteButtons:
+                                canEdit && widget.aktieweweek == 'volgende',
                           );
                         },
                       );
                     },
                   ),
+
                 const SizedBox(height: 12),
               ],
             );
