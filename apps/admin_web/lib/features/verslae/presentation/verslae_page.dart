@@ -37,7 +37,8 @@ class _VerslaePageState extends State<VerslaePage> {
 	double totalSales = 0.0;
 	int totalOrders = 0;
 	double avgOrderValue = 0.0;
-	int newUsers = 0;
+	int totalUsers = 0;
+	int totalBestellingKosItems = 0;
 
 	// Aggregations
 	List<_TopItem> topItemCountsWithFeedback = const [];
@@ -205,18 +206,40 @@ class _VerslaePageState extends State<VerslaePage> {
 	}
 
 	void _calculateKPIs() {
-		// Total sales
-		totalSales = bestellings.fold(0.0, (sum, order) => 
-			sum + (order['best_volledige_prys'] as num? ?? 0.0).toDouble());
+		// Filter data based on selected date range
+		final cutoffDate = DateTime.now().subtract(Duration(days: selectedSalesDays));
 		
-		// Total orders
-		totalOrders = bestellings.length;
+		// Filter bestelling_kos_item records by date (this is where the actual order items are)
+		final filteredBestellingItems = bestellingItems.where((item) {
+			final itemDate = DateTime.tryParse(item['best_datum'] as String? ?? '');
+			return itemDate != null && itemDate.isAfter(cutoffDate);
+		}).toList();
+		
+		// Calculate total sales from filtered items
+		totalSales = filteredBestellingItems.fold(0.0, (sum, item) {
+			final kosItem = item['kos_item'] as Map<String, dynamic>?;
+			final itemPrice = (kosItem?['kos_item_koste'] as num? ?? 0.0).toDouble();
+			final quantity = (item['item_hoev'] as num? ?? 1).toInt();
+			return sum + (itemPrice * quantity);
+		});
+		
+		// Filter bestellings by creation date (best_geskep_datum) to count orders
+		final filteredBestellings = bestellings.where((order) {
+			final orderDate = DateTime.tryParse(order['best_geskep_datum'] as String? ?? '');
+			return orderDate != null && orderDate.isAfter(cutoffDate);
+		}).toList();
+		
+		// Total orders (filtered by order creation date)
+		totalOrders = filteredBestellings.length;
+		
+		// Total bestelling kos items (filtered by item date)
+		totalBestellingKosItems = filteredBestellingItems.length;
 		
 		// Average order value
 		avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0.0;
 		
-		// Total users
-		newUsers = gebruikers.length;
+		// Total users (always show total, not filtered by date)
+		totalUsers = gebruikers.length;
 	}
 
 	Future<void> _exportAllTablesToCsv() async {
@@ -430,10 +453,10 @@ class _VerslaePageState extends State<VerslaePage> {
 				Icons.payments_outlined, Theme.of(context).colorScheme.primary),
 			_KPI('Bestellings', '$totalOrders', 
 				Icons.receipt_long_outlined, Colors.blue),
+			_KPI('Bestelde Kos Items', '$totalBestellingKosItems', 
+				Icons.restaurant_outlined, Colors.purple),
 			_KPI('Gem. Bestelwaarde', 'R ${avgOrderValue.toStringAsFixed(2)}', 
 				Icons.attach_money_outlined, Colors.green),
-			_KPI('Nuwe Gebruikers', '$newUsers', 
-				Icons.group_outlined, Colors.orange),
 		];
 	}
 
@@ -503,9 +526,31 @@ class _VerslaePageState extends State<VerslaePage> {
 					),
 					const SizedBox(height: 24),
 
+					// Date Range Selector
+					Row(
+						mainAxisAlignment: MainAxisAlignment.spaceBetween,
+						children: [
+							Text('Tydperk', style: Theme.of(context).textTheme.titleMedium),
+							DropdownButton<int>(
+								value: selectedSalesDays,
+								items: const [7, 14, 30]
+									.map((d) => DropdownMenuItem<int>(value: d, child: Text('Laaste ' + d.toString() + ' dae')))
+									.toList(),
+								onChanged: (v) {
+									if (v == null) return;
+									setState(() {
+										selectedSalesDays = v;
+										_calculateKPIs(); // Recalculate KPIs with new date range
+									});
+								},
+							),
+						],
+					),
+					const SizedBox(height: 16),
+
 					// KPI Cards (responsive, no overflow)
 					LayoutBuilder(builder: (context, constraints) {
-						final int cols = constraints.maxWidth > 1100 ? 4 : constraints.maxWidth > 800 ? 2 : 1;
+						final int cols = constraints.maxWidth > 1400 ? 5 : constraints.maxWidth > 1100 ? 4 : constraints.maxWidth > 800 ? 2 : 1;
 						final double spacing = 16;
 						final double totalSpacing = spacing * (cols - 1);
 						final double itemWidth = (constraints.maxWidth - totalSpacing) / cols;
@@ -597,80 +642,29 @@ class _VerslaePageState extends State<VerslaePage> {
 				child: Column(
 					crossAxisAlignment: CrossAxisAlignment.start,
 						children: <Widget>[
-							Row(
-								mainAxisAlignment: MainAxisAlignment.spaceBetween,
-								children: [
-									Text('Verkope – Laaste ' + selectedSalesDays.toString() + ' dae', style: Theme.of(context).textTheme.titleMedium),
-									DropdownButton<int>(
-										value: selectedSalesDays,
-										items: const [7, 14, 30]
-											.map((d) => DropdownMenuItem<int>(value: d, child: Text('Laaste ' + d.toString() + ' dae')))
-											.toList(),
-										onChanged: (v) {
-											if (v == null) return;
-											setState(() {
-												selectedSalesDays = v;
-											});
-										},
-									)
-								],
-							),
-						const SizedBox(height: 12),
-						Container(
+							Text('Verkope – Laaste ' + selectedSalesDays.toString() + ' dae', style: Theme.of(context).textTheme.titleMedium),
+					const SizedBox(height: 12),
+					Container(
 							height: 300,
 							decoration: BoxDecoration(
 								borderRadius: BorderRadius.circular(12),
 								border: Border.all(color: Colors.grey.shade300),
 							),
 							child: salesData.isNotEmpty
-								? LineChart(
-									LineChartData(
-										gridData: FlGridData(show: true),
-										titlesData: FlTitlesData(
-													leftTitles: AxisTitles(
-														axisNameWidget: const Text('Bedrag (R)'),
-														axisNameSize: 24,
-														sideTitles: SideTitles(
-															showTitles: true,
-															reservedSize: 56,
-															getTitlesWidget: (value, meta) {
-															return Text('R' + value.toInt().toString(), softWrap: false);
-														},
-														),
-													),
-											bottomTitles: AxisTitles(
-												sideTitles: SideTitles(
-													showTitles: true,
-													getTitlesWidget: (value, meta) {
-														final index = value.toInt();
-														if (index >= 0 && index < salesData.length) {
-															return Text(salesData[index].day);
-														}
-														return const Text('');
-													},
-												),
-											),
-											topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-											rightTitles: AxisTitles(
-												axisNameWidget: const Text('Aantal Items'),
-												axisNameSize: 24,
-												sideTitles: SideTitles(
-													showTitles: true,
-													reservedSize: 56,
-													getTitlesWidget: (value, meta) {
-														final maxAmount = salesData.fold<double>(0.0, (m, e) => e.amount > m ? e.amount : m);
-														final maxCount = salesData.fold<int>(0, (m, e) => e.count > m ? e.count : m);
-														final double scale = (maxCount == 0) ? 0.0 : (maxAmount / maxCount);
-														final count = (scale == 0) ? 0 : (value / scale).round();
-														return Text(count.toString(), softWrap: false);
-													},
-												),
-											),
+								? Column(
+									children: [
+										// Cost chart
+										SizedBox(
+											height: 140,
+											child: LineChart(_getCostChartData(context, salesData)),
 										),
-										minY: 0,
-										borderData: FlBorderData(show: true),
-										lineBarsData: _buildSalesLines(context, salesData),
-									),
+										const SizedBox(height: 8),
+										// Item count chart
+										SizedBox(
+											height: 140,
+											child: LineChart(_getItemCountChartData(context, salesData)),
+										),
+									],
 								)
 								: const Center(
 									child: Column(
@@ -906,7 +900,17 @@ class _VerslaePageState extends State<VerslaePage> {
 										maxY: orderCountsByKampus.first.count * 1.2,
 										titlesData: FlTitlesData(
 											leftTitles: AxisTitles(
-												sideTitles: SideTitles(showTitles: true, reservedSize: 40),
+												sideTitles: SideTitles(
+													showTitles: true,
+													reservedSize: 40,
+													interval: 1.0, // Whole number intervals
+													getTitlesWidget: (value, meta) {
+														if (value < 0) return const Text('');
+														final wholeNumber = value.toInt();
+														if (wholeNumber != value) return const Text(''); // Only show whole numbers
+														return Text(wholeNumber.toString(), style: const TextStyle(fontSize: 10));
+													},
+												),
 											),
 											bottomTitles: AxisTitles(
 												sideTitles: SideTitles(
@@ -923,6 +927,8 @@ class _VerslaePageState extends State<VerslaePage> {
 													},
 												),
 											),
+											topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+											rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
 										),
 										barGroups: orderCountsByKampus.asMap().entries.map((e) {
 											return BarChartGroupData(
@@ -1118,29 +1124,140 @@ class _VerslaePageState extends State<VerslaePage> {
 		return salesData;
 	}
 
-	List<LineChartBarData> _buildSalesLines(BuildContext context, List<_SalesData> data) {
+	LineChartData _getCostChartData(BuildContext context, List<_SalesData> data) {
 		final maxAmount = data.fold<double>(0.0, (m, e) => e.amount > m ? e.amount : m);
-		final maxCount = data.fold<int>(0, (m, e) => e.count > m ? e.count : m);
-		final double scale = (maxCount == 0) ? 0.0 : (maxAmount / maxCount);
-		final amountLine = LineChartBarData(
-			spots: data.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.amount)).toList(),
-			isCurved: false,
-			color: Theme.of(context).primaryColor,
-			barWidth: 3,
-			dotData: FlDotData(show: true),
-			belowBarData: BarAreaData(
-				show: true,
-				color: Theme.of(context).primaryColor.withOpacity(0.1),
+		
+		return LineChartData(
+			gridData: const FlGridData(show: true), // Show grid for cost chart
+			titlesData: FlTitlesData(
+				leftTitles: AxisTitles(
+					axisNameWidget: const Text('Totale Koste (R)'),
+					axisNameSize: 24,
+					sideTitles: SideTitles(
+						showTitles: true,
+						reservedSize: 60,
+						getTitlesWidget: (value, meta) {
+							if (value < 0) return const Text('');
+							return Text('R${value.toInt()}', style: const TextStyle(fontSize: 10));
+						},
+						),
+				),
+				bottomTitles: AxisTitles(
+					sideTitles: SideTitles(
+						showTitles: true,
+						interval: 1.0, // Show label once per day
+						getTitlesWidget: (value, meta) {
+							final index = value.toInt();
+							if (index >= 0 && index < data.length) {
+								return Padding(
+									padding: const EdgeInsets.only(top: 4),
+									child: Text(data[index].day, style: const TextStyle(fontSize: 10)),
+								);
+							}
+							return const Text('');
+						},
+					),
+				),
+				topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+				rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
 			),
+			minY: 0,
+			maxY: maxAmount * 1.1,
+			borderData: FlBorderData(show: true),
+			lineBarsData: [
+				LineChartBarData(
+					spots: data.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.amount)).toList(),
+					isCurved: false,
+					color: Theme.of(context).primaryColor,
+					barWidth: 3,
+					dotData: FlDotData(show: true),
+					belowBarData: BarAreaData(
+						show: true,
+						color: Theme.of(context).primaryColor.withOpacity(0.1),
+					),
+				),
+			],
 		);
-		final countLine = LineChartBarData(
-			spots: data.asMap().entries.map((e) => FlSpot(e.key.toDouble(), scale == 0.0 ? 0.0 : e.value.count * scale)).toList(),
-			isCurved: false,
-			color: Colors.orange,
-			barWidth: 3,
-			dotData: FlDotData(show: true),
+	}
+
+	LineChartData _getItemCountChartData(BuildContext context, List<_SalesData> data) {
+		final maxCount = data.fold<int>(0, (m, e) => e.count > m ? e.count : m);
+		
+		// Dynamic interval based on data range
+		double yLabelInterval;
+		double gridInterval;
+		if (maxCount <= 10) {
+			yLabelInterval = 1.0;
+			gridInterval = 1.0;
+		} else if (maxCount <= 50) {
+			yLabelInterval = 5.0;
+			gridInterval = 2.5;
+		} else if (maxCount <= 100) {
+			yLabelInterval = 10.0;
+			gridInterval = 5.0;
+		} else if (maxCount <= 500) {
+			yLabelInterval = 50.0;
+			gridInterval = 25.0;
+		} else {
+			yLabelInterval = 100.0;
+			gridInterval = 50.0;
+		}
+		
+		return LineChartData(
+			gridData: FlGridData(
+				show: true,
+				drawVerticalLine: true,
+				horizontalInterval: gridInterval,
+				verticalInterval: gridInterval,
+			),
+			titlesData: FlTitlesData(
+				leftTitles: AxisTitles(
+					axisNameWidget: const Text('Aantal Items'),
+					axisNameSize: 24,
+					sideTitles: SideTitles(
+						showTitles: true,
+						reservedSize: 50,
+						interval: yLabelInterval,
+						getTitlesWidget: (value, meta) {
+							if (value < 0) return const Text('');
+							final wholeNumber = value.toInt();
+							if (wholeNumber != value) return const Text(''); // Only show whole numbers
+							return Text(wholeNumber.toString(), style: const TextStyle(fontSize: 10));
+						},
+					),
+				),
+				bottomTitles: AxisTitles(
+					sideTitles: SideTitles(
+						showTitles: true,
+						interval: 1.0, // Show label once per day
+						getTitlesWidget: (value, meta) {
+							final index = value.toInt();
+							if (index >= 0 && index < data.length) {
+								return Padding(
+									padding: const EdgeInsets.only(top: 4),
+									child: Text(data[index].day, style: const TextStyle(fontSize: 10)),
+								);
+							}
+							return const Text('');
+						},
+					),
+				),
+				topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+				rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+			),
+			minY: 0,
+			maxY: maxCount > 0 ? maxCount * 1.1 : 10, // Independent scale for item counts
+			borderData: FlBorderData(show: true), // Show border for independent chart
+			lineBarsData: [
+				LineChartBarData(
+					spots: data.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.count.toDouble())).toList(),
+					isCurved: false,
+					color: Colors.orange,
+					barWidth: 3,
+					dotData: FlDotData(show: true),
+				),
+			],
 		);
-		return [amountLine, countLine];
 	}
 
 	List<_StatusData> _getOrderStatusData() {
@@ -1309,6 +1426,8 @@ class _VerslaePageState extends State<VerslaePage> {
 												reservedSize: 100,
 											),
 										),
+										topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+										rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
 									),
 									borderData: FlBorderData(show: true),
 									barGroups: topItems.asMap().entries.map((entry) {
