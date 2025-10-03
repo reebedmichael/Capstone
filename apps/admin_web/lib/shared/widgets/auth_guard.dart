@@ -18,6 +18,8 @@ class AuthGuard extends ConsumerWidget {
     return authState.when(
       data: (user) {
         if (user != null) {
+          // User is authenticated, allow access to protected routes
+          // Admin type checking is handled in login flow
           return child;
         } else {
           // Redirect to login if not authenticated

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../shared/widgets/page_scaffold.dart';
-import '../../shared/widgets/auth_guard.dart';
+import '../../shared/widgets/admin_access_guard.dart';
 import 'package:capstone_admin/features/auth/presentation/teken_in_page.dart';
 import 'package:capstone_admin/features/auth/presentation/registreer_admin_page.dart';
 import 'package:capstone_admin/features/auth/presentation/wag_vir_goedkeuring_page.dart';
@@ -48,72 +48,72 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/dashboard',
         name: 'dashboard',
-        builder: _builder(const AuthGuard(child: DashboardPage())),
+        builder: _builder(const AdminAccessGuard(child: DashboardPage())),
       ),
       GoRoute(
         path: '/spyskaart',
         name: 'spyskaart',
-        builder: _builder(const AuthGuard(child: SpyskaartBestuurPage())),
+        builder: _builder(const AdminAccessGuard(child: SpyskaartBestuurPage())),
       ),
       GoRoute(
         path: '/week_spyskaart',
         name: 'week_spyskaart',
-        builder: _builder(const AuthGuard(child: WeekSpyskaartPage())),
+        builder: _builder(const AdminAccessGuard(child: WeekSpyskaartPage())),
       ),
       GoRoute(
         path: '/templates/kositem',
         name: 'templates_kositem',
-        builder: _builder(const AuthGuard(child: KositemTemplaatPage())),
+        builder: _builder(const AdminAccessGuard(child: KositemTemplaatPage())),
       ),
       GoRoute(
         path: '/templates/week',
         name: 'templates_week',
-        builder: _builder(const AuthGuard(child: WeekTemplaatPage())),
+        builder: _builder(const AdminAccessGuard(child: WeekTemplaatPage())),
       ),
       GoRoute(
         path: '/bestellings',
         name: 'bestellings',
-        builder: _builder(const AuthGuard(child: BestellingBestuurPage())),
+        builder: _builder(const AdminAccessGuard(child: BestellingBestuurPage())),
       ),
       GoRoute(
         path: '/gebruikers',
         name: 'gebruikers',
-        builder: _builder(const AuthGuard(child: GebruikersBestuurPage())),
+        builder: _builder(const AdminAccessGuard(child: GebruikersBestuurPage())),
       ),
             GoRoute(
               path: '/toelae',
               name: 'toelae',
-              builder: _builder(const AuthGuard(child: ToelaeMainPage())),
+              builder: _builder(const AdminAccessGuard(child: ToelaeMainPage())),
             ),
       GoRoute(
         path: '/kennisgewings',
         name: 'kennisgewings',
-        builder: _builder(const AuthGuard(child: KennisgewingsPage())),
+        builder: _builder(const AdminAccessGuard(child: KennisgewingsPage())),
       ),
       GoRoute(
         path: '/verslae',
         name: 'verslae',
-        builder: _builder(const AuthGuard(child: VerslaePage())),
+        builder: _builder(const AdminAccessGuard(child: VerslaePage())),
       ),
       GoRoute(
         path: '/instellings',
         name: 'instellings',
-        builder: _builder(const AuthGuard(child: InstellingsPage())),
+        builder: _builder(const AdminAccessGuard(child: InstellingsPage())),
       ),
       GoRoute(
         path: '/hulp', 
         name: 'hulp', 
-        builder: _builder(const AuthGuard(child: HulpPage()))
+        builder: _builder(const AdminAccessGuard(child: HulpPage()))
       ),
       GoRoute(
         path: '/profiel',
         name: 'profiel',
-        builder: _builder(const AuthGuard(child: ProfielPage())),
+        builder: _builder(const AdminAccessGuard(child: ProfielPage())),
       ),
       GoRoute(
         path: '/db-test',
         name: 'db_test',
-        builder: _builder(const AuthGuard(child: DbTestPage())),
+        builder: _builder(const AdminAccessGuard(child: DbTestPage())),
       ),
     ],
   );

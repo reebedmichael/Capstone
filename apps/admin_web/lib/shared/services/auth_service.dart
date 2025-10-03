@@ -127,18 +127,31 @@ class AuthService {
 
   // Get user profile from our database
   Future<Map<String, dynamic>?> getUserProfile() async {
-    if (currentUser == null) return null;
+    if (currentUser == null) {
+      print('DEBUG: AuthService - No current user');
+      return null;
+    }
     
     try {
-      // Use direct Supabase call instead of repository to avoid RLS issues
+      print('DEBUG: AuthService - Fetching profile for user: ${currentUser!.id}');
+      // Fetch gebruiker with linked admin_tipes for role name
       final result = await _supabase
           .from('gebruikers')
-          .select()
+          .select('''
+            gebr_id,
+            gebr_naam,
+            gebr_van,
+            gebr_epos,
+            admin_tipe_id,
+            admin_tipes:admin_tipe_id(admin_tipe_naam)
+          ''')
           .eq('gebr_id', currentUser!.id)
           .maybeSingle();
       
+      print('DEBUG: AuthService - Profile result: $result');
       return result;
     } catch (e) {
+      print('DEBUG: AuthService - Error fetching profile: $e');
       return null;
     }
   }
