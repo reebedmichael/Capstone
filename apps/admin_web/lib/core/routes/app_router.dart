@@ -13,6 +13,7 @@ import 'package:capstone_admin/features/templates/presentation/kositem_templaat_
 import 'package:capstone_admin/features/templates/presentation/week_templaat_page.dart';
 import 'package:capstone_admin/features/bestellings/presentation/bestelling_bestuur_page.dart';
 import 'package:capstone_admin/features/gebruikers/presentation/gebruikers_bestuur_page.dart';
+import 'package:capstone_admin/features/toelae/presentation/toelae_main_page.dart';
 import 'package:capstone_admin/features/kennisgewings/presentation/kennisgewings_page.dart';
 import 'package:capstone_admin/features/verslae/presentation/verslae_page.dart';
 import 'package:capstone_admin/features/instellings/presentation/instellings_page.dart';
@@ -79,6 +80,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'gebruikers',
         builder: _builder(const AuthGuard(child: GebruikersBestuurPage())),
       ),
+            GoRoute(
+              path: '/toelae',
+              name: 'toelae',
+              builder: _builder(const AuthGuard(child: ToelaeMainPage())),
+            ),
       GoRoute(
         path: '/kennisgewings',
         name: 'kennisgewings',
