@@ -23,10 +23,24 @@ class WeekTemplate {
   }) : geskep = geskep ?? DateTime.now();
 }
 
+class SpyskaartItem {
+  final String itemId;
+  final int quantity;
+  final DateTime? cutoffTime;
+
+  SpyskaartItem({
+    required this.itemId,
+    required this.quantity,
+    this.cutoffTime,
+  });
+}
+
 class WeekSpyskaart {
   final String id;
   final String status;
   final Map<String, List<String>> dae;
+  final Map<String, Map<String, SpyskaartItem>>
+  itemDetails; // day -> itemId -> SpyskaartItem
   final DateTime weekBegin;
   final DateTime weekEinde;
   final DateTime sperdatum;
@@ -37,6 +51,7 @@ class WeekSpyskaart {
     required this.id,
     required this.status,
     required this.dae,
+    required this.itemDetails,
     required this.weekBegin,
     required this.weekEinde,
     required this.sperdatum,
@@ -47,6 +62,7 @@ class WeekSpyskaart {
   WeekSpyskaart copyWith({
     String? status,
     Map<String, List<String>>? dae,
+    Map<String, Map<String, SpyskaartItem>>? itemDetails,
     String? goedgekeurDeur,
     DateTime? goedgekeurDatum,
   }) {
@@ -54,6 +70,7 @@ class WeekSpyskaart {
       id: id,
       status: status ?? this.status,
       dae: dae ?? this.dae,
+      itemDetails: itemDetails ?? this.itemDetails,
       weekBegin: weekBegin,
       weekEinde: weekEinde,
       sperdatum: sperdatum,

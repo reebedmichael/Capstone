@@ -138,16 +138,80 @@ class AdminSpyskaartRepository {
     required String spyskaartId,
     required String dagNaam, // e.g. 'maandag'
     required String kosItemId,
+    int quantity = 1,
+    DateTime? cutoffTime,
   }) async {
     final dagMap = await _ensureWeekDagCache();
     final dagId = dagMap[dagNaam.toLowerCase()];
     if (dagId == null) throw Exception('Geen week_dag gevind vir $dagNaam');
 
-    await _sb.from('spyskaart_kos_item').insert({
+    final insertData = {
       'spyskaart_id': spyskaartId,
       'kos_item_id': kosItemId,
       'week_dag_id': dagId,
-    });
+      'kos_item_hoeveelheid': quantity,
+    };
+
+    // Add cutoff time if provided
+    if (cutoffTime != null) {
+      insertData['spyskaart_kos_afsny_datum'] = cutoffTime.toIso8601String();
+    }
+
+    await _sb.from('spyskaart_kos_item').insert(insertData);
+  }
+
+  /// Add multiple kos_items to a spyskaart with their respective quantities and cutoff times.
+  Future<void> addItemsToSpyskaart({
+    required String spyskaartId,
+    required List<Map<String, dynamic>>
+    items, // [{dagNaam: 'maandag', kosItemId: '123', quantity: 5, cutoffTime: DateTime}]
+  }) async {
+    final dagMap = await _ensureWeekDagCache();
+    final inserts = <Map<String, dynamic>>[];
+
+    for (final item in items) {
+      final dagNaam = item['dagNaam'] as String;
+      final kosItemId = item['kosItemId'] as String;
+      final quantity = item['quantity'] as int? ?? 1;
+      final cutoffTime = item['cutoffTime'] as DateTime?;
+
+      final dagId = dagMap[dagNaam.toLowerCase()];
+      if (dagId == null) continue; // Skip invalid day names
+
+      final insertData = {
+        'spyskaart_id': spyskaartId,
+        'kos_item_id': kosItemId,
+        'week_dag_id': dagId,
+        'kos_item_hoeveelheid': quantity,
+      };
+
+      // Add cutoff time if provided
+      if (cutoffTime != null) {
+        insertData['spyskaart_kos_afsny_datum'] = cutoffTime.toIso8601String();
+      }
+
+      inserts.add(insertData);
+    }
+
+    if (inserts.isNotEmpty) {
+      await _sb.from('spyskaart_kos_item').insert(inserts);
+    }
+  }
+
+  /// Replace all kos_items in a spyskaart with new items (removes existing items first).
+  Future<void> replaceItemsInSpyskaart({
+    required String spyskaartId,
+    required List<Map<String, dynamic>>
+    items, // [{dagNaam: 'maandag', kosItemId: '123', quantity: 5, cutoffTime: DateTime}]
+  }) async {
+    // First, remove all existing items from the spyskaart
+    await _sb
+        .from('spyskaart_kos_item')
+        .delete()
+        .eq('spyskaart_id', spyskaartId);
+
+    // Then add the new items
+    await addItemsToSpyskaart(spyskaartId: spyskaartId, items: items);
   }
 
   /// Remove a kos_item from a spyskaart for a day name (removes any matching rows).
@@ -163,6 +227,29 @@ class AdminSpyskaartRepository {
     await _sb
         .from('spyskaart_kos_item')
         .delete()
+        .eq('spyskaart_id', spyskaartId)
+        .eq('kos_item_id', kosItemId)
+        .eq('week_dag_id', dagId);
+  }
+
+  /// Update quantity and cutoff time for a kos_item in a spyskaart for a specific day.
+  Future<void> updateItemQuantity({
+    required String spyskaartId,
+    required String dagNaam,
+    required String kosItemId,
+    required int quantity,
+    required DateTime cutoffTime,
+  }) async {
+    final dagMap = await _ensureWeekDagCache();
+    final dagId = dagMap[dagNaam.toLowerCase()];
+    if (dagId == null) throw Exception('Geen week_dag gevind vir $dagNaam');
+
+    await _sb
+        .from('spyskaart_kos_item')
+        .update({
+          'kos_item_hoeveelheid': quantity,
+          'spyskaart_kos_afsny_datum': cutoffTime.toIso8601String(),
+        })
         .eq('spyskaart_id', spyskaartId)
         .eq('kos_item_id', kosItemId)
         .eq('week_dag_id', dagId);

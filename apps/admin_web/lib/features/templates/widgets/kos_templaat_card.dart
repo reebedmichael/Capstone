@@ -9,6 +9,8 @@ class KositemTemplateCard extends StatefulWidget {
   final VoidCallback onDelete;
   final VoidCallback onView;
   final bool showEditDeleteButtons;
+  final int? quantity;
+  final DateTime? cutoffTime;
 
   const KositemTemplateCard({
     super.key,
@@ -17,6 +19,8 @@ class KositemTemplateCard extends StatefulWidget {
     required this.onDelete,
     required this.onView,
     this.showEditDeleteButtons = true,
+    this.quantity,
+    this.cutoffTime,
   });
 
   @override
@@ -98,22 +102,104 @@ class _KositemTemplateCardState extends State<KositemTemplateCard> {
                   // Spacer(),
                   Padding(
                     padding: const EdgeInsets.all(12),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: Column(
                       children: [
-                        Text(
-                          "R${template.prys.toStringAsFixed(2)}",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "R${template.prys.toStringAsFixed(2)}",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            if (template.bestanddele.isNotEmpty)
+                              Text(
+                                "${template.bestanddele.length} bestanddele",
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                          ],
                         ),
-                        if (template.bestanddele.isNotEmpty)
-                          Text(
-                            "${template.bestanddele.length} bestanddele",
-                            style: Theme.of(context).textTheme.bodySmall,
+                        // Quantity and cutoff time info (only shown when provided)
+                        if (widget.quantity != null ||
+                            widget.cutoffTime != null) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withOpacity(0.3),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (widget.quantity != null)
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.inventory_2,
+                                        size: 14,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Hoeveelheid: ${widget.quantity}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                if (widget.cutoffTime != null) ...[
+                                  if (widget.quantity != null)
+                                    const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.access_time,
+                                        size: 14,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Afsny: ${_formatDateTime(widget.cutoffTime!)}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
+                        ],
                       ],
                     ),
                   ),
@@ -240,5 +326,9 @@ class _KositemTemplateCardState extends State<KositemTemplateCard> {
         child: Icon(icon, color: color ?? Colors.black, size: 20),
       ),
     );
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    return "${dateTime.day}/${dateTime.month} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}";
   }
 }

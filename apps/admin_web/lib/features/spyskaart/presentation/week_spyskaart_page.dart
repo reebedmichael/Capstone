@@ -12,6 +12,8 @@ import '../widgets/day_section.dart';
 import '../widgets/template_dialog.dart';
 import '../../templates/widgets/kos_item_detail.dart';
 import '../widgets/approval_dialog.dart';
+import '../widgets/quantity_dialog.dart';
+import '../widgets/template_items_dialog.dart';
 import '../../templates/widgets/kos_item_templaat.dart';
 
 const daeVanWeek = [
@@ -38,7 +40,11 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
   bool toonTemplaatModal = false;
   bool toonStuurModal = false;
   bool toonDetailModal = false;
+  bool toonQuantityModal = false;
+  bool toonTemplateItemsModal = false;
   KositemTemplate? gekieseItem;
+  KositemTemplate? itemVirQuantity;
+  List<TemplateItem>? templateItemsVirDialog;
   String suksesBoodskap = '';
   String foutBoodskap = '';
   bool isLoading = false;
@@ -206,12 +212,37 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
       'sondag': <String>[],
     };
 
+    final itemDetails = <String, Map<String, SpyskaartItem>>{
+      'maandag': <String, SpyskaartItem>{},
+      'dinsdag': <String, SpyskaartItem>{},
+      'woensdag': <String, SpyskaartItem>{},
+      'donderdag': <String, SpyskaartItem>{},
+      'vrydag': <String, SpyskaartItem>{},
+      'saterdag': <String, SpyskaartItem>{},
+      'sondag': <String, SpyskaartItem>{},
+    };
+
     for (final child in kinders) {
       final kos = Map<String, dynamic>.from(child['kos_item'] ?? {});
       final dag = Map<String, dynamic>.from(child['week_dag'] ?? {});
       final dagNaam = (dag['week_dag_naam'] ?? '').toString().toLowerCase();
       if (!dae.containsKey(dagNaam)) continue;
-      dae[dagNaam]!.add(kos['kos_item_id'].toString());
+
+      final itemId = kos['kos_item_id'].toString();
+      dae[dagNaam]!.add(itemId);
+
+      // Extract quantity and cutoff time
+      final quantity = child['kos_item_hoeveelheid'] as int? ?? 1;
+      final cutoffTimeStr = child['spyskaart_kos_afsny_datum'] as String?;
+      final cutoffTime = cutoffTimeStr != null
+          ? DateTime.tryParse(cutoffTimeStr)
+          : null;
+
+      itemDetails[dagNaam]![itemId] = SpyskaartItem(
+        itemId: itemId,
+        quantity: quantity,
+        cutoffTime: cutoffTime,
+      );
     }
 
     final weekEnd = weekStart.add(const Duration(days: 6));
@@ -223,6 +254,7 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
       id: raw['spyskaart_id'].toString(),
       status: status,
       dae: dae,
+      itemDetails: itemDetails,
       weekBegin: weekStart,
       weekEinde: weekEnd,
       sperdatum: sperdatum,
@@ -262,12 +294,27 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
 
   // ---------- actions ----------
 
-  Future<void> voegItemBy(WeekSpyskaart sp, String dag, String itemId) async {
+  void toonQuantityDialog(KositemTemplate item) {
+    setState(() {
+      itemVirQuantity = item;
+      toonQuantityModal = true;
+    });
+  }
+
+  Future<void> voegItemBy(
+    WeekSpyskaart sp,
+    String dag,
+    String itemId, {
+    int quantity = 1,
+    DateTime? cutoffTime,
+  }) async {
     try {
       await weekRepo.addItemToSpyskaart(
         spyskaartId: sp.id,
         dagNaam: dag,
         kosItemId: itemId,
+        quantity: quantity,
+        cutoffTime: cutoffTime,
       );
       // refresh the spyskaart
       await _loadSpyskaarte();
@@ -303,51 +350,125 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
     }
   }
 
-  void laaiTemplaat(String tplId) async {
+  Future<void> updateItemQuantity(
+    WeekSpyskaart sp,
+    String dag,
+    String itemId,
+    int quantity,
+    DateTime cutoffTime,
+  ) async {
     try {
-      // Get template raw (contains kos items organized by week_dag)
-      final tplRaw = await weekRepo.getTemplateRawById(tplId);
-      if (tplRaw == null) return;
-      // target = volgende week spyskaart (create if not exists)
-      final volStart = _weekStartFor('volgende');
-      final volRaw = await weekRepo.getOrCreateSpyskaartForDate(volStart);
-      final volId = volRaw['spyskaart_id'] as String;
-
-      // build dae mapping for update
-      final kinders = List<Map<String, dynamic>>.from(
-        (tplRaw['spyskaart_kos_item'] as List?) ?? [],
+      await weekRepo.updateItemQuantity(
+        spyskaartId: sp.id,
+        dagNaam: dag,
+        kosItemId: itemId,
+        quantity: quantity,
+        cutoffTime: cutoffTime,
       );
-      final daeMap = <String, List<Map<String, dynamic>>>{};
-      for (final d in daeVanWeek) daeMap[d['key']!] = [];
-
-      for (final child in kinders) {
-        final kos = Map<String, dynamic>.from(child['kos_item'] ?? {});
-        final dag = Map<String, dynamic>.from(child['week_dag'] ?? {});
-        final dagNaam = (dag['week_dag_naam'] ?? '').toString().toLowerCase();
-        if (!daeMap.containsKey(dagNaam)) continue;
-        daeMap[dagNaam]!.add({'id': kos['kos_item_id']});
-      }
-
-      // Use updateWeekTemplate to replace children for the spyskaart (works for template and non-template rows)
-      await weekRepo.updateWeekTemplate(
-        spyskaartId: volId,
-        naam: volRaw['spyskaart_naam'] ?? 'Volgende Week',
-        beskrywing: null,
-        dae: daeMap,
-      );
-
       await _loadSpyskaarte();
-      setState(() {
-        suksesBoodskap = 'Templaat suksesvol gelaai';
-        toonTemplaatModal = false;
-      });
+      setState(
+        () => suksesBoodskap = 'Item hoeveelheid opgedateer vir ${_label(dag)}',
+      );
       Future.delayed(const Duration(seconds: 1), () {
         if (!mounted) return;
         setState(() => suksesBoodskap = '');
       });
     } catch (e) {
       setState(
+        () => foutBoodskap =
+            'Kon nie item hoeveelheid opdateer nie: ${e.toString()}',
+      );
+    }
+  }
+
+  void laaiTemplaat(String tplId) async {
+    try {
+      // Get template raw (contains kos items organized by week_dag)
+      final tplRaw = await weekRepo.getTemplateRawById(tplId);
+      if (tplRaw == null) return;
+
+      // Build template items list for the dialog
+      final kinders = List<Map<String, dynamic>>.from(
+        (tplRaw['spyskaart_kos_item'] as List?) ?? [],
+      );
+
+      final templateItems = <TemplateItem>[];
+
+      for (final child in kinders) {
+        final kos = Map<String, dynamic>.from(child['kos_item'] ?? {});
+        final dag = Map<String, dynamic>.from(child['week_dag'] ?? {});
+        final dagNaam = (dag['week_dag_naam'] ?? '').toString().toLowerCase();
+        final dagLabel = daeVanWeek.firstWhere(
+          (d) => d['key'] == dagNaam,
+          orElse: () => {'label': dagNaam},
+        )['label']!;
+
+        // Find the corresponding KositemTemplate
+        final kosItemId = kos['kos_item_id'].toString();
+        final kosItem = kryItem(kosItemId);
+
+        if (kosItem != null) {
+          templateItems.add(
+            TemplateItem(
+              itemId: kosItemId,
+              dayName: dagNaam,
+              dayLabel: dagLabel,
+              item: kosItem,
+              quantity: 1,
+              cutoffTime: DateTime.now().copyWith(hour: 17, minute: 0),
+            ),
+          );
+        }
+      }
+
+      setState(() {
+        templateItemsVirDialog = templateItems;
+        toonTemplateItemsModal = true;
+        toonTemplaatModal = false;
+      });
+    } catch (e) {
+      setState(
         () => foutBoodskap = 'Kon nie templaat laai nie: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<void> vervangMenuMetTemplate(List<TemplateItem> templateItems) async {
+    try {
+      // target = volgende week spyskaart (create if not exists)
+      final volStart = _weekStartFor('volgende');
+      final volRaw = await weekRepo.getOrCreateSpyskaartForDate(volStart);
+      final volId = volRaw['spyskaart_id'] as String;
+
+      // Convert template items to the format expected by replaceItemsInSpyskaart
+      final itemsToReplace = templateItems
+          .map(
+            (templateItem) => {
+              'dagNaam': templateItem.dayName,
+              'kosItemId': templateItem.itemId,
+              'quantity': templateItem.quantity,
+              'cutoffTime': templateItem.cutoffTime,
+            },
+          )
+          .toList();
+
+      await weekRepo.replaceItemsInSpyskaart(
+        spyskaartId: volId,
+        items: itemsToReplace,
+      );
+
+      await _loadSpyskaarte();
+      setState(() {
+        suksesBoodskap = 'Spyskaart suksesvol vervang met templaat';
+        templateItemsVirDialog = null;
+      });
+      Future.delayed(const Duration(seconds: 2), () {
+        if (!mounted) return;
+        setState(() => suksesBoodskap = '');
+      });
+    } catch (e) {
+      setState(
+        () => foutBoodskap = 'Kon nie Spyskaart vervang nie: ${e.toString()}',
       );
     }
   }
@@ -504,8 +625,10 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
                       daeVanWeek: daeVanWeek,
                       kryItem: kryItem,
                       kanWysig: (s) => kanWysig(s),
-                      voegItem: voegItemBy,
+                      voegItem: (sp, dag, itemId) =>
+                          toonQuantityDialog(kryItem(itemId)!),
                       verwyderItem: verwyderItem,
+                      updateItemQuantity: updateItemQuantity,
                       openDetail: (i) => setState(() {
                         gekieseItem = i;
                         toonDetailModal = true;
@@ -556,6 +679,55 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
         showDialog(
           context: context,
           builder: (_) => KositemDetailDialog(item: gekieseItem!), //
+        );
+      });
+    }
+    if (toonQuantityModal && itemVirQuantity != null) {
+      toonQuantityModal = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showDialog(
+          context: context,
+          builder: (_) => QuantityDialog(
+            item: itemVirQuantity!,
+            open: true,
+            onOpenChange:
+                (open) {}, // Not used anymore, but kept for compatibility
+            onConfirm: (itemId, quantity, cutoffTime) {
+              final sp = aktieweWeek == 'huidige' ? huidigeWeek : volgendeWeek;
+              if (sp != null) {
+                voegItemBy(
+                  sp,
+                  aktieweDag,
+                  itemId,
+                  quantity: quantity,
+                  cutoffTime: cutoffTime,
+                );
+              }
+              setState(() {
+                itemVirQuantity = null;
+              });
+            },
+          ),
+        );
+      });
+    }
+    if (toonTemplateItemsModal && templateItemsVirDialog != null) {
+      toonTemplateItemsModal = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showDialog(
+          context: context,
+          builder: (_) => TemplateItemsDialog(
+            templateItems: templateItemsVirDialog!,
+            open: true,
+            onOpenChange:
+                (open) {}, // Not used anymore, but kept for compatibility
+            onConfirm: (templateItems) {
+              vervangMenuMetTemplate(templateItems);
+              setState(() {
+                templateItemsVirDialog = null;
+              });
+            },
+          ),
         );
       });
     }

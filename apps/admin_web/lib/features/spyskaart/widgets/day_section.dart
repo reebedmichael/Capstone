@@ -4,6 +4,7 @@ import 'models.dart';
 import '../../templates/widgets/kos_item_templaat.dart';
 import '../../templates/widgets/kos_templaat_card.dart';
 import 'item_search_overlay.dart';
+import 'quantity_dialog.dart';
 
 class DaySection extends StatefulWidget {
   final WeekSpyskaart? spyskaart;
@@ -16,6 +17,8 @@ class DaySection extends StatefulWidget {
   final void Function(WeekSpyskaart, String, String) voegItem;
   final void Function(WeekSpyskaart, String, String) verwyderItem;
   final void Function(KositemTemplate) openDetail;
+  final void Function(WeekSpyskaart, String, String, int, DateTime)
+  updateItemQuantity;
   final List<KositemTemplate> searchItems; // items to search from
 
   const DaySection({
@@ -30,6 +33,7 @@ class DaySection extends StatefulWidget {
     required this.voegItem,
     required this.verwyderItem,
     required this.openDetail,
+    required this.updateItemQuantity,
     required this.searchItems,
   });
 
@@ -72,6 +76,51 @@ class _DaySectionState extends State<DaySection> {
 
     if (addedId != null) {
       widget.voegItem(s, widget.aktieweDag, addedId);
+    }
+  }
+
+  void _openQuantityDialog(KositemTemplate item) {
+    final s = widget.spyskaart;
+    if (s == null) return;
+
+    // Get current quantity and cutoff time for this item
+    final itemDetails = s.itemDetails[widget.aktieweDag]?[item.id];
+    final currentQuantity = itemDetails?.quantity ?? 1;
+    final currentCutoffTime =
+        itemDetails?.cutoffTime ?? DateTime.now().copyWith(hour: 17, minute: 0);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return QuantityDialog(
+          item: item,
+          open: true,
+          onOpenChange: (open) {
+            if (!open) Navigator.of(ctx).pop();
+          },
+          onConfirm: _handleQuantityConfirm,
+          initialQuantity: currentQuantity,
+          initialCutoffTime: currentCutoffTime,
+        );
+      },
+    );
+  }
+
+  void _handleQuantityConfirm(
+    String itemId,
+    int quantity,
+    DateTime cutoffTime,
+  ) {
+    final s = widget.spyskaart;
+    if (s != null) {
+      widget.updateItemQuantity(
+        s,
+        widget.aktieweDag,
+        itemId,
+        quantity,
+        cutoffTime,
+      );
     }
   }
 
@@ -247,17 +296,24 @@ class _DaySectionState extends State<DaySection> {
                               maxCrossAxisExtent: 300,
                               mainAxisSpacing: 10,
                               crossAxisSpacing: 10,
-                              childAspectRatio: 0.70,
+                              childAspectRatio: 0.65,
                             ),
                         itemCount: items.length,
                         itemBuilder: (ctx, i) {
                           final itemId = items[i];
                           final item = widget.kryItem(itemId);
                           if (item == null) return const SizedBox();
+
+                          // Get quantity and cutoff time for this item
+                          final itemDetails =
+                              s.itemDetails[widget.aktieweDag]?[itemId];
+                          final quantity = itemDetails?.quantity;
+                          final cutoffTime = itemDetails?.cutoffTime;
+
                           return KositemTemplateCard(
                             template: item,
                             onView: () => widget.openDetail(item),
-                            onEdit: () {}, // Not used in this context
+                            onEdit: () => _openQuantityDialog(item),
                             onDelete: () => widget.verwyderItem(
                               s,
                               widget.aktieweDag,
@@ -265,6 +321,8 @@ class _DaySectionState extends State<DaySection> {
                             ),
                             showEditDeleteButtons:
                                 canEdit && widget.aktieweweek == 'volgende',
+                            quantity: quantity,
+                            cutoffTime: cutoffTime,
                           );
                         },
                       );

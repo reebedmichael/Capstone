@@ -19,14 +19,18 @@ class WeekSwitcher extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget btn(String key, String label, String? chip, bool active) {
-      final child = Row(
-        children: [
-          Text(label),
-          if (chip != null) ...[
-            const SizedBox(width: 8),
-            Chip(label: Text(chip)),
+      final child = Padding(
+        padding: EdgeInsets.all(12.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(label),
+            if (chip != null) ...[
+              const SizedBox(width: 8),
+              Chip(label: Text(chip)),
+            ],
           ],
-        ],
+        ),
       );
       return Expanded(
         child: active
