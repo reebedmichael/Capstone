@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:capstone_admin/features/templates/widgets/kos_item_detail.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -106,6 +105,7 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
           prys: (row['kos_item_koste'] as num?)?.toDouble() ?? 0.0,
           dieetKategorie: dietNames, // Use the parsed list of names
           prent: row['kos_item_prentjie'],
+          likes: row['kos_item_likes'] as int? ?? 0,
         );
       }).toList();
 
@@ -330,7 +330,7 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
                             maxCrossAxisExtent: 250,
                             mainAxisSpacing: 10,
                             crossAxisSpacing: 10,
-                            childAspectRatio: 0.70,
+                            childAspectRatio: 0.65,
                           ),
                       itemCount: filteredTemplates.length,
                       itemBuilder: (context, index) {
@@ -360,6 +360,7 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
                               verwyderTemplate(template);
                             }
                           },
+                          showLikes: true,
                         );
                       },
                     ),

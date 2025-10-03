@@ -6,6 +6,7 @@ class KositemTemplate {
   final double prys;
   final String beskrywing;
   final String? prent;
+  final int likes;
 
   /// NEW: dynamic dieet categories from DB
   final List<String> dieetKategorie;
@@ -19,6 +20,7 @@ class KositemTemplate {
     required this.prys,
     required this.dieetKategorie,
     this.prent,
+    this.likes = 0,
   });
 
   Map<String, dynamic> toMap() => {
@@ -29,6 +31,7 @@ class KositemTemplate {
     'allergene': allergene,
     'prys': prys,
     'prent': prent,
+    'likes': likes,
     'dieetKategorie': dieetKategorie,
   };
 
@@ -41,6 +44,7 @@ class KositemTemplate {
       allergene: List<String>.from(map['allergene']),
       prys: (map['prys'] as num).toDouble(),
       prent: map['prent'] as String?,
+      likes: map['likes'] as int? ?? 0,
       dieetKategorie: (map['kos_item_dieet_vereistes'] as List<dynamic>? ?? [])
           .map((d) => d['dieet']?['dieet_naam'] as String)
           .toList(),

@@ -11,6 +11,7 @@ class KositemTemplateCard extends StatefulWidget {
   final bool showEditDeleteButtons;
   final int? quantity;
   final DateTime? cutoffTime;
+  final bool showLikes;
 
   const KositemTemplateCard({
     super.key,
@@ -21,6 +22,7 @@ class KositemTemplateCard extends StatefulWidget {
     this.showEditDeleteButtons = true,
     this.quantity,
     this.cutoffTime,
+    this.showLikes = false,
   });
 
   @override
@@ -122,6 +124,29 @@ class _KositemTemplateCardState extends State<KositemTemplateCard> {
                               ),
                           ],
                         ),
+                        // Likes display (only shown when showLikes is true)
+                        if (widget.showLikes) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.thumb_up,
+                                size: 18,
+                                color: Colors.red.shade400,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${template.likes} Likes',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.red.shade400,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                         // Quantity and cutoff time info (only shown when provided)
                         if (widget.quantity != null ||
                             widget.cutoffTime != null) ...[
