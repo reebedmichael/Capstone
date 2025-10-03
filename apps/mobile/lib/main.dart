@@ -11,7 +11,9 @@ import 'shared/services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: kReleaseMode ? '.env.prod' : '.env.dev');
+  
+  // Skip dotenv loading for now since .env files are not available
+  // await dotenv.load(fileName: kReleaseMode ? '.env.prod' : '.env.dev');
 
   await bootstrapSupabase();
 
