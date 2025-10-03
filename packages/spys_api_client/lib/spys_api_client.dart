@@ -10,4 +10,5 @@ export 'src/week_templaat_repository.dart';
 export 'src/admin_spyskaart_repository.dart';
 export 'src/kennisgewing_repository.dart';
 export 'src/email_service.dart';
+export 'src/terugvoer_repository.dart';
 export 'src/dieet_repository.dart';

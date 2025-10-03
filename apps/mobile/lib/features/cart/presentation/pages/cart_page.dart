@@ -4,13 +4,20 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/constants/spacing.dart';
+import '../../../../locator.dart';
+import 'package:spys_api_client/spys_api_client.dart';
+import '../../../../shared/state/cart_badge.dart';
+// removed embedded widget; pickup UI now inline above
 
+// Cart item food model (includes ingredients/allergens for diet checks and detail page)
 class FoodItemModel {
   final String id;
   final String name;
   final String? imageUrl; // Network images disabled for offline/dev environments
   final double price;
   final bool available;
+  final List<String> ingredients;
+  final List<String> allergens;
 
   const FoodItemModel({
     required this.id,
@@ -18,9 +25,12 @@ class FoodItemModel {
     this.imageUrl,
     required this.price,
     required this.available,
+    this.ingredients = const <String>[],
+    this.allergens = const <String>[],
   });
 }
 
+// In-cart item (one line in the mandjie)
 class CartItemModel {
   final String id; // mand_id from mandjie table
   final FoodItemModel foodItem;
@@ -33,6 +43,13 @@ class CartItemModel {
     this.quantity = 1,
     this.weekDag,
   });
+}
+
+// Diet conflict representation for modal warnings
+class _DietConflict {
+  final String itemName;
+  final String reason;
+  const _DietConflict({required this.itemName, required this.reason});
 }
 
 class CartPage extends StatefulWidget {
@@ -50,16 +67,14 @@ class _CartPageState extends State<CartPage> {
   final List<CartItemModel> cart = <CartItemModel>[];
 
   String? pickupLocation;
-  final List<String> pickupLocations = <String>[
-    'Hoofkampus Kafeteria',
-    'Ingenieurskampus Kafeteria',
-    'Mediese Skool Kafeteria',
-    'Residensie Eetsal - Nerina',
-    'Residensie Eetsal - Helshoogte',
-    'Sport Kafeteria',
-  ];
+  final List<String> pickupLocations = <String>[]; // dynamic from DB
+  bool pickupLoading = false;
+  String? pickupError;
 
   bool loading = true;
+
+  // expose setter for pickup from child
+  void _setPickup(String? v) => setState(() => pickupLocation = v);
 
   bool get cartIsEmpty => cart.isEmpty;
   List<CartItemModel> get unavailableItems => cart.where((c) => !c.foodItem.available).toList();
@@ -67,6 +82,7 @@ class _CartPageState extends State<CartPage> {
   double get deliveryFee => 0.0; // pickup is free
   double get total => subtotal + deliveryFee;
   bool get hasSufficientFunds => walletBalance >= total;
+  List<String> userDietPrefs = const <String>[];
 
   @override
   void initState() {
@@ -78,7 +94,189 @@ class _CartPageState extends State<CartPage> {
     setState(() => loading = true);
     await _loadWalletBalance();
     await _loadCart();
+    await _loadPickupLocations();
+    await _loadUserDietPrefs();
     setState(() => loading = false);
+  }
+
+  Future<void> _loadUserDietPrefs() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      userDietPrefs = const <String>[];
+      return;
+    }
+    try {
+      // Try join to DIEET_VEREISTE names if available; else empty
+      final rows = await Supabase.instance.client
+          .from('gebruiker_dieet_vereistes')
+          .select('dieet:dieet_id(dieet_naam)')
+          .eq('gebr_id', user.id);
+      final List prefs = (rows is List) ? rows : const [];
+      userDietPrefs = prefs
+          .map((e) => (e['dieet']?['dieet_naam'] ?? '').toString().trim().toLowerCase())
+          .where((s) => s.isNotEmpty)
+          .toList();
+    } catch (_) {
+      userDietPrefs = const <String>[];
+    }
+  }
+
+  List<_DietConflict> _validateDietConflicts() {
+    final List<_DietConflict> conflicts = <_DietConflict>[];
+    if (userDietPrefs.isEmpty) return conflicts;
+
+    bool requiresVegan = userDietPrefs.contains('vegan');
+    bool requiresVegetarian = userDietPrefs.contains('vegetarian') || userDietPrefs.contains('vegetaries');
+    final Set<String> allergenPrefs = userDietPrefs
+        .where((p) => p != 'vegan' && p != 'vegetarian' && p != 'vegetaries')
+        .toSet();
+
+    for (final CartItemModel c in cart) {
+      final name = c.foodItem.name;
+      final List<String> ingredients = c.foodItem.ingredients.map((e) => e.toLowerCase()).toList();
+      final List<String> allergens = c.foodItem.allergens.map((e) => e.toLowerCase()).toList();
+
+      // Allergen conflicts
+      for (final a in allergenPrefs) {
+        if (allergens.contains(a) || ingredients.any((ing) => ing.contains(a))) {
+          conflicts.add(_DietConflict(itemName: name, reason: 'Allergeen: $a'));
+        }
+      }
+
+      // Simple vegan/vegetarian inference
+      if (requiresVegan || requiresVegetarian) {
+        final hasMeat = ingredients.any((ing) =>
+            ing.contains('vleis') || ing.contains('beef') || ing.contains('chicken') || ing.contains('hoender') || ing.contains('pork') || ing.contains('spekvleis') || ing.contains('ham'));
+        final hasDairyOrEgg = ingredients.any((ing) => ing.contains('milk') || ing.contains('melk') || ing.contains('kaas') || ing.contains('cheese') || ing.contains('egg') || ing.contains('eier'));
+        if (requiresVegan && (hasMeat || hasDairyOrEgg)) {
+          conflicts.add(_DietConflict(itemName: name, reason: 'Konflik met vegan'));
+        } else if (requiresVegetarian && hasMeat) {
+          conflicts.add(_DietConflict(itemName: name, reason: 'Konflik met vegetaries'));
+        }
+      }
+    }
+    return conflicts;
+  }
+
+  Future<bool> _confirmDietConflicts(List<_DietConflict> conflicts) async {
+    if (conflicts.isEmpty) return true;
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('Dieet/Allergeen waarskuwings'),
+              content: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Ons het moontlike konflikte gevind:'),
+                    const SizedBox(height: 8),
+                    ...conflicts.map((c) => Text('• ${c.itemName}: ${c.reason}')),
+                    const SizedBox(height: 12),
+                    const Text('Wil jy voortgaan met die bestelling?'),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Kanselleer'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Gaan voort'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
+
+  Future<bool> _confirmOrderSummary(List<_DietConflict> conflicts) async {
+    // Final confirmation modal listing items, pickup and any warnings
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('Bevestig Bestelling'),
+              content: SizedBox(
+                width: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Items:'),
+                    const SizedBox(height: 6),
+                    ...cart.map((c) => Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(child: Text('${c.foodItem.name} × ${c.quantity}')),
+                            Text('R${(c.foodItem.price * c.quantity).toStringAsFixed(2)}'),
+                          ],
+                        )),
+                    const Divider(height: 16),
+                    Text('Afhaallokasie: ${pickupLocation ?? '-'}'),
+                    const SizedBox(height: 8),
+                    if (conflicts.isNotEmpty) ...[
+                      const Text('Waarskuwings:', style: TextStyle(color: Colors.orange)),
+                      const SizedBox(height: 4),
+                      ...conflicts.map((c) => Text('• ${c.itemName}: ${c.reason}', style: const TextStyle(fontSize: 12))),
+                    ],
+                    const SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Totaal:'),
+                        Text('R${total.toStringAsFixed(2)}', style: AppTypography.titleSmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Wysig Mandjie')),
+                ElevatedButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Bevestig')),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
+
+  Future<void> _loadPickupLocations() async {
+    setState(() {
+      pickupLoading = true;
+      pickupError = null;
+    });
+    try {
+      final data = await sl<KampusRepository>().kryKampusse();
+      final names = (data)
+          .where((m) => m != null && m!['kampus_naam'] != null)
+          .map((m) => m!['kampus_naam'].toString().trim())
+          .where((s) => s.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      setState(() {
+        pickupLocations
+          ..clear()
+          ..addAll(names);
+        pickupLocation = pickupLocations.isNotEmpty ? pickupLocations.first : null;
+        pickupLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        pickupError = e.toString();
+        pickupLocations.clear();
+        pickupLocation = null;
+        pickupLoading = false;
+      });
+    }
   }
 
   Future<void> _loadWalletBalance() async {
@@ -128,21 +326,28 @@ class _CartPageState extends State<CartPage> {
           kos_item_naam,
           kos_item_koste,
           kos_item_prentjie,
-          is_aktief
+          is_aktief,
+          kos_item_bestandele,
+          kos_item_allergene
         )
       ''').eq('gebr_id', user.id);
 
 
-      final List<Map<String, dynamic>> rows = List<Map<String, dynamic>>.from(data ?? []);
+      final List<Map<String, dynamic>> rows = List<Map<String, dynamic>>.from(data as List);
 
       final List<CartItemModel> loaded = rows.map((r) {
         final kos = r['kos_item'] as Map<String, dynamic>? ?? <String, dynamic>{};
+        final List<String> parsedIngredients = _parseIngredients(kos['kos_item_bestandele']);
+        final List<String> parsedAllergens = _parseList(kos['kos_item_allergene']);
+
         final food = FoodItemModel(
           id: (kos['kos_item_id'] ?? '').toString(),
           name: (kos['kos_item_naam'] ?? 'Onbekende Item').toString(),
           imageUrl: kos['kos_item_prentjie']?.toString(),
           price: (kos['kos_item_koste'] is num) ? (kos['kos_item_koste'] as num).toDouble() : double.tryParse('${kos['kos_item_koste']}') ?? 0.0,
           available: kos.containsKey('is_aktief') ? (kos['is_aktief'] == true || kos['is_aktief'].toString().toLowerCase() == 'true') : true,
+          ingredients: parsedIngredients,
+          allergens: parsedAllergens,
         );
 
         return CartItemModel(
@@ -158,12 +363,29 @@ class _CartPageState extends State<CartPage> {
           ..clear()
           ..addAll(loaded);
       });
+      // Update global badge count (sum of quantities)
+      final totalCount = cart.fold<int>(0, (s, c) => s + c.quantity);
+      CartBadgeState.count.value = totalCount;
     } catch (e) {
       // if error, keep existing cart or clear - show snackbar
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Kon nie mandjie laai nie: $e')));
       }
     }
+  }
+
+  List<String> _parseList(dynamic raw) {
+    if (raw == null) return const <String>[];
+    if (raw is List) return raw.map((e) => e.toString()).toList();
+    final s = raw.toString().trim();
+    if (s.startsWith('{') && s.endsWith('}')) {
+      return s.substring(1, s.length - 1).split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    }
+    return s.split(RegExp(r'[;,\n]')).map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+  }
+
+  List<String> _parseIngredients(dynamic raw) {
+    return _parseList(raw);
   }
 
   void updateCartQuantity(String itemId, int newQuantity) async {
@@ -192,6 +414,8 @@ class _CartPageState extends State<CartPage> {
 
     // refresh wallet just in case
     await _loadWalletBalance();
+    // update global badge after change
+    CartBadgeState.count.value = cart.fold<int>(0, (s, c) => s + c.quantity);
     if (mounted) setState(() {});
   }
 
@@ -204,6 +428,7 @@ class _CartPageState extends State<CartPage> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Kon nie item verwyder nie: $e')));
     }
     await _loadWalletBalance();
+    CartBadgeState.count.value = cart.fold<int>(0, (s, c) => s + c.quantity);
   }
 
   Future<String> _ensureTransTypeId(String name) async {
@@ -301,6 +526,8 @@ Future<bool> placeOrder(String pickup) async {
     return false;
   }
 }
+
+// (pickup helper widget removed; using inline UI)
 
 
 
@@ -431,8 +658,27 @@ Future<bool> placeOrder(String pickup) async {
                 // Cart Items
                 Column(
                   children: cart.map((CartItemModel item) {
-                    return Card(
-                      child: Padding(
+                    return Semantics(
+                      button: true,
+                      label: 'Open detail vir ${item.foodItem.name}',
+                      child: InkWell(
+                        onTap: () {
+                          final wrapper = {
+                            'kos_item': {
+                              'kos_item_id': item.foodItem.id,
+                              'kos_item_naam': item.foodItem.name,
+                              'kos_item_koste': item.foodItem.price,
+                              'kos_item_prentjie': item.foodItem.imageUrl,
+                              'is_aktief': item.foodItem.available,
+                              'kos_item_bestandele': item.foodItem.ingredients,
+                              'kos_item_allergene': item.foodItem.allergens,
+                            },
+                            'week_dag_naam': item.weekDag,
+                          };
+                          context.push('/food-detail', extra: wrapper);
+                        },
+                        child: Card(
+                          child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Column(
                           children: <Widget>[
@@ -531,6 +777,8 @@ Future<bool> placeOrder(String pickup) async {
                               ),
                           ],
                         ),
+                          ),
+                        ),
                       ),
                     );
                   }).toList(),
@@ -552,7 +800,7 @@ Future<bool> placeOrder(String pickup) async {
 
                 const SizedBox(height: 12),
 
-                // Pickup Location
+                // Pickup Location (dynamic from DB)
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(12),
@@ -560,21 +808,41 @@ Future<bool> placeOrder(String pickup) async {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Row(
-                          children: <Widget>[
-                            const Icon(Icons.location_on_outlined, color: AppColors.primary),
-                            const SizedBox(width: 8),
-                            Text('Afhaallokasie', style: AppTypography.labelLarge.copyWith(fontWeight: FontWeight.w600)),
+                          children: const <Widget>[
+                            Icon(Icons.location_on_outlined, color: AppColors.primary),
+                            SizedBox(width: 8),
+                            Text('Afhaallokasie', style: TextStyle(fontWeight: FontWeight.w600)),
                           ],
                         ),
                         const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          value: pickupLocation,
-                          items: pickupLocations
-                              .map((String l) => DropdownMenuItem<String>(value: l, child: Text(l)))
-                              .toList(),
-                          onChanged: (String? v) => setState(() => pickupLocation = v),
-                          decoration: const InputDecoration(border: OutlineInputBorder(), hintText: 'Kies afhaallokasie'),
-                        ),
+                        if (pickupLoading) const LinearProgressIndicator(),
+                        if (!pickupLoading && pickupLocations.isEmpty)
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Geen afhaal plekke beskikbaar', style: TextStyle(color: Colors.black54)),
+                              const SizedBox(height: 8),
+                              OutlinedButton.icon(
+                                onPressed: _loadPickupLocations,
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Probeer weer'),
+                              ),
+                            ],
+                          )
+                        else if (!pickupLoading)
+                          DropdownButtonFormField<String>(
+                            value: pickupLocation,
+                            items: pickupLocations
+                                .map((l) => DropdownMenuItem<String>(value: l, child: Text(l)))
+                                .toList(),
+                            onChanged: (v) => setState(() => pickupLocation = v),
+                            decoration: const InputDecoration(border: OutlineInputBorder(), hintText: 'Kies afhaallokasie'),
+                          ),
+                        if (pickupError != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(pickupError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                          ),
                       ],
                     ),
                   ),
@@ -683,6 +951,15 @@ Future<bool> placeOrder(String pickup) async {
                 onPressed: (!hasSufficientFunds || pickupLocation == null || unavailableItems.isNotEmpty)
                     ? null
                     : () async {
+                        final conflicts = _validateDietConflicts();
+                        final proceed = await _confirmDietConflicts(conflicts);
+                        if (!proceed) return;
+                        if (conflicts.isNotEmpty) {
+                          // Log warning locally
+                          debugPrint('Diet conflicts acknowledged: ${conflicts.map((c) => '${c.itemName}:${c.reason}').join('; ')}');
+                        }
+                        final confirm = await _confirmOrderSummary(conflicts);
+                        if (!confirm) return;
                         final bool success = await placeOrder(pickupLocation!);
                         if (success) context.go('/orders');
                       },

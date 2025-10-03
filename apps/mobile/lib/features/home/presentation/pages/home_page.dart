@@ -8,6 +8,7 @@ import '../../../../locator.dart';
 import '../../../../shared/constants/spacing.dart';
 import '../../../app/presentation/widgets/app_bottom_nav.dart';
 import 'package:spys_api_client/src/spyskaart_repository.dart';
+import '../../../../shared/state/cart_badge.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -402,18 +403,22 @@ SizedBox(
   }
 
   Widget _buildBadgeMandjie() {
-  if (mandjieCount == 0) return const SizedBox.shrink();
-  return Container(
-    padding: const EdgeInsets.all(2),
-    decoration: BoxDecoration(
-      color: Colors.red,
-      borderRadius: BorderRadius.circular(8),
-    ),
-    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-    child: Text(
-      '$mandjieCount',
-      style: const TextStyle(color: Colors.white, fontSize: 10),
-    ),
+  // Subscribe to global cart badge updates for real-time count
+  return ValueListenableBuilder<int>(
+    valueListenable: CartBadgeState.count,
+    builder: (context, value, _) {
+      final display = value > 0 ? value : mandjieCount;
+      if (display == 0) return const SizedBox.shrink();
+      return Container(
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+        child: Text('$display', style: const TextStyle(color: Colors.white, fontSize: 10)),
+      );
+    },
   );
 }
 
@@ -427,10 +432,19 @@ SizedBox(
     required Map<String, dynamic> wrapper,
     required String imageUrl,
   }) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Row(
+    // Tappable card wrapper: entire card opens the food detail view
+    return Semantics(
+      button: true,
+      label: 'Open detail vir $name',
+      child: InkWell(
+        onTap: () {
+          context.push('/food-detail', extra: wrapper);
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Row(
         children: [
           Container(
             width: 100,
@@ -469,12 +483,13 @@ SizedBox(
                       if (dayName.isNotEmpty && selectedDay == 'Alle')  
                 Text(dayName, style: AppTypography.labelSmall),
                       const Spacer(),
+                      // Keep visible action button with exact text "Meer detail"
                       TextButton(
                         onPressed: () {
                           // Pass the wrapper (contains nested kos_item and wrapper-level fields)
                           context.push('/food-detail', extra: wrapper);
                         },
-                        child: const Text('Meer Inligting'),
+                        child: const Text('Meer detail'),
                       ),
                     ],
                   ),
@@ -488,6 +503,8 @@ SizedBox(
             ),
           ),
         ],
+          ),
+        ),
       ),
     );
   }
