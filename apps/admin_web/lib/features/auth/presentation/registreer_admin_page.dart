@@ -161,14 +161,14 @@ class RegistreerAdminPage extends ConsumerWidget {
                             
                             if (response.user != null) {
                               if (context.mounted) {
-                                // Show success message and redirect
+                                // Show success message and redirect to pending approval
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Registrasie suksesvol! Jy kan nou in teken.'),
-                                    backgroundColor: Colors.green,
+                                    content: Text('Registrasie suksesvol! Jou aansoek wag vir goedkeuring.'),
+                                    backgroundColor: Colors.orange,
                                   ),
                                 );
-                                context.go('/teken_in');
+                                context.go('/wag_goedkeuring');
                               }
                             }
                           } catch (e) {

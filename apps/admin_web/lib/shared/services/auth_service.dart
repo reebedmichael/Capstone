@@ -9,6 +9,9 @@ class AuthService {
   // Check if user is logged in
   bool get isLoggedIn => currentUser != null;
 
+  // Auth state changes stream
+  Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
+
   // Sign in with email and password
   Future<AuthResponse> signInWithEmail({
     required String email,
@@ -85,13 +88,15 @@ class AuthService {
   }) async {
     try {
       // Use direct Supabase call instead of repository to avoid RLS issues
+      // NEW: Create admin with is_aktief = false (requires approval)
       await _supabase.from('gebruikers').upsert({
         'gebr_id': user.id,
         'gebr_epos': user.email!,
         'gebr_naam': firstName,
         'gebr_van': lastName,
-        'is_aktief': true,
-        // Note: We'll need to handle gebr_tipe_id properly later
+        'is_aktief': false, // NEW: Require approval for new admins
+        // Set a default admin type - this will need Primary admin approval
+        'admin_tipe_id': await _getDefaultAdminTypeId(),
       }, onConflict: 'gebr_id');
     } catch (e) {
       // If user creation fails, we should handle this appropriately
@@ -125,6 +130,80 @@ class AuthService {
     }
   }
 
+  // Get default admin type ID (or create one if it doesn't exist)
+  Future<String?> _getDefaultAdminTypeId() async {
+    try {
+      // Look for a "Pending" or "Standard" admin type
+      final adminType = await _supabase
+          .from('admin_tipes')
+          .select('admin_tipe_id')
+          .or('admin_tipe_naam.eq.Pending,admin_tipe_naam.eq.Standard')
+          .limit(1)
+          .maybeSingle();
+      
+      if (adminType != null) {
+        return adminType['admin_tipe_id'];
+      }
+      
+      // If no suitable admin type exists, create a "Pending" type
+      final newType = await _supabase
+          .from('admin_tipes')
+          .insert({'admin_tipe_naam': 'Pending'})
+          .select('admin_tipe_id')
+          .single();
+      
+      return newType['admin_tipe_id'];
+    } catch (e) {
+      print('Warning: Could not get/create default admin type: $e');
+      return null; // Allow registration to continue without admin type
+    }
+  }
+
+  // Check if current user is approved (is_aktief = true)
+  Future<bool> isCurrentUserApproved() async {
+    if (currentUser == null) return false;
+    
+    try {
+      final userProfile = await _supabase
+          .from('gebruikers')
+          .select('is_aktief, admin_tipe_id')
+          .eq('gebr_id', currentUser!.id)
+          .maybeSingle();
+      
+      if (userProfile == null) return false;
+      
+      // User must be active and have an admin type
+      return userProfile['is_aktief'] == true && userProfile['admin_tipe_id'] != null;
+    } catch (e) {
+      print('Error checking user approval status: $e');
+      return false;
+    }
+  }
+
+  // Check if current user is Primary admin
+  Future<bool> isCurrentUserPrimary() async {
+    if (currentUser == null) return false;
+    
+    try {
+      final userProfile = await _supabase
+          .from('gebruikers')
+          .select('''
+            is_aktief,
+            admin_tipe:admin_tipe_id(admin_tipe_naam)
+          ''')
+          .eq('gebr_id', currentUser!.id)
+          .maybeSingle();
+      
+      if (userProfile == null) return false;
+      
+      final adminTypeName = userProfile['admin_tipe']?['admin_tipe_naam'];
+      return userProfile['is_aktief'] == true && adminTypeName == 'Primary';
+    } catch (e) {
+      print('Error checking primary admin status: $e');
+      return false;
+    }
+  }
+
   // Get user profile from our database
   Future<Map<String, dynamic>?> getUserProfile() async {
     if (currentUser == null) {
@@ -155,7 +234,4 @@ class AuthService {
       return null;
     }
   }
-
-  // Listen to auth state changes
-  Stream<AuthState> get authStateChanges => _supabase.auth.onAuthStateChange;
 }

@@ -1,19 +1,79 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../locator.dart';
+import 'package:spys_api_client/spys_api_client.dart';
 
-class AllowancePage extends StatelessWidget {
+class AllowancePage extends StatefulWidget {
   const AllowancePage({super.key});
 
   @override
+  State<AllowancePage> createState() => _AllowancePageState();
+}
+
+class _AllowancePageState extends State<AllowancePage> {
+  bool _loading = true;
+  Map<String, dynamic>? _allowanceInfo;
+  double? _walletBalance;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAllowanceData();
+  }
+
+  Future<void> _loadAllowanceData() async {
+    setState(() => _loading = true);
+    
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      setState(() => _loading = false);
+      return;
+    }
+
+    try {
+      // Load allowance info
+      final allowanceInfo = await sl<AllowanceRepository>().getUserAllowance(user.id);
+      
+      // Load wallet balance
+      final walletData = await Supabase.instance.client
+          .from('gebruikers')
+          .select('beursie_balans')
+          .eq('gebr_id', user.id)
+          .maybeSingle();
+      
+      setState(() {
+        _allowanceInfo = allowanceInfo;
+        _walletBalance = walletData?['beursie_balans']?.toDouble();
+        _loading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading allowance data: $e');
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final double monthlyAllowance = 1000.0;
-    final double currentBalance = 90.0;
+    if (_loading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('My Toelae')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final double monthlyAllowance = _allowanceInfo?['aktiewe_toelaag']?.toDouble() ?? 0.0;
+    final double currentBalance = _walletBalance ?? 0.0;
     final double estimatedSpent = monthlyAllowance - currentBalance;
-    final double spendingPercentage = (estimatedSpent / monthlyAllowance) * 100;
+    final double spendingPercentage = monthlyAllowance > 0 
+        ? (estimatedSpent / monthlyAllowance) * 100 
+        : 0.0;
+    
+    // Check if user is Ekstern (no allowance)
+    final userType = _allowanceInfo?['gebr_tipe_naam'] ?? '';
+    final isEkstern = userType == 'Ekstern' || monthlyAllowance == 0;
 
     final DateTime nextAllowanceDate = DateTime(2025, 9, 1);
-    final int dayOfMonth = DateTime.now().day;
-    final double monthProgress = (dayOfMonth / 30) * 100;
 
     final List<Map<String, dynamic>> allowanceHistory = [
       {
@@ -80,6 +140,47 @@ class AllowancePage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Special message for Ekstern users
+            if (isEkstern)
+              Card(
+                color: Colors.orange.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.orange.shade700),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Wag vir Goedkeuring',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Jou rekening is geregistreer as $userType. Admin goedkeuring is benodig om toelae te ontvang en alle funksies te gebruik.',
+                        style: TextStyle(color: Colors.orange.shade700),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Jy kan steeds kos bestel, maar toelae-afhanklike funksies is nie beskikbaar nie.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            
             // Current Month Card
             Card(
               child: Padding(
@@ -88,7 +189,7 @@ class AllowancePage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Hierdie maand se toelae',
+                      isEkstern ? 'Toelae Status' : 'Hierdie maand se toelae',
                       style: Theme.of(context).textTheme.headlineLarge,
                     ),
                     Text(
@@ -99,24 +200,59 @@ class AllowancePage extends StatelessWidget {
                         color: Colors.blue,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    LinearProgressIndicator(
-                      value: spendingPercentage / 100,
-                      minHeight: 8,
-                      backgroundColor: Colors.grey[300],
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        spendingPercentage > 80 ? Colors.red : Colors.blue,
+                    if (_allowanceInfo != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        _allowanceInfo!['toelaag_bron'] ?? 'No allowance',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
                       ),
-                    ),
+                      if (_allowanceInfo!['gebr_tipe_naam'] != null)
+                        Text(
+                          'Tipe: ${_allowanceInfo!['gebr_tipe_naam']}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                    ],
                     const SizedBox(height: 8),
-                    Text(
-                      'Besteding: R${estimatedSpent.toStringAsFixed(2)} (${spendingPercentage.toStringAsFixed(0)}%)',
-                      style: TextStyle(
-                        color: spendingPercentage > 80
-                            ? Colors.red
-                            : Colors.black,
+                    if (!isEkstern) ...[
+                      LinearProgressIndicator(
+                        value: spendingPercentage / 100,
+                        minHeight: 8,
+                        backgroundColor: Colors.grey[300],
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          spendingPercentage > 80 ? Colors.red : Colors.blue,
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Besteding: R${estimatedSpent.toStringAsFixed(2)} (${spendingPercentage.toStringAsFixed(0)}%)',
+                        style: TextStyle(
+                          color: spendingPercentage > 80
+                              ? Colors.red
+                              : Colors.black,
+                        ),
+                      ),
+                    ] else ...[
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'Geen toelae toegeken - wag vir admin goedkeuring',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
