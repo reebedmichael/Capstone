@@ -23,23 +23,9 @@ int mandjieCount = 0;
 
 class _HomePageState extends State<HomePage> {
   String selectedDay = 'Alle';
-  String selectedCategory = 'Alle';
-  final days = [
-    'Alle',
-    'Maandag',
-    'Dinsdag',
-    'Woensdag',
-    'Donderdag',
-    'Vrydag',
-  ];
-  final categories = [
-    'Alle',
-    'Hoofkos',
-    'Vegetaries',
-    'Vegan',
-    'Glutenvry',
-    'Personeelspesifiek',
-  ];
+  String selectedDietType = 'alle';
+  final days = ['Alle', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrydag'];
+  List<Map<String, dynamic>> dietTypes = [{'dieet_id': 'alle', 'dieet_naam': 'Alle'}];
 
   Map<String, dynamic>? spyskaart;
   List<Map<String, dynamic>> allMenuItems =
@@ -47,17 +33,19 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> filteredMenuItems = [];
   bool isLoading = true;
   String searchQuery = '';
+  Map<String, List<String>> itemDietMapping = {}; // kosItemId -> list of dietIds
 
   @override
-  void initState() {
-    super.initState();
+void initState() {
+  super.initState();
+  _loadGebrNaam();
+  _loadDietTypes();
+  _fetchMenu();
+  Supabase.instance.client.auth.onAuthStateChange.listen((_) {
     _loadGebrNaam();
-    _fetchMenu();
-    Supabase.instance.client.auth.onAuthStateChange.listen((_) {
-      _loadGebrNaam();
-      _loadMandjieCount();
-    });
-  }
+    _loadMandjieCount();
+  });
+}
 
   Future<void> _loadMandjieCount() async {
     try {
@@ -91,16 +79,28 @@ class _HomePageState extends State<HomePage> {
           .eq('gebr_id', user.id)
           .maybeSingle();
 
-      if (row != null) {
-        setState(() => gebrNaam = (row['gebr_naam'] ?? '').toString());
-      } else {
-        setState(() => gebrNaam = null);
-      }
-    } catch (e) {
-      debugPrint('Kon gebr_naam nie laai nie: $e');
+    if (row != null) {
+      setState(() => gebrNaam = (row['gebr_naam'] ?? '').toString());
+    } else {
       setState(() => gebrNaam = null);
-    } finally {
-      setState(() => gebrNaamLoading = false);
+    }
+  } catch (e) {
+    debugPrint('Kon gebr_naam nie laai nie: $e');
+    setState(() => gebrNaam = null);
+  } finally {
+    setState(() => gebrNaamLoading = false);
+  }
+}
+
+  Future<void> _loadDietTypes() async {
+    try {
+      final allDiets = await sl<DieetRepository>().getAllDietTypes();
+      setState(() {
+        dietTypes = <Map<String, dynamic>>[{'dieet_id': 'alle', 'dieet_naam': 'Alle'}] + allDiets;
+      });
+    } catch (e) {
+      debugPrint('Kon nie dieet tipes laai nie: $e');
+      // Keep default 'Alle' option
     }
   }
 
@@ -137,6 +137,9 @@ class _HomePageState extends State<HomePage> {
           return wrapper;
         }).toList();
 
+        // Load diet mappings for all items
+        await _loadDietMappings(mappedItems);
+
         setState(() {
           spyskaart = spyskaartData;
           allMenuItems = mappedItems;
@@ -161,30 +164,57 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _loadDietMappings(List<Map<String, dynamic>> items) async {
+    try {
+      final Map<String, List<String>> mappings = {};
+      
+      for (final item in items) {
+        final kosItemId = item['kos_item_id']?.toString();
+        if (kosItemId != null) {
+          // Query diet mappings for this item
+          final response = await Supabase.instance.client
+              .from('kos_item_dieet_vereistes')
+              .select('dieet_id')
+              .eq('kos_item_id', kosItemId);
+          
+          mappings[kosItemId] = response
+              .map<String>((row) => row['dieet_id'].toString())
+              .toList();
+        }
+      }
+      
+      itemDietMapping = mappings;
+    } catch (e) {
+      debugPrint('Kon nie dieet mappings laai nie: $e');
+      itemDietMapping = {};
+    }
+  }
+
   void _applyFilters() {
     final query = searchQuery.toLowerCase();
     filteredMenuItems = allMenuItems.where((item) {
       // item is the wrapper map containing merged fields
-      final matchesDay =
-          selectedDay == 'Alle' ||
-          (item['week_dag_naam'] ?? '').toString() == selectedDay;
-      final matchesCategory =
-          selectedCategory == 'Alle' ||
-          (item['kos_item_kategorie'] ?? '').toString() == selectedCategory;
-      final matchesSearch =
-          query.isEmpty ||
-          (item['kos_item_naam']?.toString().toLowerCase().contains(query) ??
-              false) ||
-          (item['kos_item_beskrywing']?.toString().toLowerCase().contains(
-                query,
-              ) ??
-              false);
+      final matchesDay = selectedDay == 'Alle' || (item['week_dag_naam'] ?? '').toString() == selectedDay;
+      
+      // Check diet type filter
+      bool matchesDietType = selectedDietType == 'alle';
+      if (!matchesDietType && selectedDietType != 'alle') {
+        final kosItemId = item['kos_item_id']?.toString();
+        if (kosItemId != null && itemDietMapping.containsKey(kosItemId)) {
+          final itemDiets = itemDietMapping[kosItemId] ?? [];
+          matchesDietType = itemDiets.contains(selectedDietType);
+        }
+      }
+      
+      final matchesSearch = query.isEmpty ||
+          (item['kos_item_naam']?.toString().toLowerCase().contains(query) ?? false) ||
+          (item['kos_item_beskrywing']?.toString().toLowerCase().contains(query) ?? false);
       // Also skip non-active kos items
       final isActive =
           (item['is_aktief'] ?? item['kos_item']?['is_aktief'] ?? true);
       if (isActive is bool && isActive == false) return false;
 
-      return matchesDay && matchesCategory && matchesSearch;
+      return matchesDay && matchesDietType && matchesSearch;
     }).toList();
   }
 
@@ -300,113 +330,72 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
-            // Day Tabs
-            SizedBox(
-              height: 48,
-              child: Stack(
-                children: [
-                  ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: Spacing.screenHPad,
-                    ),
-                    itemCount: days.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (context, index) {
-                      final day = days[index];
-                      final isSelected = day == selectedDay;
-                      return ChoiceChip(
-                        label: Text(day),
-                        selected: isSelected,
-                        onSelected: (_) => setState(() {
-                          selectedDay = day;
-                          _applyFilters();
-                        }),
-                        selectedColor: AppColors.primary,
-                        labelStyle: TextStyle(
-                          color: isSelected
-                              ? Colors.white
-                              : AppColors.onSurfaceVariant,
-                        ),
-                        labelPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                        ),
-                      );
-                    },
-                  ),
-                  // Scroll hint arrows (optional)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Container(
-                      width: 24,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.transparent,
-                            Colors.white.withOpacity(0.8),
-                          ],
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+        // Day Tabs
+SizedBox(
+  height: 48,
+  child: Scrollbar(
+    thumbVisibility: true,
+    child: ListView.separated(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: Spacing.screenHPad),
+      itemCount: days.length,
+      separatorBuilder: (_, __) => const SizedBox(width: 8),
+      itemBuilder: (context, index) {
+        final day = days[index];
+        final isSelected = day == selectedDay;
+        return ChoiceChip(
+          label: Text(day),
+          selected: isSelected,
+          onSelected: (_) => setState(() {
+            selectedDay = day;
+            _applyFilters();
+          }),
+          selectedColor: AppColors.primary,
+          labelStyle: TextStyle(
+            color: isSelected ? Colors.white : AppColors.onSurfaceVariant,
+          ),
+          labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+        );
+      },
+    ),
+  ),
+),
 
-            // Category Filters (same style as day tabs)
-            SizedBox(
-              height: 48,
-              child: Stack(
-                children: [
-                  ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: Spacing.screenHPad,
-                    ),
-                    itemCount: categories.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (context, index) {
-                      final cat = categories[index];
-                      final isSelected = cat == selectedCategory;
-                      return ChoiceChip(
-                        label: Text(cat),
-                        selected: isSelected,
-                        onSelected: (_) => setState(() {
-                          selectedCategory = cat;
-                          _applyFilters();
-                        }),
-                        selectedColor: AppColors.primary,
-                        labelStyle: TextStyle(
-                          color: isSelected ? Colors.white : AppColors.primary,
-                        ),
-                        side: BorderSide(color: AppColors.primary),
-                        labelPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                        ),
-                      );
-                    },
-                  ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Container(
-                      width: 24,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.transparent,
-                            Colors.white.withOpacity(0.8),
-                          ],
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+// Dieet tipe Filters (same style as day tabs)
+SizedBox(
+  height: 48,
+  child: Scrollbar(
+    thumbVisibility: true,
+    child: ListView.separated(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: Spacing.screenHPad),
+      itemCount: dietTypes.length,
+      separatorBuilder: (_, __) => const SizedBox(width: 8),
+      itemBuilder: (context, index) {
+        final diet = dietTypes[index];
+        final dietId = diet['dieet_id']?.toString() ?? '';
+        final dietName = diet['dieet_naam']?.toString() ?? '';
+        final isSelected = dietId == selectedDietType;
+        return ChoiceChip(
+          label: Text(dietName),
+          selected: isSelected,
+          onSelected: (_) => setState(() {
+            selectedDietType = dietId;
+            _applyFilters();
+          }),
+          selectedColor: AppColors.primary,
+          labelStyle: TextStyle(
+            color: isSelected ? Colors.white : AppColors.primary,
+          ),
+          side: BorderSide(color: AppColors.primary),
+          labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+        );
+      },
+    ),
+  ),
+),
+
+
 
             // Food Items List
             Expanded(
