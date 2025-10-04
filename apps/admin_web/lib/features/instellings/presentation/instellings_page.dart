@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../../../core/theme/app_theme.dart';
 
-class InstellingsPage extends StatelessWidget {
+class InstellingsPage extends ConsumerWidget {
   const InstellingsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(appThemeProvider);
+    final isDarkMode = theme.themeMode == ThemeMode.dark;
+
     return Scaffold(
       body: Column(
         children: [
@@ -30,9 +35,7 @@ class InstellingsPage extends StatelessWidget {
                     children: [
                       Text(
                         "Instellings",
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineMedium
+                        style: Theme.of(context).textTheme.headlineMedium
                             ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
@@ -68,7 +71,9 @@ class InstellingsPage extends StatelessWidget {
                             Text(
                               "Donker Modus",
                               style: TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 16),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                              ),
                             ),
                             Text(
                               "Skakel tussen lig en donker tema",
@@ -77,9 +82,14 @@ class InstellingsPage extends StatelessWidget {
                           ],
                         ),
                         Switch(
-                          value: false, 
-                          onChanged: (_) {
-                            // 🔹 Koppel aan app state vir donker/lig modus
+                          value: isDarkMode,
+                          onChanged: (value) {
+                            final newThemeMode = value
+                                ? ThemeMode.dark
+                                : ThemeMode.light;
+                            ref
+                                .read(appThemeProvider.notifier)
+                                .setThemeMode(newThemeMode);
                           },
                         ),
                       ],
@@ -97,25 +107,34 @@ class InstellingsPage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text("Stelsel Taal",
-                            style: TextStyle(
-                                fontWeight: FontWeight.w600, fontSize: 16)),
+                        const Text(
+                          "Stelsel Taal",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         DropdownButtonFormField<String>(
                           value: "afrikaans",
                           items: const [
                             DropdownMenuItem(
-                                value: "afrikaans", child: Text("Afrikaans")),
+                              value: "afrikaans",
+                              child: Text("Afrikaans"),
+                            ),
                             DropdownMenuItem(
-                                value: "engels", child: Text("Engels")),
+                              value: "engels",
+                              child: Text("Engels"),
+                            ),
                           ],
                           onChanged: (_) {
                             // 🔹 Koppel aan app state vir taal
                           },
                           decoration: const InputDecoration(
                             border: OutlineInputBorder(),
-                            contentPadding:
-                                EdgeInsets.symmetric(horizontal: 12),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -144,7 +163,8 @@ class InstellingsPage extends StatelessWidget {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
-                                  "Herstel e-pos is gestuur (later Supabase koppel)"),
+                                "Herstel e-pos is gestuur (later Supabase koppel)",
+                              ),
                             ),
                           );
                         },
@@ -184,41 +204,50 @@ class InstellingsPage extends StatelessWidget {
                 ],
               ),
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildCard(BuildContext context,
-      {IconData? icon,
-      required String title,
-      required String description,
-      required Widget child}) {
+  Widget _buildCard(
+    BuildContext context, {
+    IconData? icon,
+    required String title,
+    required String description,
+    required Widget child,
+  }) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(
-            children: [
-              if (icon != null) Icon(icon, size: 20),
-              if (icon != null) const SizedBox(width: 8),
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(description, style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 16),
-          child,
-        ]),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                if (icon != null) Icon(icon, size: 20),
+                if (icon != null) const SizedBox(width: 8),
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(description, style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 16),
+            child,
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildInfoTile(BuildContext context,
-      {required IconData icon, required Color color, required String text}) {
+  Widget _buildInfoTile(
+    BuildContext context, {
+    required IconData icon,
+    required Color color,
+    required String text,
+  }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -232,28 +261,8 @@ class InstellingsPage extends StatelessWidget {
           Icon(icon, color: color, size: 20),
           const SizedBox(width: 8),
           Expanded(
-              child: Text(text, style: Theme.of(context).textTheme.bodySmall)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSuccessAlert(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.green[50],
-        border: Border.all(color: Colors.green[200]!),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.check_circle, color: Colors.green, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text("Wagwoord suksesvol verander",
-                style: TextStyle(color: Colors.green[700])),
-          )
+            child: Text(text, style: Theme.of(context).textTheme.bodySmall),
+          ),
         ],
       ),
     );

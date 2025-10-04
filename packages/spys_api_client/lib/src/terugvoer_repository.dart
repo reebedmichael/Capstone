@@ -22,6 +22,44 @@ class TerugvoerRepository {
     }
   }
 
+  /// Increment kos_item.kos_item_likes for the kos_item linked to this bestelling_kos_item
+  Future<bool> incrementKosItemLikesForBestelling(String bestKosId) async {
+    try {
+      // Find kos_item_id from the bestelling_kos_item row
+      final bestKosItem = await _sb
+          .from('bestelling_kos_item')
+          .select('kos_item_id')
+          .eq('best_kos_id', bestKosId)
+          .maybeSingle();
+
+      if (bestKosItem == null || bestKosItem['kos_item_id'] == null) {
+        return false;
+      }
+
+      final String kosItemId = bestKosItem['kos_item_id'] as String;
+
+      // Read current likes
+      final currentRow = await _sb
+          .from('kos_item')
+          .select('kos_item_likes')
+          .eq('kos_item_id', kosItemId)
+          .single();
+
+      final int currentLikes = (currentRow['kos_item_likes'] as int?) ?? 0;
+
+      // Update to current + 1
+      await _sb
+          .from('kos_item')
+          .update({'kos_item_likes': currentLikes + 1})
+          .eq('kos_item_id', kosItemId);
+
+      return true;
+    } catch (e) {
+      print('Error incrementing kos_item_likes: $e');
+      return false;
+    }
+  }
+
   /// Get existing feedback for a specific bestelling_kos_item
   Future<List<Map<String, dynamic>>> getFeedbackForItem(String bestKosId) async {
     try {
@@ -91,122 +129,111 @@ class TerugvoerRepository {
     }
   }
 
+
+  // ===== NEW LIKE METHODS - Direct kos_item table operations =====
+
   /// Check if a user has liked a specific bestelling_kos_item
-  Future<bool> hasUserLikedItem(String userId, String bestKosId) async {
+  Future<bool> hasUserLikedBestellingKosItem(String bestKosId) async {
     try {
-      // Get the special like entry in terugvoer table (use limit(1) to handle multiple entries)
-      final likeEntries = await _sb
-          .from('terugvoer')
-          .select('terug_id')
-          .eq('terug_naam', '_LIKE_')
-          .limit(1);
-
-      if (likeEntries.isEmpty) {
-        return false; // No like system set up yet
-      }
-
-      final likeEntry = likeEntries.first;
-
-      // Check if this specific bestelling_kos_item has been liked by checking
-      // if there's an entry in bestelling_kos_item_terugvoer with the like terug_id
+      // Check if there's a like record for this bestelling_kos_item
       final likeRecords = await _sb
-          .from('bestelling_kos_item_terugvoer')
-          .select('best_terug_id')
+          .from('kos_item_likes')
+          .select('like_id')
           .eq('best_kos_id', bestKosId)
-          .eq('terug_id', likeEntry['terug_id'])
           .limit(1);
 
       return likeRecords.isNotEmpty;
     } catch (e) {
-      print('Error checking if user liked item: $e');
+      // If the likes table hasn't been created yet, fail gracefully
+      final String msg = e.toString();
+      if (msg.contains('42P01') || msg.contains('does not exist')) {
+        return false;
+      }
+      print('Error checking if user liked bestelling kos item: $e');
       return false;
     }
   }
 
-  /// Like a kos_item (track user like through linking table)
-  Future<bool> likeKosItem(String userId, String kosItemId, String bestKosId) async {
+  /// Like a bestelling_kos_item (increment kos_item_likes and create like record)
+  Future<bool> likeBestellingKosItem(String bestKosId) async {
     try {
-      // First check if this bestelling_kos_item is already liked
-      final alreadyLiked = await hasUserLikedItem(userId, bestKosId);
+      // Check if already liked
+      final alreadyLiked = await hasUserLikedBestellingKosItem(bestKosId);
       if (alreadyLiked) {
         return true; // Already liked, no action needed
       }
 
-      // Get or create the special like entry in terugvoer table
-      String likeEntryId;
-      
-      // First try to get existing like entry
-      final existingLikeEntries = await _sb
-          .from('terugvoer')
-          .select('terug_id')
-          .eq('terug_naam', '_LIKE_')
-          .limit(1);
+      // Get the kos_item_id from bestelling_kos_item
+      final bestKosItem = await _sb
+          .from('bestelling_kos_item')
+          .select('kos_item_id')
+          .eq('best_kos_id', bestKosId)
+          .single();
 
-      if (existingLikeEntries.isNotEmpty) {
-        likeEntryId = existingLikeEntries.first['terug_id'] as String;
-      } else {
-        // Create new like entry
-        final newLikeEntry = await _sb.from('terugvoer').insert({
-          'terug_naam': '_LIKE_',
-          'terug_beskrywing': 'System generated like indicator',
-        }).select('terug_id').single();
-        likeEntryId = newLikeEntry['terug_id'] as String;
-      }
+      final kosItemId = bestKosItem['kos_item_id'] as String;
 
-      // Add like tracking entry to the linking table
-      await _sb.from('bestelling_kos_item_terugvoer').insert({
+      // Create like record
+      await _sb.from('kos_item_likes').insert({
         'best_kos_id': bestKosId,
-        'terug_id': likeEntryId,
-        'geskep_datum': DateTime.now().toIso8601String(),
+        'like_datum': DateTime.now().toIso8601String(),
       });
 
-      // Update the kos_item_likes count by counting all likes for this kos_item
-      // through the linking table
+      // Update the kos_item_likes count
       await _updateKosItemLikesCount(kosItemId);
 
       return true;
     } catch (e) {
-      print('Error liking kos item: $e');
+      // If the likes table hasn't been created yet, fail gracefully
+      final String msg = e.toString();
+      if (msg.contains('42P01') || msg.contains('does not exist')) {
+        return false;
+      }
+      print('Error liking bestelling kos item: $e');
       return false;
     }
   }
 
-  /// Unlike a kos_item (remove user like tracking through linking table)
-  Future<bool> unlikeKosItem(String userId, String kosItemId, String bestKosId) async {
+  /// Unlike a bestelling_kos_item (decrement kos_item_likes and remove like record)
+  Future<bool> unlikeBestellingKosItem(String bestKosId) async {
     try {
-      // Get the special like entry (use limit(1) to handle multiple entries)
-      final likeEntries = await _sb
-          .from('terugvoer')
-          .select('terug_id')
-          .eq('terug_naam', '_LIKE_')
-          .limit(1);
-
-      if (likeEntries.isEmpty) {
-        return true; // No like entry exists, so nothing to unlike
+      // Check if liked
+      final isLiked = await hasUserLikedBestellingKosItem(bestKosId);
+      if (!isLiked) {
+        return true; // Not liked, no action needed
       }
 
-      final likeEntry = likeEntries.first;
-
-      // Remove like tracking entry from the linking table
-      await _sb
-          .from('bestelling_kos_item_terugvoer')
-          .delete()
+      // Get the kos_item_id from bestelling_kos_item before deleting
+      final bestKosItem = await _sb
+          .from('bestelling_kos_item')
+          .select('kos_item_id')
           .eq('best_kos_id', bestKosId)
-          .eq('terug_id', likeEntry['terug_id']);
+          .single();
 
-      // Update the kos_item_likes count by counting all remaining likes for this kos_item
-      // through the linking table
+      final kosItemId = bestKosItem['kos_item_id'] as String;
+
+      // Remove like record
+      await _sb
+          .from('kos_item_likes')
+          .delete()
+          .eq('best_kos_id', bestKosId);
+
+      // Update the kos_item_likes count
       await _updateKosItemLikesCount(kosItemId);
 
       return true;
     } catch (e) {
-      print('Error unliking kos item: $e');
+      // If the likes table hasn't been created yet, fail gracefully
+      final String msg = e.toString();
+      if (msg.contains('42P01') || msg.contains('does not exist')) {
+        return false;
+      }
+      print('Error unliking bestelling kos item: $e');
       return false;
     }
   }
 
   /// Get the current like count for a kos_item
-  Future<int> getKosItemLikes(String kosItemId) async {
+  Future<int> getKosItemLikesDirect(String kosItemId) async {
     try {
       final result = await _sb
           .from('kos_item')
@@ -214,76 +241,46 @@ class TerugvoerRepository {
           .eq('kos_item_id', kosItemId)
           .single();
 
-      // Handle integer from database
       return (result['kos_item_likes'] as int?) ?? 0;
     } catch (e) {
-      print('Error getting kos item likes: $e');
+      print('Error getting kos item likes directly: $e');
       return 0;
     }
   }
 
-  /// Update the kos_item_likes count by counting likes through the linking table
+  /// Update kos_item_likes count based on actual likes in kos_item_likes table
   Future<void> _updateKosItemLikesCount(String kosItemId) async {
     try {
-      // Get the special like entry (use limit(1) to handle multiple entries)
-      final likeEntries = await _sb
-          .from('terugvoer')
-          .select('terug_id')
-          .eq('terug_naam', '_LIKE_')
-          .limit(1);
-
-      if (likeEntries.isEmpty) {
-        // No like system, set count to 0
-        await _sb
-            .from('kos_item')
-            .update({'kos_item_likes': 0})
-            .eq('kos_item_id', kosItemId);
-        return;
-      }
-
-      final likeEntry = likeEntries.first;
-
-      // Count all likes for this kos_item through the linking table
-      // We need to join: bestelling_kos_item_terugvoer -> bestelling_kos_item -> kos_item
-      final bestKosIds = await _getBestellingKosItemIdsForKosItem(kosItemId);
-      
-      if (bestKosIds.isEmpty) {
-        // No bestelling_kos_item records for this kos_item, set count to 0
-        await _sb
-            .from('kos_item')
-            .update({'kos_item_likes': 0})
-            .eq('kos_item_id', kosItemId);
-        return;
-      }
-
-      final likeRecords = await _sb
-          .from('bestelling_kos_item_terugvoer')
-          .select('best_terug_id')
-          .eq('terug_id', likeEntry['terug_id'])
-          .inFilter('best_kos_id', bestKosIds);
-
-      // Update the kos_item_likes field with the actual count
-      await _sb
-          .from('kos_item')
-          .update({'kos_item_likes': likeRecords.length})
-          .eq('kos_item_id', kosItemId);
+      await _sb.rpc('update_kos_item_likes_count', params: {
+        'item_id': kosItemId,
+      });
     } catch (e) {
       print('Error updating kos item likes count: $e');
+      // Fallback: manually count likes
+      final likeCount = await _countLikesForKosItem(kosItemId);
+      await _sb
+          .from('kos_item')
+          .update({'kos_item_likes': likeCount})
+          .eq('kos_item_id', kosItemId);
     }
   }
 
-  /// Get all bestelling_kos_item IDs for a specific kos_item
-  Future<List<String>> _getBestellingKosItemIdsForKosItem(String kosItemId) async {
+  /// Count likes for a specific kos_item through bestelling_kos_item
+  Future<int> _countLikesForKosItem(String kosItemId) async {
     try {
+      // Use a raw query to count likes through the join
       final result = await _sb
-          .from('bestelling_kos_item')
-          .select('best_kos_id')
-          .eq('kos_item_id', kosItemId);
+          .from('kos_item_likes')
+          .select('''
+            like_id,
+            bestelling_kos_item!inner(kos_item_id)
+          ''')
+          .eq('bestelling_kos_item.kos_item_id', kosItemId);
 
-      return result.map((item) => item['best_kos_id'] as String).toList();
+      return result.length;
     } catch (e) {
-      print('Error getting bestelling_kos_item IDs: $e');
-      return [];
+      print('Error counting likes for kos item: $e');
+      return 0;
     }
   }
 }

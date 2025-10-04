@@ -18,11 +18,25 @@ Future<void> main() async {
   runApp(const ProviderScope(child: SpysAdminApp()));
 }
 
-class SpysAdminApp extends ConsumerWidget {
+class SpysAdminApp extends ConsumerStatefulWidget {
   const SpysAdminApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SpysAdminApp> createState() => _SpysAdminAppState();
+}
+
+class _SpysAdminAppState extends ConsumerState<SpysAdminApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Initialize theme from SharedPreferences
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(appThemeProvider.notifier).initializeTheme();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(appRouterProvider);
     final theme = ref.watch(appThemeProvider);
 

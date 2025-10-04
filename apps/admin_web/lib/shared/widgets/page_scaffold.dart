@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'sidebar.dart';
 
-class PageScaffold extends StatelessWidget {
+class PageScaffold extends ConsumerWidget {
   final String title;
   final Widget child;
   const PageScaffold({super.key, required this.title, required this.child});
@@ -11,9 +13,15 @@ class PageScaffold extends StatelessWidget {
   static const double _breakpoint = 900; // tweak to taste
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final bool showSidebar =
         (title != 'teken_in' && title != 'registreer_admin');
+
+    // Check if user is on waiting page - if so, hide sidebar
+    final currentRoute = GoRouterState.of(context).uri.path;
+    final bool isWaitingPage = currentRoute == '/wag_goedkeuring';
+    
+    final bool allowSidebar = showSidebar && !isWaitingPage;
 
     // Use screen width to decide collapsed vs expanded
     final double screenWidth = MediaQuery.of(context).size.width;
@@ -23,7 +31,7 @@ class PageScaffold extends StatelessWidget {
     return Scaffold(
       body: Row(
         children: [
-          if (showSidebar)
+          if (allowSidebar)
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeInOut,

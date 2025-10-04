@@ -12,33 +12,32 @@ class VerslaePage extends StatefulWidget {
 }
 
 class _VerslaePageState extends State<VerslaePage> {
-  bool isLoading = true;
-  String? errorMessage;
-  bool isExporting = false;
-  int selectedSalesDays = 7;
-
-  // UI State (Terugvoer add form)
-  final TextEditingController _terugNaamController = TextEditingController();
-  final TextEditingController _terugBeskrywingController =
-      TextEditingController();
-  bool isSavingTerugvoer = false;
-
-  // Data
-  List<Map<String, dynamic>> bestellings = [];
-  List<Map<String, dynamic>> bestellingItems = [];
-  List<Map<String, dynamic>> gebruikers = [];
-  List<Map<String, dynamic>> kosItems = [];
-  List<Map<String, dynamic>> gebruikerTipes = [];
-  List<Map<String, dynamic>> adminTipes = [];
-  List<Map<String, dynamic>> kampusse = [];
-  List<Map<String, dynamic>> bestellingTerugvoer = [];
-  List<Map<String, dynamic>> terugvoerTipes = [];
-
-  // Calculated KPIs
-  double totalSales = 0.0;
-  int totalOrders = 0;
-  double avgOrderValue = 0.0;
-  int newUsers = 0;
+	bool isLoading = true;
+	String? errorMessage;
+	bool isExporting = false;
+	int selectedSalesDays = 7;
+	
+	// UI State (Terugvoer add form)
+	final TextEditingController _terugNaamController = TextEditingController();
+	final TextEditingController _terugBeskrywingController = TextEditingController();
+	bool isSavingTerugvoer = false;
+	
+	// Data
+	List<Map<String, dynamic>> bestellings = [];
+	List<Map<String, dynamic>> bestellingItems = [];
+	List<Map<String, dynamic>> gebruikers = [];
+	List<Map<String, dynamic>> kosItems = [];
+	List<Map<String, dynamic>> gebruikerTipes = [];
+	List<Map<String, dynamic>> adminTipes = [];
+	List<Map<String, dynamic>> kampusse = [];
+	List<Map<String, dynamic>> bestellingTerugvoer = [];
+	List<Map<String, dynamic>> terugvoerTipes = [];
+	
+	// Calculated KPIs
+	double totalSales = 0.0;
+	int totalOrders = 0;
+	double avgOrderValue = 0.0;
+	int newUsers = 0;
 
   // Aggregations
   List<_TopItem> topItemCountsWithFeedback = const [];
@@ -219,23 +218,20 @@ class _VerslaePageState extends State<VerslaePage> {
     return _selectAll('terugvoer');
   }
 
-  void _calculateKPIs() {
-    // Total sales
-    totalSales = bestellings.fold(
-      0.0,
-      (sum, order) =>
-          sum + (order['best_volledige_prys'] as num? ?? 0.0).toDouble(),
-    );
-
-    // Total orders
-    totalOrders = bestellings.length;
-
-    // Average order value
-    avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0.0;
-
-    // Total users
-    newUsers = gebruikers.length;
-  }
+	void _calculateKPIs() {
+		// Total sales
+		totalSales = bestellings.fold(0.0, (sum, order) => 
+			sum + (order['best_volledige_prys'] as num? ?? 0.0).toDouble());
+		
+		// Total orders
+		totalOrders = bestellings.length;
+		
+		// Average order value
+		avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0.0;
+		
+		// Total users
+		newUsers = gebruikers.length;
+	}
 
   Future<void> _exportAllTablesToCsv() async {
     setState(() {
@@ -453,29 +449,18 @@ class _VerslaePageState extends State<VerslaePage> {
     }).toList();
   }
 
-  List<_KPI> _getKPIs(BuildContext context) {
-    return [
-      _KPI(
-        'Totale Verkope',
-        'R ${totalSales.toStringAsFixed(2)}',
-        Icons.payments_outlined,
-        Theme.of(context).colorScheme.primary,
-      ),
-      _KPI(
-        'Bestellings',
-        '$totalOrders',
-        Icons.receipt_long_outlined,
-        Colors.blue,
-      ),
-      _KPI(
-        'Gem. Bestelwaarde',
-        'R ${avgOrderValue.toStringAsFixed(2)}',
-        Icons.attach_money_outlined,
-        Colors.green,
-      ),
-      _KPI('Nuwe Gebruikers', '$newUsers', Icons.group_outlined, Colors.orange),
-    ];
-  }
+	List<_KPI> _getKPIs(BuildContext context) {
+		return [
+			_KPI('Totale Verkope', 'R ${totalSales.toStringAsFixed(2)}', 
+				Icons.payments_outlined, Theme.of(context).colorScheme.primary),
+			_KPI('Bestellings', '$totalOrders', 
+				Icons.receipt_long_outlined, Colors.blue),
+			_KPI('Gem. Bestelwaarde', 'R ${avgOrderValue.toStringAsFixed(2)}', 
+				Icons.attach_money_outlined, Colors.green),
+			_KPI('Nuwe Gebruikers', '$newUsers', 
+				Icons.group_outlined, Colors.orange),
+		];
+	}
 
   @override
   Widget build(BuildContext context) {
@@ -517,70 +502,47 @@ class _VerslaePageState extends State<VerslaePage> {
 
     final kpis = _getKPIs(context);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          // Header with refresh button
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Verslae Dashboard',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              Row(
-                children: [
-                  TextButton.icon(
-                    onPressed: isExporting ? null : _exportAllTablesToCsv,
-                    icon: isExporting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.download_outlined),
-                    label: const Text('Exporteer CSVs'),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: _loadData,
-                    icon: const Icon(Icons.refresh),
-                    tooltip: 'Verfris Data',
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
+		return SingleChildScrollView(
+			padding: const EdgeInsets.all(24),
+			child: Column(
+				crossAxisAlignment: CrossAxisAlignment.start,
+				children: <Widget>[
+					// Header with refresh button
+					Row(
+						mainAxisAlignment: MainAxisAlignment.spaceBetween,
+						children: [
+							Text('Verslae Dashboard', style: Theme.of(context).textTheme.headlineMedium),
+							Row(children: [
+								TextButton.icon(
+									onPressed: isExporting ? null : _exportAllTablesToCsv,
+									icon: isExporting
+										? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+										: const Icon(Icons.download_outlined),
+									label: const Text('Exporteer CSVs'),
+								),
+								const SizedBox(width: 8),
+								IconButton(
+									onPressed: _loadData,
+									icon: const Icon(Icons.refresh),
+									tooltip: 'Verfris Data',
+								),
+							]),
+						],
+					),
+					const SizedBox(height: 24),
 
-          // KPI Cards (responsive, no overflow)
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final int cols = constraints.maxWidth > 1100
-                  ? 4
-                  : constraints.maxWidth > 800
-                  ? 2
-                  : 1;
-              final double spacing = 16;
-              final double totalSpacing = spacing * (cols - 1);
-              final double itemWidth =
-                  (constraints.maxWidth - totalSpacing) / cols;
-              return Wrap(
-                spacing: spacing,
-                runSpacing: spacing,
-                children: kpis
-                    .map(
-                      (k) => SizedBox(
-                        width: itemWidth,
-                        child: _kpiCard(context, k),
-                      ),
-                    )
-                    .toList(),
-              );
-            },
-          ),
+					// KPI Cards (responsive, no overflow)
+					LayoutBuilder(builder: (context, constraints) {
+						final int cols = constraints.maxWidth > 1100 ? 4 : constraints.maxWidth > 800 ? 2 : 1;
+						final double spacing = 16;
+						final double totalSpacing = spacing * (cols - 1);
+						final double itemWidth = (constraints.maxWidth - totalSpacing) / cols;
+						return Wrap(
+							spacing: spacing,
+							runSpacing: spacing,
+							children: kpis.map((k) => SizedBox(width: itemWidth, child: _kpiCard(context, k))).toList(),
+						);
+					}),
 
           const SizedBox(height: 24),
 
@@ -672,132 +634,106 @@ class _VerslaePageState extends State<VerslaePage> {
     );
   }
 
-  Widget _buildSalesChart(BuildContext context) {
-    final salesData = _getSalesData(selectedSalesDays);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Verkope – Laaste $selectedSalesDays dae',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                DropdownButton<int>(
-                  value: selectedSalesDays,
-                  items: const [7, 14, 30]
-                      .map(
-                        (d) => DropdownMenuItem<int>(
-                          value: d,
-                          child: Text('Laaste $d dae'),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (v) {
-                    if (v == null) return;
-                    setState(() {
-                      selectedSalesDays = v;
-                    });
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              height: 300,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: salesData.isNotEmpty
-                  ? LineChart(
-                      LineChartData(
-                        gridData: FlGridData(show: true),
-                        titlesData: FlTitlesData(
-                          leftTitles: AxisTitles(
-                            axisNameWidget: const Text('Bedrag (R)'),
-                            axisNameSize: 24,
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 56,
-                              getTitlesWidget: (value, meta) {
-                                return Text(
-                                  'R${value.toInt()}',
-                                  softWrap: false,
-                                );
-                              },
-                            ),
-                          ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (value, meta) {
-                                final index = value.toInt();
-                                if (index >= 0 && index < salesData.length) {
-                                  return Text(salesData[index].day);
-                                }
-                                return const Text('');
-                              },
-                            ),
-                          ),
-                          topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          rightTitles: AxisTitles(
-                            axisNameWidget: const Text('Aantal Items'),
-                            axisNameSize: 24,
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 56,
-                              getTitlesWidget: (value, meta) {
-                                final maxAmount = salesData.fold<double>(
-                                  0.0,
-                                  (m, e) => e.amount > m ? e.amount : m,
-                                );
-                                final maxCount = salesData.fold<int>(
-                                  0,
-                                  (m, e) => e.count > m ? e.count : m,
-                                );
-                                final double scale = (maxCount == 0)
-                                    ? 0.0
-                                    : (maxAmount / maxCount);
-                                final count = (scale == 0)
-                                    ? 0
-                                    : (value / scale).round();
-                                return Text(count.toString(), softWrap: false);
-                              },
-                            ),
-                          ),
-                        ),
-                        minY: 0,
-                        borderData: FlBorderData(show: true),
-                        lineBarsData: _buildSalesLines(context, salesData),
-                      ),
-                    )
-                  : const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.bar_chart, size: 48, color: Colors.grey),
-                          SizedBox(height: 8),
-                          Text(
-                            'Geen data beskikbaar',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+	Widget _buildSalesChart(BuildContext context) {
+		final salesData = _getSalesData(selectedSalesDays);
+		
+		return Card(
+			child: Padding(
+				padding: const EdgeInsets.all(16),
+				child: Column(
+					crossAxisAlignment: CrossAxisAlignment.start,
+						children: <Widget>[
+							Row(
+								mainAxisAlignment: MainAxisAlignment.spaceBetween,
+								children: [
+									Text('Verkope – Laaste ' + selectedSalesDays.toString() + ' dae', style: Theme.of(context).textTheme.titleMedium),
+									DropdownButton<int>(
+										value: selectedSalesDays,
+										items: const [7, 14, 30]
+											.map((d) => DropdownMenuItem<int>(value: d, child: Text('Laaste ' + d.toString() + ' dae')))
+											.toList(),
+										onChanged: (v) {
+											if (v == null) return;
+											setState(() {
+												selectedSalesDays = v;
+											});
+										},
+									)
+								],
+							),
+						const SizedBox(height: 12),
+						Container(
+							height: 300,
+							decoration: BoxDecoration(
+								borderRadius: BorderRadius.circular(12),
+								border: Border.all(color: Colors.grey.shade300),
+							),
+							child: salesData.isNotEmpty
+								? LineChart(
+									LineChartData(
+										gridData: FlGridData(show: true),
+										titlesData: FlTitlesData(
+													leftTitles: AxisTitles(
+														axisNameWidget: const Text('Bedrag (R)'),
+														axisNameSize: 24,
+														sideTitles: SideTitles(
+															showTitles: true,
+															reservedSize: 56,
+															getTitlesWidget: (value, meta) {
+															return Text('R' + value.toInt().toString(), softWrap: false);
+														},
+														),
+													),
+											bottomTitles: AxisTitles(
+												sideTitles: SideTitles(
+													showTitles: true,
+													getTitlesWidget: (value, meta) {
+														final index = value.toInt();
+														if (index >= 0 && index < salesData.length) {
+															return Text(salesData[index].day);
+														}
+														return const Text('');
+													},
+												),
+											),
+											topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+											rightTitles: AxisTitles(
+												axisNameWidget: const Text('Aantal Items'),
+												axisNameSize: 24,
+												sideTitles: SideTitles(
+													showTitles: true,
+													reservedSize: 56,
+													getTitlesWidget: (value, meta) {
+														final maxAmount = salesData.fold<double>(0.0, (m, e) => e.amount > m ? e.amount : m);
+														final maxCount = salesData.fold<int>(0, (m, e) => e.count > m ? e.count : m);
+														final double scale = (maxCount == 0) ? 0.0 : (maxAmount / maxCount);
+														final count = (scale == 0) ? 0 : (value / scale).round();
+														return Text(count.toString(), softWrap: false);
+													},
+												),
+											),
+										),
+										minY: 0,
+										borderData: FlBorderData(show: true),
+										lineBarsData: _buildSalesLines(context, salesData),
+									),
+								)
+								: const Center(
+									child: Column(
+										mainAxisAlignment: MainAxisAlignment.center,
+										children: [
+											Icon(Icons.bar_chart, size: 48, color: Colors.grey),
+											SizedBox(height: 8),
+											Text('Geen data beskikbaar', style: TextStyle(color: Colors.grey)),
+										],
+									),
+								),
+						),
+					],
+				),
+			),
+		);
+	}
 
   Widget _buildOrderStatusChart(BuildContext context) {
     final statusData = _getOrderStatusData();
@@ -1029,79 +965,67 @@ class _VerslaePageState extends State<VerslaePage> {
     );
   }
 
-  Widget _buildOrdersByCampusChart(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Bestellings per kampus',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 320,
-              child: orderCountsByKampus.isEmpty
-                  ? const Center(child: Text('Geen data'))
-                  : BarChart(
-                      BarChartData(
-                        alignment: BarChartAlignment.spaceAround,
-                        maxY: orderCountsByKampus.first.count * 1.2,
-                        titlesData: FlTitlesData(
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 40,
-                            ),
-                          ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (value, meta) {
-                                final index = value.toInt();
-                                if (index >= 0 &&
-                                    index < orderCountsByKampus.length) {
-                                  return Padding(
-                                    padding: const EdgeInsets.only(top: 8),
-                                    child: Text(
-                                      orderCountsByKampus[index].label,
-                                      style: const TextStyle(fontSize: 10),
-                                    ),
-                                  );
-                                }
-                                return const Text('');
-                              },
-                            ),
-                          ),
-                        ),
-                        barGroups: orderCountsByKampus.asMap().entries.map((e) {
-                          return BarChartGroupData(
-                            x: e.key,
-                            barRods: [
-                              BarChartRodData(
-                                toY: e.value.count.toDouble(),
-                                color: Colors.teal,
-                                width: 20,
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(4),
-                                ),
-                                rodStackItems: const [],
-                                borderSide: BorderSide.none,
-                              ),
-                            ],
-                            showingTooltipIndicators: const [],
-                          );
-                        }).toList(),
-                      ),
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+	Widget _buildOrdersByCampusChart(BuildContext context) {
+		return Card(
+			child: Padding(
+				padding: const EdgeInsets.all(16),
+				child: Column(
+					crossAxisAlignment: CrossAxisAlignment.start,
+					children: [
+						Text('Bestellings per kampus', style: Theme.of(context).textTheme.titleMedium),
+						const SizedBox(height: 12),
+						SizedBox(
+							height: 320,
+							child: orderCountsByKampus.isEmpty
+								? const Center(child: Text('Geen data'))
+								: BarChart(
+									BarChartData(
+										alignment: BarChartAlignment.spaceAround,
+										maxY: orderCountsByKampus.first.count * 1.2,
+										titlesData: FlTitlesData(
+											leftTitles: AxisTitles(
+												sideTitles: SideTitles(showTitles: true, reservedSize: 40),
+											),
+											bottomTitles: AxisTitles(
+												sideTitles: SideTitles(
+													showTitles: true,
+													getTitlesWidget: (value, meta) {
+														final index = value.toInt();
+														if (index >= 0 && index < orderCountsByKampus.length) {
+															return Padding(
+																padding: const EdgeInsets.only(top: 8),
+																child: Text(orderCountsByKampus[index].label, style: const TextStyle(fontSize: 10)),
+															);
+														}
+														return const Text('');
+													},
+												),
+											),
+										),
+										barGroups: orderCountsByKampus.asMap().entries.map((e) {
+											return BarChartGroupData(
+												x: e.key,
+												barRods: [
+													BarChartRodData(
+														toY: e.value.count.toDouble(),
+														color: Colors.teal,
+														width: 20,
+														borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+														rodStackItems: const [],
+														borderSide: BorderSide.none,
+													),
+												],
+												showingTooltipIndicators: const [],
+											);
+										}).toList(),
+									),
+								),
+						),
+					],
+				),
+			),
+		);
+	}
 
   Widget _buildTerugvoerSection(BuildContext context) {
     return Card(
@@ -1324,49 +1248,30 @@ class _VerslaePageState extends State<VerslaePage> {
     return salesData;
   }
 
-  List<LineChartBarData> _buildSalesLines(
-    BuildContext context,
-    List<_SalesData> data,
-  ) {
-    final maxAmount = data.fold<double>(
-      0.0,
-      (m, e) => e.amount > m ? e.amount : m,
-    );
-    final maxCount = data.fold<int>(0, (m, e) => e.count > m ? e.count : m);
-    final double scale = (maxCount == 0) ? 0.0 : (maxAmount / maxCount);
-    final amountLine = LineChartBarData(
-      spots: data
-          .asMap()
-          .entries
-          .map((e) => FlSpot(e.key.toDouble(), e.value.amount))
-          .toList(),
-      isCurved: false,
-      color: Theme.of(context).primaryColor,
-      barWidth: 3,
-      dotData: FlDotData(show: true),
-      belowBarData: BarAreaData(
-        show: true,
-        color: Theme.of(context).primaryColor.withOpacity(0.1),
-      ),
-    );
-    final countLine = LineChartBarData(
-      spots: data
-          .asMap()
-          .entries
-          .map(
-            (e) => FlSpot(
-              e.key.toDouble(),
-              scale == 0.0 ? 0.0 : e.value.count * scale,
-            ),
-          )
-          .toList(),
-      isCurved: false,
-      color: Colors.orange,
-      barWidth: 3,
-      dotData: FlDotData(show: true),
-    );
-    return [amountLine, countLine];
-  }
+	List<LineChartBarData> _buildSalesLines(BuildContext context, List<_SalesData> data) {
+		final maxAmount = data.fold<double>(0.0, (m, e) => e.amount > m ? e.amount : m);
+		final maxCount = data.fold<int>(0, (m, e) => e.count > m ? e.count : m);
+		final double scale = (maxCount == 0) ? 0.0 : (maxAmount / maxCount);
+		final amountLine = LineChartBarData(
+			spots: data.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.amount)).toList(),
+			isCurved: false,
+			color: Theme.of(context).primaryColor,
+			barWidth: 3,
+			dotData: FlDotData(show: true),
+			belowBarData: BarAreaData(
+				show: true,
+				color: Theme.of(context).primaryColor.withOpacity(0.1),
+			),
+		);
+		final countLine = LineChartBarData(
+			spots: data.asMap().entries.map((e) => FlSpot(e.key.toDouble(), scale == 0.0 ? 0.0 : e.value.count * scale)).toList(),
+			isCurved: false,
+			color: Colors.orange,
+			barWidth: 3,
+			dotData: FlDotData(show: true),
+		);
+		return [amountLine, countLine];
+	}
 
   List<_StatusData> _getOrderStatusData() {
     final statusCounts = <String, int>{};
@@ -1487,140 +1392,116 @@ class _VerslaePageState extends State<VerslaePage> {
               .reduce((a, b) => a > b ? a : b);
     final maxY = (maxCount * 1.2).ceil().toDouble();
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Kos Items vs Terugvoer',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 420,
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceBetween,
-                  maxY: maxY,
-                  minY: 0,
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    horizontalInterval: maxY > 10
-                        ? (maxY / 5).ceilToDouble()
-                        : 1,
-                    getDrawingHorizontalLine: (value) {
-                      return FlLine(
-                        color: Colors.grey.withOpacity(0.3),
-                        strokeWidth: 1,
-                      );
-                    },
-                  ),
-                  titlesData: FlTitlesData(
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 40,
-                        interval: maxY > 10 ? (maxY / 5).ceilToDouble() : 1,
-                        getTitlesWidget: (value, meta) =>
-                            Text(value.toInt().toString()),
-                      ),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          final index = value.toInt();
-                          if (index >= 0 && index < topItems.length) {
-                            return SideTitleWidget(
-                              axisSide: meta.axisSide,
-                              space: 16,
-                              child: Transform.translate(
-                                offset: const Offset(0, 36),
-                                child: Transform.rotate(
-                                  angle: -1.57,
-                                  child: Text(
-                                    topItems[index].key,
-                                    style: const TextStyle(fontSize: 10),
-                                  ),
-                                ),
-                              ),
-                            );
-                          }
-                          return const Text('');
-                        },
-                        reservedSize: 100,
-                      ),
-                    ),
-                  ),
-                  borderData: FlBorderData(show: true),
-                  barGroups: topItems.asMap().entries.map((entry) {
-                    final x = entry.key;
-                    final map = entry.value.value;
-                    double running = 0.0;
-                    final stacks = <BarChartRodStackItem>[];
-                    for (int i = 0; i < terugList.length; i++) {
-                      final label = terugList[i];
-                      final value = (map[label] ?? 0).toDouble();
-                      if (value == 0) continue;
-                      final start = running;
-                      final end = running + value;
-                      stacks.add(
-                        BarChartRodStackItem(
-                          start,
-                          end,
-                          colors[i % colors.length],
-                        ),
-                      );
-                      running = end;
-                    }
-                    return BarChartGroupData(
-                      x: x,
-                      barRods: [
-                        BarChartRodData(
-                          toY: running,
-                          width: 22,
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(4),
-                          ),
-                          rodStackItems: stacks,
-                        ),
-                      ],
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: terugList.asMap().entries.map((e) {
-                final color = colors[e.key % colors.length];
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(e.value, style: const TextStyle(fontSize: 12)),
-                  ],
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+		return Card(
+			child: Padding(
+				padding: const EdgeInsets.all(16),
+				child: Column(
+					crossAxisAlignment: CrossAxisAlignment.start,
+					children: [
+						Text('Kos Items vs Terugvoer', style: Theme.of(context).textTheme.titleMedium),
+						const SizedBox(height: 12),
+						SizedBox(
+							height: 420,
+							child: BarChart(
+								BarChartData(
+									alignment: BarChartAlignment.spaceBetween,
+									maxY: maxY,
+									minY: 0,
+									gridData: FlGridData(
+										show: true,
+										drawVerticalLine: false,
+										horizontalInterval: maxY > 10 ? (maxY / 5).ceilToDouble() : 1,
+										getDrawingHorizontalLine: (value) {
+											return FlLine(
+												color: Colors.grey.withOpacity(0.3),
+												strokeWidth: 1,
+											);
+										},
+									),
+									titlesData: FlTitlesData(
+											leftTitles: AxisTitles(
+												sideTitles: SideTitles(
+													showTitles: true,
+													reservedSize: 40,
+													interval: maxY > 10 ? (maxY / 5).ceilToDouble() : 1,
+													getTitlesWidget: (value, meta) => Text(value.toInt().toString()),
+												),
+											),
+										bottomTitles: AxisTitles(
+											sideTitles: SideTitles(
+												showTitles: true,
+												getTitlesWidget: (value, meta) {
+													final index = value.toInt();
+													if (index >= 0 && index < topItems.length) {
+														return SideTitleWidget(
+															axisSide: meta.axisSide,
+															space: 16,
+															child: Transform.translate(
+																offset: const Offset(0, 36),
+																child: Transform.rotate(
+																	angle: -1.57,
+																	child: Text(topItems[index].key, style: const TextStyle(fontSize: 10)),
+																),
+															),
+														);
+													}
+													return const Text('');
+												},
+												reservedSize: 100,
+											),
+										),
+									),
+									borderData: FlBorderData(show: true),
+									barGroups: topItems.asMap().entries.map((entry) {
+										final x = entry.key;
+										final map = entry.value.value;
+										double running = 0.0;
+										final stacks = <BarChartRodStackItem>[];
+										for (int i = 0; i < terugList.length; i++) {
+											final label = terugList[i];
+											final value = (map[label] ?? 0).toDouble();
+											if (value == 0) continue;
+											final start = running;
+											final end = running + value;
+											stacks.add(BarChartRodStackItem(start, end, colors[i % colors.length]));
+											running = end;
+										}
+										return BarChartGroupData(
+											x: x,
+											barRods: [
+												BarChartRodData(
+													toY: running,
+													width: 22,
+													borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+													rodStackItems: stacks,
+												),
+											],
+										);
+									}).toList(),
+								),
+							),
+						),
+						const SizedBox(height: 12),
+						Wrap(
+							spacing: 8,
+							runSpacing: 4,
+							children: terugList.asMap().entries.map((e) {
+								final color = colors[e.key % colors.length];
+								return Row(
+									mainAxisSize: MainAxisSize.min,
+									children: [
+										Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+										const SizedBox(width: 4),
+										Text(e.value, style: const TextStyle(fontSize: 12)),
+									],
+								);
+							}).toList(),
+						),
+					],
+				),
+			),
+		);
+	}
 
   Map<String, Map<String, int>> _computeKosItemTerugvoerData() {
     // Map: kos_item_name -> (terug_naam -> count)
