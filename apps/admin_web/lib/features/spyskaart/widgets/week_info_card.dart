@@ -75,7 +75,7 @@ class WeekInfoCard extends StatelessWidget {
                   if (aktieweWeek == 'volgende')
                     Text(
                       sp.status == 'konsep'
-                          ? '• Konsep - wysigings volgens sperdatum'
+                          ? '• Beplanning - wysigings toegelaat tot sperdatum'
                           : '• Goedgekeur',
                     ),
                 ],
@@ -84,11 +84,11 @@ class WeekInfoCard extends StatelessWidget {
             if (aktieweWeek == 'volgende')
               Column(
                 children: [
-                  Chip(
-                    label: Text(
-                      sp.status == 'konsep' ? 'Konsep' : 'Goedgekeur',
-                    ),
-                  ),
+                  // Chip(
+                  //   label: Text(
+                  //     sp.status == 'konsep' ? 'Konsep' : 'Goedgekeur',
+                  //   ),
+                  // ),
                   const SizedBox(height: 6),
                   Chip(label: Text('Sperdatum: ${_format(sp.sperdatum)}')),
                 ],
