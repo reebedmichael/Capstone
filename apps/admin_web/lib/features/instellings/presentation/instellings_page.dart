@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/providers/auth_providers.dart';
 
 class InstellingsPage extends ConsumerWidget {
   const InstellingsPage({super.key});
@@ -154,20 +155,12 @@ class InstellingsPage extends ConsumerWidget {
                     icon: Icons.lock_reset,
                     title: "Wagwoord herstel",
                     description:
-                        "Klik hieronder om ‘n herstel e-pos vir jou wagwoord te ontvang",
+                        "Klik hieronder om 'n herstel e-pos vir jou wagwoord te ontvang",
                     child: SizedBox(
                       width: double.infinity,
                       height: 48,
                       child: ElevatedButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                "Herstel e-pos is gestuur (later Supabase koppel)",
-                              ),
-                            ),
-                          );
-                        },
+                        onPressed: () => _handlePasswordReset(context, ref),
                         child: const Text("Stuur herstel e-pos"),
                       ),
                     ),
@@ -266,5 +259,81 @@ class InstellingsPage extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _handlePasswordReset(BuildContext context, WidgetRef ref) async {
+    final authService = ref.read(authServiceProvider);
+    final currentUser = authService.currentUser;
+
+    if (currentUser?.email == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Geen e-pos adres gevind vir huidige gebruiker"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 16),
+              Text("Stuur herstel e-pos..."),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      await authService.resetPassword(email: currentUser!.email!);
+
+      // Show success message with instructions
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Herstel e-pos is gestuur na ${currentUser.email}",
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                "Klik op die skakel in die e-pos om jou wagwoord te wysig. "
+                "Die skakel sal jou na 'n sekure bladsy lei waar jy 'n nuwe wagwoord kan stel.",
+              ),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 8),
+          action: SnackBarAction(
+            label: "Verstaan",
+            textColor: Colors.white,
+            onPressed: () {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Fout met stuur van herstel e-pos: ${e.toString()}"),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
   }
 }

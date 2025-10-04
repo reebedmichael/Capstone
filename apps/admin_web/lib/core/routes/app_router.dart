@@ -6,6 +6,7 @@ import '../../shared/widgets/admin_access_guard.dart';
 import 'package:capstone_admin/features/auth/presentation/teken_in_page.dart';
 import 'package:capstone_admin/features/auth/presentation/registreer_admin_page.dart';
 import 'package:capstone_admin/features/auth/presentation/wag_vir_goedkeuring_page.dart';
+import 'package:capstone_admin/features/auth/presentation/wagwoord_herstel_page.dart';
 import 'package:capstone_admin/features/dashboard/presentation/dashboard_page.dart';
 import 'package:capstone_admin/features/spyskaart/presentation/spyskaart_bestuur_page.dart';
 import 'package:capstone_admin/features/spyskaart/presentation/week_spyskaart_page.dart';
@@ -36,6 +37,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: _builder(const RegistreerAdminPage()),
       ),
       GoRoute(
+        path: '/wagwoord_herstel',
+        name: 'wagwoord_herstel',
+        builder: _builder(const WagwoordHerstelPage()),
+      ),
+      // Handle root URL with code parameter (for password reset emails)
+      GoRoute(
+        path: '/',
+        name: 'root',
+        redirect: (context, state) {
+          final code = state.uri.queryParameters['code'];
+          if (code != null) {
+            // Redirect to password reset page with code parameter
+            return '/wagwoord_herstel?code=$code';
+          }
+          return '/teken_in';
+        },
+      ),
+      GoRoute(
         path: '/logout',
         name: 'logout',
         redirect: (context, state) => '/teken_in',
@@ -53,7 +72,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/spyskaart',
         name: 'spyskaart',
-        builder: _builder(const AdminAccessGuard(child: SpyskaartBestuurPage())),
+        builder: _builder(
+          const AdminAccessGuard(child: SpyskaartBestuurPage()),
+        ),
       ),
       GoRoute(
         path: '/week_spyskaart',
@@ -73,18 +94,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/bestellings',
         name: 'bestellings',
-        builder: _builder(const AdminAccessGuard(child: BestellingBestuurPage())),
+        builder: _builder(
+          const AdminAccessGuard(child: BestellingBestuurPage()),
+        ),
       ),
       GoRoute(
         path: '/gebruikers',
         name: 'gebruikers',
-        builder: _builder(const AdminAccessGuard(child: GebruikersBestuurPage())),
+        builder: _builder(
+          const AdminAccessGuard(child: GebruikersBestuurPage()),
+        ),
       ),
-            GoRoute(
-              path: '/toelae',
-              name: 'toelae',
-              builder: _builder(const AdminAccessGuard(child: ToelaeMainPage())),
-            ),
+      GoRoute(
+        path: '/toelae',
+        name: 'toelae',
+        builder: _builder(const AdminAccessGuard(child: ToelaeMainPage())),
+      ),
       GoRoute(
         path: '/kennisgewings',
         name: 'kennisgewings',
@@ -101,9 +126,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: _builder(const AdminAccessGuard(child: InstellingsPage())),
       ),
       GoRoute(
-        path: '/hulp', 
-        name: 'hulp', 
-        builder: _builder(const AdminAccessGuard(child: HulpPage()))
+        path: '/hulp',
+        name: 'hulp',
+        builder: _builder(const AdminAccessGuard(child: HulpPage())),
       ),
       GoRoute(
         path: '/profiel',

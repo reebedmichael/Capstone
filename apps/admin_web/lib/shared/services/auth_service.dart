@@ -22,7 +22,7 @@ class AuthService {
         email: email,
         password: password,
       );
-      
+
       if (response.user != null) {
         // Ensure user exists in our gebruikers table
         try {
@@ -32,7 +32,7 @@ class AuthService {
           print('Warning: Could not ensure user exists in database: $e');
         }
       }
-      
+
       return response;
     } catch (e) {
       rethrow;
@@ -52,7 +52,7 @@ class AuthService {
         email: email,
         password: password,
       );
-      
+
       if (response.user != null) {
         // Create user in our gebruikers table
         try {
@@ -67,7 +67,7 @@ class AuthService {
           print('Warning: Could not create user in database: $e');
         }
       }
-      
+
       return response;
     } catch (e) {
       rethrow;
@@ -77,6 +77,18 @@ class AuthService {
   // Sign out
   Future<void> signOut() async {
     await _supabase.auth.signOut();
+  }
+
+  // Reset password - sends reset email to user
+  Future<void> resetPassword({required String email}) async {
+    try {
+      await _supabase.auth.resetPasswordForEmail(
+        email,
+        redirectTo: 'http://localhost:51322/wagwoord_herstel',
+      );
+    } catch (e) {
+      rethrow;
+    }
   }
 
   // Create user in our gebruikers table
@@ -114,7 +126,7 @@ class AuthService {
           .select()
           .eq('gebr_id', user.id)
           .maybeSingle();
-      
+
       if (existingUser == null) {
         // User doesn't exist in our table, create them
         await _createUserInDatabase(
@@ -140,18 +152,18 @@ class AuthService {
           .or('admin_tipe_naam.eq.Pending,admin_tipe_naam.eq.Standard')
           .limit(1)
           .maybeSingle();
-      
+
       if (adminType != null) {
         return adminType['admin_tipe_id'];
       }
-      
+
       // If no suitable admin type exists, create a "Pending" type
       final newType = await _supabase
           .from('admin_tipes')
           .insert({'admin_tipe_naam': 'Pending'})
           .select('admin_tipe_id')
           .single();
-      
+
       return newType['admin_tipe_id'];
     } catch (e) {
       print('Warning: Could not get/create default admin type: $e');
@@ -162,18 +174,19 @@ class AuthService {
   // Check if current user is approved (is_aktief = true)
   Future<bool> isCurrentUserApproved() async {
     if (currentUser == null) return false;
-    
+
     try {
       final userProfile = await _supabase
           .from('gebruikers')
           .select('is_aktief, admin_tipe_id')
           .eq('gebr_id', currentUser!.id)
           .maybeSingle();
-      
+
       if (userProfile == null) return false;
-      
+
       // User must be active and have an admin type
-      return userProfile['is_aktief'] == true && userProfile['admin_tipe_id'] != null;
+      return userProfile['is_aktief'] == true &&
+          userProfile['admin_tipe_id'] != null;
     } catch (e) {
       print('Error checking user approval status: $e');
       return false;
@@ -183,7 +196,7 @@ class AuthService {
   // Check if current user is Primary admin
   Future<bool> isCurrentUserPrimary() async {
     if (currentUser == null) return false;
-    
+
     try {
       final userProfile = await _supabase
           .from('gebruikers')
@@ -193,9 +206,9 @@ class AuthService {
           ''')
           .eq('gebr_id', currentUser!.id)
           .maybeSingle();
-      
+
       if (userProfile == null) return false;
-      
+
       final adminTypeName = userProfile['admin_tipe']?['admin_tipe_naam'];
       return userProfile['is_aktief'] == true && adminTypeName == 'Primary';
     } catch (e) {
@@ -210,9 +223,11 @@ class AuthService {
       print('DEBUG: AuthService - No current user');
       return null;
     }
-    
+
     try {
-      print('DEBUG: AuthService - Fetching profile for user: ${currentUser!.id}');
+      print(
+        'DEBUG: AuthService - Fetching profile for user: ${currentUser!.id}',
+      );
       // Fetch gebruiker with linked admin_tipes for role name
       final result = await _supabase
           .from('gebruikers')
@@ -226,7 +241,7 @@ class AuthService {
           ''')
           .eq('gebr_id', currentUser!.id)
           .maybeSingle();
-      
+
       print('DEBUG: AuthService - Profile result: $result');
       return result;
     } catch (e) {

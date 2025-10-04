@@ -30,7 +30,6 @@ final cellphoneErrorProvider = StateProvider<String?>((ref) => null);
 final passwordErrorProvider = StateProvider<String?>((ref) => null);
 final confirmPasswordErrorProvider = StateProvider<String?>((ref) => null);
 
-
 // Form validity providers - Login
 final loginFormValidProvider = Provider<bool>((ref) {
   final email = ref.watch(emailProvider);
@@ -38,12 +37,11 @@ final loginFormValidProvider = Provider<bool>((ref) {
 
   final emailError = ref.watch(emailErrorProvider);
   final passwordError = ref.watch(passwordErrorProvider);
-  
-  return email.isNotEmpty && 
-         password.isNotEmpty && 
 
-         emailError == null && 
-         passwordError == null;
+  return email.isNotEmpty &&
+      password.isNotEmpty &&
+      emailError == null &&
+      passwordError == null;
 });
 
 // Form validity providers - Register
@@ -61,20 +59,34 @@ final registerFormValidProvider = Provider<bool>((ref) {
   final cellphoneError = ref.watch(cellphoneErrorProvider);
   final passwordError = ref.watch(passwordErrorProvider);
   final confirmPasswordError = ref.watch(confirmPasswordErrorProvider);
-  
-  return firstName.isNotEmpty && 
-         lastName.isNotEmpty && 
-         email.isNotEmpty && 
-         cellphone.isNotEmpty &&
-         password.isNotEmpty && 
-         confirmPassword.isNotEmpty && 
 
-         firstNameError == null && 
-         lastNameError == null && 
-         cellphoneError == null &&
-         emailError == null && 
-         passwordError == null && 
-         confirmPasswordError == null;
+  return firstName.isNotEmpty &&
+      lastName.isNotEmpty &&
+      email.isNotEmpty &&
+      cellphone.isNotEmpty &&
+      password.isNotEmpty &&
+      confirmPassword.isNotEmpty &&
+      firstNameError == null &&
+      lastNameError == null &&
+      cellphoneError == null &&
+      emailError == null &&
+      passwordError == null &&
+      confirmPasswordError == null;
+});
+
+// Form validity providers - Password Reset
+final passwordFormValidProvider = Provider<bool>((ref) {
+  final password = ref.watch(passwordProvider);
+  final confirmPassword = ref.watch(confirmPasswordProvider);
+
+  final passwordError = ref.watch(passwordErrorProvider);
+  final confirmPasswordError = ref.watch(confirmPasswordErrorProvider);
+
+  return password.isNotEmpty &&
+      confirmPassword.isNotEmpty &&
+      passwordError == null &&
+      confirmPasswordError == null &&
+      password == confirmPassword;
 });
 
 // Form validity providers - Profiel
@@ -83,19 +95,18 @@ final profielFormValidProvider = Provider<bool>((ref) {
   final lastName = ref.watch(lastNameProvider);
   final email = ref.watch(emailProvider);
   final cellphone = ref.watch(cellphoneProvider);
-  
+
   final firstNameError = ref.watch(firstNameErrorProvider);
   final lastNameError = ref.watch(lastNameErrorProvider);
   final emailError = ref.watch(emailErrorProvider);
   final cellphoneError = ref.watch(cellphoneErrorProvider);
-  
-  return firstName.isNotEmpty && 
-         lastName.isNotEmpty && 
-         email.isNotEmpty && 
-         cellphone.isNotEmpty &&
 
-         firstNameError == null && 
-         lastNameError == null && 
-         cellphoneError == null &&
-         emailError == null;
+  return firstName.isNotEmpty &&
+      lastName.isNotEmpty &&
+      email.isNotEmpty &&
+      cellphone.isNotEmpty &&
+      firstNameError == null &&
+      lastNameError == null &&
+      cellphoneError == null &&
+      emailError == null;
 });
