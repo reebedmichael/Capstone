@@ -40,4 +40,9 @@ class DieetRepository {
         .eq('dieet_id', dieetId);
     return rows.map<String>((row) => row['kos_item_id'].toString()).toList();
   }
+
+  /// Get all diet types (legacy method name)
+  Future<List<Map<String, dynamic>>> kryDieet() async {
+    return getAllDietTypes();
+  }
 }

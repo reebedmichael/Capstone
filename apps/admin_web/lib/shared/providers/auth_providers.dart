@@ -84,3 +84,62 @@ final authErrorProvider = StateProvider<String?>((ref) => null);
 final clearAuthErrorProvider = Provider<void>((ref) {
   ref.read(authErrorProvider.notifier).state = null;
 });
+
+// User approval status provider
+final userApprovalProvider = FutureProvider<bool>((ref) async {
+  final profileAsync = ref.watch(userProfileProvider);
+  return profileAsync.when(
+    data: (profile) {
+      if (profile == null) return false;
+      
+      // Check if user is active (approved)
+      final isActive = profile['is_aktief'] as bool? ?? false;
+      
+      // For admin users, also check if they have a valid admin type
+      final admin = profile['admin_tipes'] as Map<String, dynamic>?;
+      final adminTypeName = (admin?['admin_tipe_naam'] as String?)?.trim() ?? '';
+      
+      // If user has admin type, they need to be active AND not pending
+      if (adminTypeName.isNotEmpty) {
+        return isActive && adminTypeName != 'Pending';
+      }
+      
+      // For regular users, just check if they're active
+      return isActive;
+    },
+    loading: () => false,
+    error: (error, stack) => false,
+  );
+});
+
+// Primary admin check provider
+final isPrimaryAdminProvider = FutureProvider<bool>((ref) async {
+  final profileAsync = ref.watch(userProfileProvider);
+  return profileAsync.when(
+    data: (profile) {
+      if (profile == null) return false;
+      
+      final admin = profile['admin_tipes'] as Map<String, dynamic>?;
+      final adminTypeName = (admin?['admin_tipe_naam'] as String?)?.trim() ?? '';
+      
+      return adminTypeName == 'Primary';
+    },
+    loading: () => false,
+    error: (error, stack) => false,
+  );
+});
+
+// Current admin type provider
+final currentAdminTypeProvider = FutureProvider<String?>((ref) async {
+  final profileAsync = ref.watch(userProfileProvider);
+  return profileAsync.when(
+    data: (profile) {
+      if (profile == null) return null;
+      
+      final admin = profile['admin_tipes'] as Map<String, dynamic>?;
+      return (admin?['admin_tipe_naam'] as String?)?.trim();
+    },
+    loading: () => null,
+    error: (error, stack) => null,
+  );
+});
