@@ -4,6 +4,7 @@ export 'src/bestelling_repository.dart';
 export 'src/spyskaart_repository.dart';
 export 'src/mandjie_repository.dart';
 export 'src/beursie_repository.dart';
+export 'src/toelae_repository.dart';
 export 'src/kampus_repository.dart';
 export 'src/kos_templaat_repository.dart';
 export 'src/week_templaat_repository.dart';

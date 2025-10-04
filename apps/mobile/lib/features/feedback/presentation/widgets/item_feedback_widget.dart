@@ -34,6 +34,7 @@ class _ItemFeedbackWidgetState extends State<ItemFeedbackWidget> {
   }
 
   Future<void> _loadFeedbackData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     
     try {
@@ -48,25 +49,35 @@ class _ItemFeedbackWidgetState extends State<ItemFeedbackWidget> {
         existingFeedback = await _terugvoerRepository.getFeedbackForItem(bestKosId);
       }
 
-      // Load like status
+      // Load like status for the bestelling_kos_item
       final currentUser = Supabase.instance.client.auth.currentUser;
       
       bool isLiked = false;
       
       if (currentUser != null && bestKosId != null) {
-        isLiked = await _terugvoerRepository.hasUserLikedItem(currentUser.id, bestKosId);
+        try {
+          isLiked = await _terugvoerRepository.hasUserLikedBestellingKosItem(bestKosId);
+        } catch (e) {
+          print('Error checking like status: $e');
+          // If table doesn't exist yet, just continue without like functionality
+          isLiked = false;
+        }
       }
       
-      setState(() {
-        _availableFeedbackOptions = options;
-        _selectedFeedback = existingFeedback;
-        _isLiked = isLiked;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _availableFeedbackOptions = options;
+          _selectedFeedback = existingFeedback;
+          _isLiked = isLiked;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       print('Error loading feedback data: $e');
-      setState(() => _isLoading = false);
-      Fluttertoast.showToast(msg: 'Fout met laai van terugvoer opsies');
+      if (mounted) {
+        setState(() => _isLoading = false);
+        Fluttertoast.showToast(msg: 'Fout met laai van terugvoer opsies');
+      }
     }
   }
 
@@ -150,6 +161,8 @@ class _ItemFeedbackWidgetState extends State<ItemFeedbackWidget> {
   }
 
   Future<void> _saveFeedback(List<String> selectedIds) async {
+    if (!mounted) return;
+    
     final bestKosId = widget.bestellingKosItem['best_kos_id'] as String?;
     if (bestKosId == null) {
       Fluttertoast.showToast(msg: 'Fout: Geen item ID gevind nie');
@@ -176,17 +189,19 @@ class _ItemFeedbackWidgetState extends State<ItemFeedbackWidget> {
       print('Error saving feedback: $e');
       Fluttertoast.showToast(msg: 'Fout met stoor van terugvoer');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> _toggleLike() async {
-    final kosItem = widget.bestellingKosItem['kos_item'] as Map<String, dynamic>?;
-    final kosItemId = kosItem?['kos_item_id'] as String?;
+    if (!mounted) return;
+    
     final bestKosId = widget.bestellingKosItem['best_kos_id'] as String?;
     final currentUser = Supabase.instance.client.auth.currentUser;
 
-    if (kosItemId == null || bestKosId == null || currentUser == null) {
+    if (bestKosId == null || currentUser == null) {
       Fluttertoast.showToast(msg: 'Fout: Kan nie like status verander nie');
       return;
     }
@@ -194,25 +209,15 @@ class _ItemFeedbackWidgetState extends State<ItemFeedbackWidget> {
     setState(() => _isLoading = true);
 
     try {
-      bool success;
-      if (_isLiked) {
-        // Unlike the item
-        success = await _terugvoerRepository.unlikeKosItem(currentUser.id, kosItemId, bestKosId);
-        if (success) {
-          setState(() {
-            _isLiked = false;
-          });
-          Fluttertoast.showToast(msg: 'Like verwyder');
-        }
-      } else {
-        // Like the item
-        success = await _terugvoerRepository.likeKosItem(currentUser.id, kosItemId, bestKosId);
-        if (success) {
-          setState(() {
-            _isLiked = true;
-          });
-          Fluttertoast.showToast(msg: 'Item gelike!');
-        }
+      // Per requirements: pressing like should increment kos_item.kos_item_likes
+      // linked via bestelling_kos_item.kos_item_id. No feedback records.
+      final success = await _terugvoerRepository
+          .incrementKosItemLikesForBestelling(bestKosId);
+      if (success && mounted) {
+        setState(() {
+          _isLiked = true;
+        });
+        Fluttertoast.showToast(msg: 'Item gelike!');
       }
 
       if (!success) {
@@ -222,7 +227,9 @@ class _ItemFeedbackWidgetState extends State<ItemFeedbackWidget> {
       print('Error toggling like: $e');
       Fluttertoast.showToast(msg: 'Fout met verander van like status');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

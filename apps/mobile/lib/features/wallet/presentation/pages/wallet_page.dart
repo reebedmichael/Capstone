@@ -25,6 +25,7 @@ class _WalletPageState extends State<WalletPage>
   double beursieBalans = 0.0;
   bool isLaaiing = false;
   List<Map<String, dynamic>> transactions = [];
+  List<Map<String, dynamic>> toelaeTransactions = [];
 
   // Bank Card input fields (dummy for now)
   String cardNumber = '';
@@ -37,7 +38,7 @@ class _WalletPageState extends State<WalletPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _laaiBeursieData();
   }
 
@@ -50,16 +51,21 @@ class _WalletPageState extends State<WalletPage>
 
     try {
       final beursieRepo = BeursieRepository(SupabaseDb(Supabase.instance.client));
+      final toelaeRepo = ToelaeRepository(SupabaseDb(Supabase.instance.client));
       
-      // Laai beursie balans
+      // Laai beursie balans (toelae + wallet - same field)
       final balans = await beursieRepo.kryBeursieBalans(user.id);
       
-      // Laai transaksies
+      // Laai transaksies (wallet transactions)
       final transaksies = await beursieRepo.lysTransaksies(user.id);
+      
+      // Laai toelae transaksies (allowance transactions - different type)
+      final toelaeTransaksies = await toelaeRepo.lysToelaeTransaksies(user.id);
       
       setState(() {
         beursieBalans = balans;
         transactions = transaksies;
+        toelaeTransactions = toelaeTransaksies;
       });
     } catch (e) {
       print('Fout met laai beursie data: $e');
@@ -220,15 +226,17 @@ class _WalletPageState extends State<WalletPage>
           ),
 
           // ----------------------------
-          // TABS: "Laai Beursie" and "Geskiedenis"
+          // TABS: "Laai Beursie", "Betalings", and "Toelae"
           // ----------------------------
           TabBar(
             controller: _tabController,
             labelColor: AppColors.primary,
             unselectedLabelColor: Colors.grey,
+            isScrollable: true,
             tabs: const [
               Tab(text: 'Laai Beursie'),
-              Tab(text: 'Geskiedenis'),
+              Tab(text: 'Betalings'),
+              Tab(text: 'Toelae Geskiedenis'),
             ],
           ),
 
@@ -489,6 +497,66 @@ class _WalletPageState extends State<WalletPage>
                                 ),
                               ),
                               title: Text(t['trans_beskrywing'] ?? 'Transaksie'),
+                              subtitle: Text(datumFormaat),
+                              trailing: Text(
+                                '${isInbetaling ? '+' : '-'}R${bedrag.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: isInbetaling
+                                        ? Colors.green
+                                        : Colors.red),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+
+                // ----------------------------
+                // ALLOWANCE HISTORY TAB
+                // ----------------------------
+                toelaeTransactions.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(32.0),
+                          child: Text(
+                            'Geen toelae transaksies gevind nie',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: toelaeTransactions.length,
+                        itemBuilder: (context, index) {
+                          final t = toelaeTransactions[index];
+                          final tipeNaam = t['transaksie_tipe'] != null
+                              ? t['transaksie_tipe']['trans_tipe_naam'] ?? ''
+                              : '';
+                          final isInbetaling = tipeNaam.contains('inbetaling');
+                          final bedrag = (t['trans_bedrag'] as num?)?.toDouble() ?? 0.0;
+                          final datum = DateTime.parse(t['trans_geskep_datum']);
+                          final datumFormaat = '${datum.day} ${_kryMaandNaam(datum.month)} ${datum.year} ${datum.hour.toString().padLeft(2, '0')}:${datum.minute.toString().padLeft(2, '0')}';
+                          
+                          return Card(
+                            color: Colors.orange.shade50,
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: isInbetaling
+                                    ? Colors.green.shade100
+                                    : Colors.red.shade100,
+                                child: Icon(
+                                  isInbetaling
+                                      ? Icons.arrow_upward
+                                      : Icons.arrow_downward,
+                                  color: isInbetaling
+                                      ? Colors.green
+                                      : Colors.red,
+                                ),
+                              ),
+                              title: Text(t['trans_beskrywing'] ?? 'Toelae Transaksie'),
                               subtitle: Text(datumFormaat),
                               trailing: Text(
                                 '${isInbetaling ? '+' : '-'}R${bedrag.toStringAsFixed(2)}',

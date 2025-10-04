@@ -16,6 +16,42 @@ import '../../../shared/widgets/password_field.dart';
 class TekenInPage extends ConsumerWidget {
   const TekenInPage({super.key});
 
+  Future<void> _checkAdminTypeAndRedirect(BuildContext context, WidgetRef ref) async {
+    try {
+      final authService = ref.read(authServiceProvider);
+      final profile = await authService.getUserProfile();
+      
+      if (profile == null) {
+        print('DEBUG: No profile found, redirecting to dashboard');
+        context.go('/dashboard');
+        return;
+      }
+      
+      final admin = profile['admin_tipes'] as Map<String, dynamic>?;
+      final adminTypeName = (admin?['admin_tipe_naam'] as String?)?.trim() ?? '';
+      
+      print('DEBUG: Admin type name: "$adminTypeName"');
+      
+      // Check if admin type is restricted
+      final restrictedTypes = {'Pending', 'Tertiary', 'None'};
+      final isRestricted = restrictedTypes.contains(adminTypeName);
+      
+      print('DEBUG: Is restricted: $isRestricted');
+      
+      if (isRestricted) {
+        print('DEBUG: Redirecting to waiting page');
+        context.go('/wag_goedkeuring');
+      } else {
+        print('DEBUG: Redirecting to dashboard');
+        context.go('/dashboard');
+      }
+    } catch (e) {
+      print('DEBUG: Error checking admin type: $e');
+      // On error, allow access to dashboard
+      context.go('/dashboard');
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isLoading = ref.watch(authLoadingProvider);
@@ -162,9 +198,9 @@ class TekenInPage extends ConsumerWidget {
                                       // User data is now managed by Supabase authentication
                                       // No need for manual SharedPreferences storage
 
-                                      if (context.mounted) 
-                                      {
-                                        context.go("/dashboard");
+                                      if (context.mounted) {
+                                        // Check admin type directly after login
+                                        await _checkAdminTypeAndRedirect(context, ref);
                                       }
                                     } catch (e) {
                                       String errorMessage =
@@ -208,9 +244,9 @@ class TekenInPage extends ConsumerWidget {
                       children: [
                         // Quick Login Button (Demo)
                         Container(
-                          margin: const EdgeInsets.only(bottom: 24),
+                          margin: const EdgeInsets.only(bottom: 16),
                           child: SpysPrimaryButton(
-                            text: 'Vinnige Teken In (Demo)',
+                            text: 'Vinnige Teken In (Phillip)',
                             isLoading: isLoading,
                             onPressed: () async {
                               // Auto-fill demo credentials
@@ -238,7 +274,8 @@ class TekenInPage extends ConsumerWidget {
                                 // No need for manual SharedPreferences storage
 
                                 if (context.mounted) {
-                                  context.go('/dashboard');
+                                  // Check admin type directly after login
+                                  await _checkAdminTypeAndRedirect(context, ref);
                                 }
                               } catch (e) {
                                 String errorMessage =
@@ -248,6 +285,61 @@ class TekenInPage extends ConsumerWidget {
                                 )) {
                                   errorMessage =
                                       'Demo rekening bestaan nie - registreer eers';
+                                }
+
+                                ref.read(authErrorProvider.notifier).state =
+                                    errorMessage;
+                              } finally {
+                                ref.read(authLoadingProvider.notifier).state =
+                                    false;
+                              }
+                            },
+                          ),
+                        ),
+                        
+                        // Quick Login Button (Jacques)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 24),
+                          child: SpysPrimaryButton(
+                            text: 'Vinnige Teken In (Bob)',
+                            isLoading: isLoading,
+                            onPressed: () async {
+                              // Auto-fill Jacques credentials
+                              ref.read(emailProvider.notifier).state =
+                                  'swanepoel.jacques.za@gmail.com';
+                              ref.read(passwordProvider.notifier).state =
+                                  'Game4sloop';
+
+                              // Clear any previous errors
+                              ref.read(authErrorProvider.notifier).state = null;
+                              ref.read(authLoadingProvider.notifier).state =
+                                  true;
+
+                              try {
+                                final authService = ref.read(
+                                  authServiceProvider,
+                                );
+
+                                await authService.signInWithEmail(
+                                  email: 'swanepoel.jacques.za@gmail.com',
+                                  password: 'Game4sloop',
+                                );
+
+                                // User data is now managed by Supabase authentication
+                                // No need for manual SharedPreferences storage
+
+                                if (context.mounted) {
+                                  // Check admin type directly after login
+                                  await _checkAdminTypeAndRedirect(context, ref);
+                                }
+                              } catch (e) {
+                                String errorMessage =
+                                    'Jacques teken in het gefaal';
+                                if (e.toString().contains(
+                                  'Invalid login credentials',
+                                )) {
+                                  errorMessage =
+                                      'Jacques rekening bestaan nie - registreer eers';
                                 }
 
                                 ref.read(authErrorProvider.notifier).state =

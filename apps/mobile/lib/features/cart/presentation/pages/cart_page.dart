@@ -60,7 +60,7 @@ class CartPage extends StatefulWidget {
 }
 
 class _CartPageState extends State<CartPage> {
-  // Wallet (fetched from DB)
+  // Wallet balance (includes allowance - same field)
   double walletBalance = 0.0;
 
   // Cart loaded from DB
@@ -455,7 +455,7 @@ Future<bool> placeOrder(String pickup) async {
   final sb = Supabase.instance.client;
   final double orderTotal = subtotal;
 
-  // Load latest wallet balance
+  // Load latest balance
   await _loadWalletBalance();
   if (walletBalance < orderTotal) return false;
 

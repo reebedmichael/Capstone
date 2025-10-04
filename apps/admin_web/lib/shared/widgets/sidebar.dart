@@ -58,10 +58,11 @@ class _SidebarState extends ConsumerState<Sidebar> {
   Widget build(BuildContext context) {
     final currentRoute = GoRouterState.of(context).uri.path;
 
-    // other top-level entries (after the Spyskaart group)
-    final restEntries = <_NavEntry>[
-      _NavEntry('Bestellings', Icons.receipt_long, '/bestellings'),
-      _NavEntry('Gebruikers', Icons.group_outlined, '/gebruikers'),
+  // other top-level entries (after the Spyskaart group)
+  final restEntries = <_NavEntry>[
+    _NavEntry('Bestellings', Icons.receipt_long, '/bestellings'),
+    _NavEntry('Gebruikers', Icons.group_outlined, '/gebruikers'),
+    _NavEntry('Toelae', Icons.account_balance_wallet, '/toelae'),
       _NavEntry(
         'Kennisgewings',
         Icons.notifications_outlined,
