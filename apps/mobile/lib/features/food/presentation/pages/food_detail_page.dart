@@ -32,20 +32,39 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
 
   // Normalized accessors (robust to different key casings / wrappers)
   String get _name =>
-      _pick(item, ['kos_item_naam', 'KOS_ITEM_NAAM', 'name'])?.toString() ?? 'Onbekende Item';
+      _pick(item, ['kos_item_naam', 'KOS_ITEM_NAAM', 'name'])?.toString() ??
+      'Onbekende Item';
 
   String get _description =>
-      _pick(item, ['kos_item_beskrywing', 'KOS_ITEM_BESKRYWING', 'beskrywing', 'description'])?.toString() ?? '';
+      _pick(item, [
+        'kos_item_beskrywing',
+        'KOS_ITEM_BESKRYWING',
+        'beskrywing',
+        'description',
+      ])?.toString() ??
+      '';
 
   double get _price {
-    final raw = _pick(item, ['kos_item_koste', 'KOS_ITEM_KOSTE', 'koste', 'price']);
+    final raw = _pick(item, [
+      'kos_item_koste',
+      'KOS_ITEM_KOSTE',
+      'koste',
+      'price',
+    ]);
     if (raw == null) return 0.0;
     if (raw is num) return raw.toDouble();
     return double.tryParse(raw.toString()) ?? 0.0;
   }
 
   String get _imageUrl =>
-      _pick(item, ['kos_item_prentjie', 'KOS_ITEM_PRENTJIE', 'prentjie', 'image', 'image_url'])?.toString() ?? '';
+      _pick(item, [
+        'kos_item_prentjie',
+        'KOS_ITEM_PRENTJIE',
+        'prentjie',
+        'image',
+        'image_url',
+      ])?.toString() ??
+      '';
 
   bool get _available {
     final raw = _pick(item, ['is_aktief', 'IS_AKTIEF', 'active', 'isActive']);
@@ -56,14 +75,20 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
   }
 
   String get _day =>
-      _pick(item, ['week_dag_naam', 'week_dag', 'dag', 'day'])?.toString() ?? '';
+      _pick(item, ['week_dag_naam', 'week_dag', 'dag', 'day'])?.toString() ??
+      '';
 
   // Try multiple keys to find allergens
   List<String> get _allergens {
     final raw = _pick(item, ['kos_item_allergene', 'ALLERGENS', 'allergens']);
     if (raw == null) return [];
     if (raw is List) return raw.map((e) => e.toString()).toList();
-    return raw.toString().split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    return raw
+        .toString()
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
   }
 
   /// Robust ingredient extraction:
@@ -79,7 +104,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       'bestanddele',
       'ingredients',
       'ingrediente',
-      'bestanddeel'
+      'bestanddeel',
     ];
 
     // direct keys on item
@@ -118,7 +143,11 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
 
       // fallback: if description is short CSV-like, parse it
       if (desc.contains(',') && desc.split(',').length <= 8) {
-        return desc.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+        return desc
+            .split(',')
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .toList();
       }
     }
 
@@ -131,12 +160,18 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
 
     // If Supabase already gave a List
     if (raw is List) {
-      return raw.map((e) => e.toString().trim()).where((s) => s.isNotEmpty).toList();
+      return raw
+          .map((e) => e.toString().trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
     }
 
     // Map -> take values
     if (raw is Map) {
-      final vals = raw.values.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+      final vals = raw.values
+          .map((e) => e?.toString() ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
       if (vals.isNotEmpty) return vals;
     }
 
@@ -150,7 +185,10 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
         try {
           final decoded = jsonDecode(s);
           if (decoded is List) {
-            return decoded.map((e) => e.toString().trim()).where((x) => x.isNotEmpty).toList();
+            return decoded
+                .map((e) => e.toString().trim())
+                .where((x) => x.isNotEmpty)
+                .toList();
           }
         } catch (_) {
           // not JSON -> continue
@@ -163,32 +201,44 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
         // split on commas that are not inside quotes - simple approach:
         // if values are quoted, remove surrounding quotes later.
         final parts = inner.split(',');
-        final cleaned = parts.map((p) {
-          var part = p.trim();
-          if ((part.startsWith('"') && part.endsWith('"')) || (part.startsWith("'") && part.endsWith("'"))) {
-            part = part.substring(1, part.length - 1);
-          }
-          return part;
-        }).where((p) => p.isNotEmpty).toList();
+        final cleaned = parts
+            .map((p) {
+              var part = p.trim();
+              if ((part.startsWith('"') && part.endsWith('"')) ||
+                  (part.startsWith("'") && part.endsWith("'"))) {
+                part = part.substring(1, part.length - 1);
+              }
+              return part;
+            })
+            .where((p) => p.isNotEmpty)
+            .toList();
         if (cleaned.isNotEmpty) return cleaned;
       }
 
       // split common separators (comma, semicolon, newline, bullet)
       final parts = s.split(RegExp(r',|;|\n|•|\u2022'));
       if (parts.length > 1) {
-        return parts.map((p) {
-          var v = p.trim();
-          // remove surrounding quotes if present
-          if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
-            v = v.substring(1, v.length - 1);
-          }
-          return v;
-        }).where((p) => p.isNotEmpty).toList();
+        return parts
+            .map((p) {
+              var v = p.trim();
+              // remove surrounding quotes if present
+              if ((v.startsWith('"') && v.endsWith('"')) ||
+                  (v.startsWith("'") && v.endsWith("'"))) {
+                v = v.substring(1, v.length - 1);
+              }
+              return v;
+            })
+            .where((p) => p.isNotEmpty)
+            .toList();
       }
 
       // dash separated fallback
       if (s.contains(' - ')) {
-        return s.split(' - ').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+        return s
+            .split(' - ')
+            .map((p) => p.trim())
+            .where((p) => p.isNotEmpty)
+            .toList();
       }
 
       // single short string -> treat as single ingredient
@@ -206,13 +256,17 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     final args = GoRouterState.of(context).extra;
     if (args != null && args is Map<String, dynamic>) {
       // Accept both wrapper (spyskaart_kos_item) or direct kos_item map
-      if (args.containsKey('kos_item') && args['kos_item'] is Map<String, dynamic>) {
+      if (args.containsKey('kos_item') &&
+          args['kos_item'] is Map<String, dynamic>) {
         // prefer nested kos_item map
         item = Map<String, dynamic>.from(args['kos_item'] as Map);
         // copy top-level week_dag_naam if present
-        if (args.containsKey('week_dag') && args['week_dag'] is Map && args['week_dag']['week_dag_naam'] != null) {
+        if (args.containsKey('week_dag') &&
+            args['week_dag'] is Map &&
+            args['week_dag']['week_dag_naam'] != null) {
           item['week_dag_naam'] = args['week_dag']['week_dag_naam'];
-        } else if (args.containsKey('week_dag_naam') && args['week_dag_naam'] != null) {
+        } else if (args.containsKey('week_dag_naam') &&
+            args['week_dag_naam'] != null) {
           item['week_dag_naam'] = args['week_dag_naam'];
         }
       } else {
@@ -222,7 +276,8 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       // fallback data so UI still shows something (keeps layout stable)
       item = <String, dynamic>{
         'kos_item_naam': 'Dag se Spesiaal',
-        'kos_item_beskrywing': 'Heerlike vars opsies met plaaslike bestanddele.',
+        'kos_item_beskrywing':
+            'Heerlike vars opsies met plaaslike bestanddele.',
         'kos_item_koste': 49.99,
         'kos_item_prentjie': null,
         'is_aktief': true,
@@ -244,7 +299,9 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
   void handleAddToCart() async {
     if (!_available) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Hierdie item is tans nie beskikbaar nie.')),
+        const SnackBar(
+          content: Text('Hierdie item is tans nie beskikbaar nie.'),
+        ),
       );
       return;
     }
@@ -252,14 +309,18 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Jy moet eers inteken om \'n mandjie te gebruik.')),
+        const SnackBar(
+          content: Text('Jy moet eers inteken om \'n mandjie te gebruik.'),
+        ),
       );
       return;
     }
 
     try {
       // Let op: construct SupabaseDb with the real client
-      final mandjieRepo = MandjieRepository(SupabaseDb(Supabase.instance.client));
+      final mandjieRepo = MandjieRepository(
+        SupabaseDb(Supabase.instance.client),
+      );
 
       // Voeg item by mandjie en skryf ook die week dag naam (indien beskikbaar)
       await mandjieRepo.voegByMandjie(
@@ -270,9 +331,9 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Bygevoeg: $quantity x ${_name}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Bygevoeg: $quantity x $_name')));
       }
     } catch (e) {
       if (mounted) {
@@ -294,7 +355,10 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     final List<String> gallery = (() {
       final multi = item['images'] ?? item['gallery'] ?? item['prentjies'];
       if (multi is List) {
-        return multi.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList();
+        return multi
+            .map((e) => e?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+            .toList();
       }
       return imageUrl.isNotEmpty ? [imageUrl] : <String>[];
     })();
@@ -306,7 +370,10 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
           // Header
           Container(
             padding: const EdgeInsets.fromLTRB(16, 50, 16, 16),
-            decoration: BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Colors.grey.shade200))),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+            ),
             child: Row(
               children: [
                 IconButton(
@@ -320,11 +387,26 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                   icon: const Icon(Icons.arrow_back),
                 ),
                 Expanded(
-                  child: Text(_name, style: AppTypography.titleLarge, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis),
+                  child: Text(
+                    _name,
+                    style: AppTypography.titleLarge,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                IconButton(onPressed: () => setState(() => isFavorite = !isFavorite), icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: isFavorite ? Colors.red : null)),
                 IconButton(
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Skakel gekopieer na klipbord'))),
+                  onPressed: () => setState(() => isFavorite = !isFavorite),
+                  icon: Icon(
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: isFavorite ? Colors.red : null,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Skakel gekopieer na klipbord'),
+                    ),
+                  ),
                   icon: const Icon(Icons.share_outlined),
                 ),
               ],
@@ -338,7 +420,10 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                 children: [
                   // Photo with price badge (carousel + thumbnails)
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: Spacing.screenHPad, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: Spacing.screenHPad,
+                      vertical: 12,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -349,26 +434,57 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(12),
                                 child: PageView.builder(
-                                  onPageChanged: (i) => setState(() => _currentImage = i),
-                                  itemCount: gallery.isNotEmpty ? gallery.length : 1,
+                                  onPageChanged: (i) =>
+                                      setState(() => _currentImage = i),
+                                  itemCount: gallery.isNotEmpty
+                                      ? gallery.length
+                                      : 1,
                                   itemBuilder: (context, index) {
-                                    final url = gallery.isNotEmpty ? gallery[index] : '';
+                                    final url = gallery.isNotEmpty
+                                        ? gallery[index]
+                                        : '';
                                     if (url.isEmpty) {
-                                      return Container(color: Colors.grey.shade200, child: const Center(child: Icon(Icons.fastfood, size: 56, color: Colors.black38)));
+                                      return Container(
+                                        color: Colors.grey.shade200,
+                                        child: const Center(
+                                          child: Icon(
+                                            Icons.fastfood,
+                                            size: 56,
+                                            color: Colors.black38,
+                                          ),
+                                        ),
+                                      );
                                     }
                                     return Image.network(
                                       url,
                                       fit: BoxFit.cover,
                                       width: double.infinity,
                                       height: double.infinity,
-                                      loadingBuilder: (context, child, loadingProgress) {
-                                        if (loadingProgress == null) return child;
-                                        return Container(color: Colors.grey.shade200, child: const Center(child: CircularProgressIndicator()));
-                                      },
-                                      errorBuilder: (context, error, stackTrace) => Container(
-                                        color: Colors.grey.shade200,
-                                        child: const Center(child: Icon(Icons.broken_image, size: 56, color: Colors.black26)),
-                                      ),
+                                      loadingBuilder:
+                                          (context, child, loadingProgress) {
+                                            if (loadingProgress == null) {
+                                              return child;
+                                            }
+                                            return Container(
+                                              color: Colors.grey.shade200,
+                                              child: const Center(
+                                                child:
+                                                    CircularProgressIndicator(),
+                                              ),
+                                            );
+                                          },
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              Container(
+                                                color: Colors.grey.shade200,
+                                                child: const Center(
+                                                  child: Icon(
+                                                    Icons.broken_image,
+                                                    size: 56,
+                                                    color: Colors.black26,
+                                                  ),
+                                                ),
+                                              ),
                                     );
                                   },
                                 ),
@@ -379,9 +495,28 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                               right: 12,
                               bottom: 12,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(999), boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2))]),
-                                child: Text('R${_price.toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.circular(999),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 6,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  'R${_price.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -390,25 +525,46 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                           SizedBox(
                             height: 72,
                             child: ListView.separated(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                               scrollDirection: Axis.horizontal,
                               itemCount: gallery.length,
-                              separatorBuilder: (_, __) => const SizedBox(width: 8),
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 8),
                               itemBuilder: (context, index) {
                                 final url = gallery[index];
                                 final isActive = index == _currentImage;
                                 return GestureDetector(
-                                  onTap: () => setState(() => _currentImage = index),
+                                  onTap: () =>
+                                      setState(() => _currentImage = index),
                                   child: Container(
                                     width: 88,
                                     decoration: BoxDecoration(
-                                      border: Border.all(color: isActive ? AppColors.primary : Colors.grey.shade300, width: isActive ? 2 : 1),
+                                      border: Border.all(
+                                        color: isActive
+                                            ? AppColors.primary
+                                            : Colors.grey.shade300,
+                                        width: isActive ? 2 : 1,
+                                      ),
                                       borderRadius: BorderRadius.circular(8),
                                       color: Colors.grey.shade100,
-                                      image: url.isNotEmpty ? DecorationImage(image: NetworkImage(url), fit: BoxFit.cover) : null,
+                                      image: url.isNotEmpty
+                                          ? DecorationImage(
+                                              image: NetworkImage(url),
+                                              fit: BoxFit.cover,
+                                            )
+                                          : null,
                                     ),
                                     alignment: Alignment.center,
-                                    child: url.isEmpty ? const Icon(Icons.image, size: 24, color: Colors.black26) : null,
+                                    child: url.isEmpty
+                                        ? const Icon(
+                                            Icons.image,
+                                            size: 24,
+                                            color: Colors.black26,
+                                          )
+                                        : null,
                                   ),
                                 );
                               },
@@ -421,81 +577,186 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                   // Content area
                   Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      // Day label (only show if present)
-                      if (_day.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Text(_day, style: AppTypography.labelLarge.copyWith(color: Colors.grey.shade700)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Day label (only show if present)
+                        if (_day.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Text(
+                              _day,
+                              style: AppTypography.labelLarge.copyWith(
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          ),
+
+                        // Title & description
+                        Text(
+                          _name,
+                          style: AppTypography.displayLarge.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
+                        const SizedBox(height: 8),
+                        if (_description.isNotEmpty)
+                          Text(
+                            _description,
+                            style: AppTypography.bodyMedium.copyWith(
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        const SizedBox(height: 12),
 
-                      // Title & description
-                      Text(_name, style: AppTypography.displayLarge.copyWith(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      if (_description.isNotEmpty) Text(_description, style: AppTypography.bodyMedium.copyWith(color: Colors.grey.shade600)),
-                      const SizedBox(height: 12),
+                        // Static time/portion row
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.access_time,
+                              size: 16,
+                              color: Colors.grey.shade600,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '15-20 min',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Icon(
+                              Icons.group_outlined,
+                              size: 16,
+                              color: Colors.grey.shade600,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '1 porsie',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
 
-                      // Static time/portion row
-                      Row(children: [
-                        Icon(Icons.access_time, size: 16, color: Colors.grey.shade600),
-                        const SizedBox(width: 4),
-                        Text('15-20 min', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                        const SizedBox(width: 16),
-                        Icon(Icons.group_outlined, size: 16, color: Colors.grey.shade600),
-                        const SizedBox(width: 4),
-                        Text('1 porsie', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                      ]),
-                      const SizedBox(height: 16),
+                        // Allergens
+                        if (allergens.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF7ED),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.orange.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  color: Colors.orange.shade600,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Allergene: ${allergens.join(', ')}',
+                                    style: TextStyle(
+                                      color: Colors.orange.shade800,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
 
-                      // Allergens
-                      if (allergens.isNotEmpty)
+                        if (allergens.isNotEmpty) const SizedBox(height: 16),
+
+                        // Ingredients
+                        if (ingredients.isNotEmpty)
+                          _buildSectionCard(
+                            title: 'Bestanddele',
+                            icon: Icons.restaurant_menu,
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: ingredients
+                                  .map((ing) => _buildPill(ing))
+                                  .toList(),
+                            ),
+                          )
+                        else
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Text(
+                              'Geen bestanddele beskikbaar nie.',
+                              style: TextStyle(color: Colors.grey.shade600),
+                            ),
+                          ),
+
+                        const SizedBox(height: 24),
+
+                        // Availability state
                         Container(
                           padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: const Color(0xFFFFF7ED), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange.shade200)),
-                          child: Row(children: [
-                            Icon(Icons.warning_amber_rounded, color: Colors.orange.shade600, size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(child: Text('Allergene: ${allergens.join(', ')}', style: TextStyle(color: Colors.orange.shade800, fontSize: 12))),
-                          ]),
+                          decoration: BoxDecoration(
+                            color: available
+                                ? const Color(0xFFEFFAF1)
+                                : const Color(0xFFFEECEC),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: available
+                                  ? Colors.green.shade200
+                                  : Colors.red.shade200,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    available ? 'Beskikbaar' : 'Uitverkoop',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: available
+                                          ? Colors.green.shade800
+                                          : Colors.red.shade800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    available
+                                        ? 'Gereed vir bestelling'
+                                        : 'Tans nie beskikbaar nie',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: available
+                                          ? Colors.green.shade600
+                                          : Colors.red.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  color: available ? Colors.green : Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
 
-                      if (allergens.isNotEmpty) const SizedBox(height: 16),
-
-                      // Ingredients
-                      if (ingredients.isNotEmpty)
-                        _buildSectionCard(
-                          title: 'Bestanddele',
-                          icon: Icons.restaurant_menu,
-                          child: Wrap(spacing: 8, runSpacing: 8, children: ingredients.map((ing) => _buildPill(ing)).toList()),
-                        )
-                      else
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Text('Geen bestanddele beskikbaar nie.', style: TextStyle(color: Colors.grey.shade600)),
-                        ),
-
-                      const SizedBox(height: 24),
-
-                      // Availability state
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: available ? const Color(0xFFEFFAF1) : const Color(0xFFFEECEC),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: available ? Colors.green.shade200 : Colors.red.shade200),
-                        ),
-                        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(available ? 'Beskikbaar' : 'Uitverkoop', style: TextStyle(fontWeight: FontWeight.bold, color: available ? Colors.green.shade800 : Colors.red.shade800)),
-                            const SizedBox(height: 2),
-                            Text(available ? 'Gereed vir bestelling' : 'Tans nie beskikbaar nie', style: TextStyle(fontSize: 12, color: available ? Colors.green.shade600 : Colors.red.shade600)),
-                          ]),
-                          Container(width: 12, height: 12, decoration: BoxDecoration(color: available ? Colors.green : Colors.red, shape: BoxShape.circle)),
-                        ]),
-                      ),
-
-                      const SizedBox(height: 100), // ruimte vir bottom bar
-                    ]),
+                        const SizedBox(height: 100), // ruimte vir bottom bar
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -504,58 +765,152 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
         ],
       ),
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey.shade200))),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        ),
         padding: const EdgeInsets.all(16),
         child: SafeArea(
           top: false,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            // Quantity row
-            Row(children: [
-              const Text('Hoeveelheid:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.black87)),
-              const Spacer(),
-              OutlinedButton(onPressed: quantity <= 1 ? null : () => updateQuantity(quantity - 1), style: OutlinedButton.styleFrom(minimumSize: const Size(40, 40), padding: EdgeInsets.zero), child: const Icon(Icons.remove, size: 18)),
-              SizedBox(width: 40, child: Center(child: Text('$quantity', style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.bold)))),
-              OutlinedButton(onPressed: quantity >= 10 ? null : () => updateQuantity(quantity + 1), style: OutlinedButton.styleFrom(minimumSize: const Size(40, 40), padding: EdgeInsets.zero), child: const Icon(Icons.add, size: 18)),
-            ]),
-            const SizedBox(height: 12),
-            Row(children: [
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Totaal:', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                Text('R${(_price * quantity).toStringAsFixed(2)}', style: AppTypography.titleLarge.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
-              ]),
-              const Spacer(),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: available ? handleAddToCart : null,
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white, minimumSize: const Size(0, 48)),
-                  icon: const Icon(Icons.shopping_cart_outlined),
-                  label: const Text('Voeg by Mandjie'),
-                ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Quantity row
+              Row(
+                children: [
+                  const Text(
+                    'Hoeveelheid:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const Spacer(),
+                  OutlinedButton(
+                    onPressed: quantity <= 1
+                        ? null
+                        : () => updateQuantity(quantity - 1),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(40, 40),
+                      padding: EdgeInsets.zero,
+                    ),
+                    child: const Icon(Icons.remove, size: 18),
+                  ),
+                  SizedBox(
+                    width: 40,
+                    child: Center(
+                      child: Text(
+                        '$quantity',
+                        style: AppTypography.titleMedium.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  OutlinedButton(
+                    onPressed: quantity >= 10
+                        ? null
+                        : () => updateQuantity(quantity + 1),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(40, 40),
+                      padding: EdgeInsets.zero,
+                    ),
+                    child: const Icon(Icons.add, size: 18),
+                  ),
+                ],
               ),
-            ]),
-          ]),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Totaal:',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      Text(
+                        'R${(_price * quantity).toStringAsFixed(2)}',
+                        style: AppTypography.titleLarge.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: available ? handleAddToCart : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(0, 48),
+                      ),
+                      icon: const Icon(Icons.shopping_cart_outlined),
+                      label: const Text('Voeg by Mandjie'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildSectionCard({required String title, IconData? icon, Color? titleColor, required Widget child}) {
+  Widget _buildSectionCard({
+    required String title,
+    IconData? icon,
+    Color? titleColor,
+    required Widget child,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade200)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          if (icon != null) ...[Icon(icon, size: 16, color: titleColor ?? Colors.grey.shade600), const SizedBox(width: 8)],
-          Text(title, style: AppTypography.labelLarge.copyWith(fontWeight: FontWeight.bold, color: titleColor)),
-        ]),
-        const SizedBox(height: 8),
-        child,
-      ]),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 16, color: titleColor ?? Colors.grey.shade600),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                title,
+                style: AppTypography.labelLarge.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: titleColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          child,
+        ],
+      ),
     );
   }
 
   Widget _buildPill(String text, {Color? backgroundColor, Color? textColor}) {
-    return Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: backgroundColor ?? Colors.grey.shade100, borderRadius: BorderRadius.circular(16)), child: Text(text, style: AppTypography.labelSmall.copyWith(color: textColor)));
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: backgroundColor ?? Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Text(
+        text,
+        style: AppTypography.labelSmall.copyWith(color: textColor),
+      ),
+    );
   }
 }

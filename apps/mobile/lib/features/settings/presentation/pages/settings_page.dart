@@ -2,6 +2,8 @@ import 'package:capstone_mobile/features/app/presentation/widgets/app_bottom_nav
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../shared/services/qr_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -18,6 +20,34 @@ class _SettingsPageState extends State<SettingsPage> {
   bool allowanceReminders = true;
   bool promotions = false;
   bool isDeleting = false;
+  bool _isTertiaryAdmin = false;
+  bool _isLoadingAdminStatus = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAdminStatus();
+  }
+
+  Future<void> _checkAdminStatus() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        setState(() => _isLoadingAdminStatus = false);
+        return;
+      }
+
+      final qrService = QrService(Supabase.instance.client);
+      final isAdmin = await qrService.isTertiaryAdmin(user.id);
+      
+      setState(() {
+        _isTertiaryAdmin = isAdmin;
+        _isLoadingAdminStatus = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingAdminStatus = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -111,6 +141,36 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ],
           ),
+
+          // Admin Tools (only for tertiary admins)
+          if (_isTertiaryAdmin && !_isLoadingAdminStatus)
+            _buildCard(
+              title: "Admin Gereedskap",
+              icon: Icons.admin_panel_settings,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.qr_code_scanner),
+                  title: const Text("Skandeer QR Kode"),
+                  subtitle: const Text("Skandeer voedseel items vir afhaal"),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      "Admin",
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.purple,
+                      ),
+                    ),
+                  ),
+                  onTap: () => context.go('/scan'),
+                ),
+              ],
+            ),
 
           // Quick Access
           _buildCard(

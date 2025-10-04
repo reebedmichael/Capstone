@@ -32,8 +32,6 @@ class SpyskaartRepository {
         .eq('spyskaart_is_active', true)
         .limit(1)
         .single();
-
-    if (rows == null) return null;
     return Map<String, dynamic>.from(rows);
   }
 }

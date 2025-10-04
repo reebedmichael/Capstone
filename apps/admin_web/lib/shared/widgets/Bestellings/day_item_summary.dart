@@ -10,12 +10,12 @@ class DayItemsSummary extends StatelessWidget {
   final void Function(String foodItem) onFoodItemClick;
 
   const DayItemsSummary({
-    Key? key,
+    super.key,
     required this.orders,
     required this.selectedDay,
     this.selectedFoodItem,
     required this.onFoodItemClick,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +34,7 @@ class DayItemsSummary extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.background,
+          color: Theme.of(context).colorScheme.surface,
           border: Border.all(color: Colors.orange.shade200),
           borderRadius: BorderRadius.circular(12),
         ),

@@ -9,11 +9,7 @@ class LocationDropdown extends ConsumerStatefulWidget {
   final String? errorText;
   final String? initialValue; // 👈 initial campus name (e.g. "Leriba")
 
-  const LocationDropdown({
-    super.key,
-    this.errorText,
-    this.initialValue,
-  });
+  const LocationDropdown({super.key, this.errorText, this.initialValue});
 
   @override
   ConsumerState<LocationDropdown> createState() => _LocationDropdownState();
@@ -21,7 +17,8 @@ class LocationDropdown extends ConsumerStatefulWidget {
 
 class _LocationDropdownState extends ConsumerState<LocationDropdown> {
   bool _isLoading = true;
-  List<String> _locations = const []; // don't prefill with label/"Geen" to avoid mismatches
+  List<String> _locations =
+      const []; // don't prefill with label/"Geen" to avoid mismatches
 
   @override
   void initState() {
@@ -32,16 +29,17 @@ class _LocationDropdownState extends ConsumerState<LocationDropdown> {
   Future<void> _loadLocations() async {
     try {
       final kampusRepository = sl<KampusRepository>();
-      final data = await kampusRepository.kryKampusse(); 
+      final data = await kampusRepository.kryKampusse();
       // data: List<Map<String, dynamic>?> where each map has {"kampus_naam": "..."} already selected
 
-      final names = (data ?? const [])
-          .where((m) => m != null && m!['kampus_naam'] != null)
-          .map((m) => m!['kampus_naam'].toString().trim())
-          .where((s) => s.isNotEmpty)
-          .toSet() // de-dupe defensively
-          .toList()
-        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      final names =
+          (data ?? const [])
+              .where((m) => m != null && m['kampus_naam'] != null)
+              .map((m) => m!['kampus_naam'].toString().trim())
+              .where((s) => s.isNotEmpty)
+              .toSet() // de-dupe defensively
+              .toList()
+            ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
       if (!mounted) return;
       setState(() {
@@ -56,7 +54,7 @@ class _LocationDropdownState extends ConsumerState<LocationDropdown> {
         final current = ref.read(locationProvider);
 
         String? next;
-        if (current != null && current.isNotEmpty && _locations.contains(current)) {
+        if (current.isNotEmpty && _locations.contains(current)) {
           next = current; // keep current if valid
         } else if (widget.initialValue != null &&
             widget.initialValue!.isNotEmpty &&
@@ -88,9 +86,8 @@ class _LocationDropdownState extends ConsumerState<LocationDropdown> {
     }
 
     // Ensure the dropdown's value is one of the items or null (to avoid assertion errors).
-    final value = (selectedLocation != null &&
-            selectedLocation.isNotEmpty &&
-            _locations.contains(selectedLocation))
+    final value =
+        (selectedLocation.isNotEmpty && _locations.contains(selectedLocation))
         ? selectedLocation
         : null;
 
@@ -103,10 +100,7 @@ class _LocationDropdownState extends ConsumerState<LocationDropdown> {
       ),
       items: _locations
           .map(
-            (name) => DropdownMenuItem<String>(
-              value: name,
-              child: Text(name),
-            ),
+            (name) => DropdownMenuItem<String>(value: name, child: Text(name)),
           )
           .toList(),
       onChanged: (val) {

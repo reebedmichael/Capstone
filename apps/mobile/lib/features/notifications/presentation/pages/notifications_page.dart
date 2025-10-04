@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:spys_api_client/spys_api_client.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
-import '../../../../shared/constants/spacing.dart';
-import '../../../../shared/services/notification_service.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -17,8 +13,8 @@ class NotificationsPage extends StatefulWidget {
 class _NotificationsPageState extends State<NotificationsPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
-  String _primaryTab = 'all'; // all | unread | read
+
+  final String _primaryTab = 'all'; // all | unread | read
   String _secondaryTab = 'all'; // all | orders | menu | allowance
 
   List<Map<String, dynamic>> _notifications = [];
@@ -43,14 +39,16 @@ class _NotificationsPageState extends State<NotificationsPage>
     if (user == null) return;
 
     try {
-      final kennisgewingRepo = KennisgewingRepository(SupabaseDb(Supabase.instance.client));
-      
+      final kennisgewingRepo = KennisgewingRepository(
+        SupabaseDb(Supabase.instance.client),
+      );
+
       // Laai kennisgewings
       final kennisgewings = await kennisgewingRepo.kryKennisgewings(user.id);
-      
+
       // Laai statistieke
       final stats = await kennisgewingRepo.kryKennisgewingStatistieke(user.id);
-      
+
       setState(() {
         _notifications = kennisgewings;
         _statistieke = stats;
@@ -66,9 +64,11 @@ class _NotificationsPageState extends State<NotificationsPage>
 
   Future<void> _markeerAsGelees(String kennisId) async {
     try {
-      final kennisgewingRepo = KennisgewingRepository(SupabaseDb(Supabase.instance.client));
+      final kennisgewingRepo = KennisgewingRepository(
+        SupabaseDb(Supabase.instance.client),
+      );
       await kennisgewingRepo.markeerAsGelees(kennisId);
-      
+
       // Herlaai kennisgewings
       await _laaiKennisgewings();
     } catch (e) {
@@ -81,9 +81,11 @@ class _NotificationsPageState extends State<NotificationsPage>
     if (user == null) return;
 
     try {
-      final kennisgewingRepo = KennisgewingRepository(SupabaseDb(Supabase.instance.client));
+      final kennisgewingRepo = KennisgewingRepository(
+        SupabaseDb(Supabase.instance.client),
+      );
       await kennisgewingRepo.markeerAllesAsGelees(user.id);
-      
+
       // Herlaai kennisgewings
       await _laaiKennisgewings();
     } catch (e) {
@@ -94,12 +96,14 @@ class _NotificationsPageState extends State<NotificationsPage>
   List<Map<String, dynamic>> get _gefilterdeKennisgewings {
     return _notifications.where((kennisgewing) {
       // Primêre filter (alles/ongelees/gelees)
-      final bool primereMatch = _primaryTab == 'all' ||
+      final bool primereMatch =
+          _primaryTab == 'all' ||
           (_primaryTab == 'unread' && !kennisgewing['kennis_gelees']) ||
           (_primaryTab == 'read' && kennisgewing['kennis_gelees']);
 
       // Sekondere filter (tipe)
-      final bool sekondereMatch = _secondaryTab == 'all' ||
+      final bool sekondereMatch =
+          _secondaryTab == 'all' ||
           _getKennisgewingTipe(kennisgewing) == _secondaryTab;
 
       return primereMatch && sekondereMatch;
@@ -107,8 +111,9 @@ class _NotificationsPageState extends State<NotificationsPage>
   }
 
   String _getKennisgewingTipe(Map<String, dynamic> kennisgewing) {
-    final tipeNaam = kennisgewing['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info';
-    
+    final tipeNaam =
+        kennisgewing['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info';
+
     // Map kennisgewing tipes na app tipes
     switch (tipeNaam.toLowerCase()) {
       case 'bestelling':
@@ -127,8 +132,18 @@ class _NotificationsPageState extends State<NotificationsPage>
 
   String _formatDate(DateTime date) {
     const months = [
-      'Jan', 'Feb', 'Mrt', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des'
+      'Jan',
+      'Feb',
+      'Mrt',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
     ];
     return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} '
         '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
@@ -138,13 +153,11 @@ class _NotificationsPageState extends State<NotificationsPage>
     final tipe = _getKennisgewingTipe(kennisgewing);
     final isGelees = kennisgewing['kennis_gelees'] ?? false;
     final datum = DateTime.parse(kennisgewing['kennis_geskep_datum']);
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
             Container(
@@ -179,10 +192,7 @@ class _NotificationsPageState extends State<NotificationsPage>
                   ),
                   Text(
                     _formatDate(datum),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                 ],
               ),
@@ -249,18 +259,11 @@ class _NotificationsPageState extends State<NotificationsPage>
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Icon(
-                    Icons.access_time,
-                    size: 16,
-                    color: Colors.grey[600],
-                  ),
+                  Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
                   const SizedBox(width: 8),
                   Text(
                     'Gestuur op: ${_formatDate(datum)}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
                 ],
               ),
@@ -295,9 +298,7 @@ class _NotificationsPageState extends State<NotificationsPage>
               },
               icon: const Icon(Icons.mark_email_read),
               label: const Text('Markeer as Gelees'),
-              style: TextButton.styleFrom(
-                foregroundColor: _getTipeKleur(tipe),
-              ),
+              style: TextButton.styleFrom(foregroundColor: _getTipeKleur(tipe)),
             ),
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -409,11 +410,26 @@ class _NotificationsPageState extends State<NotificationsPage>
                           value: _secondaryTab,
                           isExpanded: true,
                           items: const [
-                            DropdownMenuItem(value: 'all', child: Text('Alle tipes')),
-                            DropdownMenuItem(value: 'order', child: Text('Bestellings')),
-                            DropdownMenuItem(value: 'menu', child: Text('Spyskaart')),
-                            DropdownMenuItem(value: 'allowance', child: Text('Toelaag')),
-                            DropdownMenuItem(value: 'general', child: Text('Algemeen')),
+                            DropdownMenuItem(
+                              value: 'all',
+                              child: Text('Alle tipes'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'order',
+                              child: Text('Bestellings'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'menu',
+                              child: Text('Spyskaart'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'allowance',
+                              child: Text('Toelaag'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'general',
+                              child: Text('Algemeen'),
+                            ),
                           ],
                           onChanged: (value) {
                             setState(() {
@@ -453,26 +469,31 @@ class _NotificationsPageState extends State<NotificationsPage>
                           padding: const EdgeInsets.all(16),
                           itemCount: _gefilterdeKennisgewings.length,
                           itemBuilder: (context, index) {
-                            final kennisgewing = _gefilterdeKennisgewings[index];
+                            final kennisgewing =
+                                _gefilterdeKennisgewings[index];
                             final tipe = _getKennisgewingTipe(kennisgewing);
-                            final isGelees = kennisgewing['kennis_gelees'] ?? false;
-                            final datum = DateTime.parse(kennisgewing['kennis_geskep_datum']);
-                            
+                            final isGelees =
+                                kennisgewing['kennis_gelees'] ?? false;
+                            final datum = DateTime.parse(
+                              kennisgewing['kennis_geskep_datum'],
+                            );
+
                             return Card(
                               margin: const EdgeInsets.only(bottom: 12),
                               elevation: isGelees ? 1 : 3,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 side: BorderSide(
-                                  color: isGelees 
-                                    ? Colors.grey.withOpacity(0.3)
-                                    : _getTipeKleur(tipe).withOpacity(0.3),
+                                  color: isGelees
+                                      ? Colors.grey.withOpacity(0.3)
+                                      : _getTipeKleur(tipe).withOpacity(0.3),
                                   width: isGelees ? 1 : 2,
                                 ),
                               ),
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(12),
-                                onTap: () => _toonKennisgewingDetail(kennisgewing),
+                                onTap: () =>
+                                    _toonKennisgewingDetail(kennisgewing),
                                 child: Padding(
                                   padding: const EdgeInsets.all(16),
                                   child: Row(
@@ -481,10 +502,16 @@ class _NotificationsPageState extends State<NotificationsPage>
                                         width: 50,
                                         height: 50,
                                         decoration: BoxDecoration(
-                                          color: _getTipeKleur(tipe).withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(25),
+                                          color: _getTipeKleur(
+                                            tipe,
+                                          ).withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            25,
+                                          ),
                                           border: Border.all(
-                                            color: _getTipeKleur(tipe).withOpacity(0.3),
+                                            color: _getTipeKleur(
+                                              tipe,
+                                            ).withOpacity(0.3),
                                             width: 2,
                                           ),
                                         ),
@@ -497,20 +524,27 @@ class _NotificationsPageState extends State<NotificationsPage>
                                       const SizedBox(width: 16),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Row(
                                               children: [
                                                 Expanded(
                                                   child: Text(
-                                                    kennisgewing['kennis_beskrywing'] ?? 'Kennisgewing',
+                                                    kennisgewing['kennis_beskrywing'] ??
+                                                        'Kennisgewing',
                                                     style: TextStyle(
-                                                      fontWeight: isGelees ? FontWeight.w500 : FontWeight.bold,
+                                                      fontWeight: isGelees
+                                                          ? FontWeight.w500
+                                                          : FontWeight.bold,
                                                       fontSize: 16,
-                                                      color: isGelees ? Colors.grey[700] : Colors.black87,
+                                                      color: isGelees
+                                                          ? Colors.grey[700]
+                                                          : Colors.black87,
                                                     ),
                                                     maxLines: 2,
-                                                    overflow: TextOverflow.ellipsis,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   ),
                                                 ),
                                                 if (!isGelees)
@@ -518,7 +552,9 @@ class _NotificationsPageState extends State<NotificationsPage>
                                                     width: 8,
                                                     height: 8,
                                                     decoration: BoxDecoration(
-                                                      color: _getTipeKleur(tipe),
+                                                      color: _getTipeKleur(
+                                                        tipe,
+                                                      ),
                                                       shape: BoxShape.circle,
                                                     ),
                                                   ),
@@ -542,23 +578,34 @@ class _NotificationsPageState extends State<NotificationsPage>
                                                 ),
                                                 const Spacer(),
                                                 Container(
-                                                  padding: const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4,
-                                                  ),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 4,
+                                                      ),
                                                   decoration: BoxDecoration(
-                                                    color: _getTipeKleur(tipe).withOpacity(0.1),
-                                                    borderRadius: BorderRadius.circular(12),
+                                                    color: _getTipeKleur(
+                                                      tipe,
+                                                    ).withOpacity(0.1),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
                                                     border: Border.all(
-                                                      color: _getTipeKleur(tipe).withOpacity(0.3),
+                                                      color: _getTipeKleur(
+                                                        tipe,
+                                                      ).withOpacity(0.3),
                                                     ),
                                                   ),
                                                   child: Text(
                                                     tipe.toUpperCase(),
                                                     style: TextStyle(
                                                       fontSize: 10,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: _getTipeKleur(tipe),
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: _getTipeKleur(
+                                                        tipe,
+                                                      ),
                                                     ),
                                                   ),
                                                 ),
@@ -570,8 +617,12 @@ class _NotificationsPageState extends State<NotificationsPage>
                                       const SizedBox(width: 8),
                                       if (!isGelees)
                                         IconButton(
-                                          onPressed: () => _markeerAsGelees(kennisgewing['kennis_id']),
-                                          icon: const Icon(Icons.mark_email_read),
+                                          onPressed: () => _markeerAsGelees(
+                                            kennisgewing['kennis_id'],
+                                          ),
+                                          icon: const Icon(
+                                            Icons.mark_email_read,
+                                          ),
                                           tooltip: 'Markeer as gelees',
                                           color: _getTipeKleur(tipe),
                                         ),
@@ -610,10 +661,7 @@ class _NotificationsPageState extends State<NotificationsPage>
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   Text(
                     value,

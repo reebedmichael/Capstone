@@ -36,11 +36,11 @@ class LargeFoodChip extends StatelessWidget {
   final double imageSize;
 
   const LargeFoodChip({
-    Key? key,
+    super.key,
     required this.food,
     required this.onDeleted,
     this.imageSize = 56,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -388,7 +388,7 @@ class _FormModalState extends State<FormModal> {
             child: Container(
               color: Colors.black.withOpacity(0.5),
               child: Center(
-                child: Container(
+                child: SizedBox(
                   width: MediaQuery.of(context).size.width * 0.8,
                   height: MediaQuery.of(context).size.height * 0.8,
                   child: ItemSearchOverlay(

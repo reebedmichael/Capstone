@@ -145,8 +145,9 @@ OrderStatus mapStatusFromNames(List<String> names) {
 
   OrderStatus mapOne(String n) {
     final s = n.toLowerCase();
-    if (s.contains('kansel') || s.contains('cancel'))
+    if (s.contains('kansel') || s.contains('cancel')) {
       return OrderStatus.cancelled;
+    }
     if (s.contains('afgehandel') || s == 'done') return OrderStatus.done;
     if (s.contains('afleweringspunt') ||
         s.contains('afgelewer') ||
@@ -164,10 +165,12 @@ OrderStatus mapStatusFromNames(List<String> names) {
         s.contains('pickup')) {
       return OrderStatus.readyFetch;
     }
-    if (s.contains('voorbereiding') || s.contains('prepar'))
+    if (s.contains('voorbereiding') || s.contains('prepar')) {
       return OrderStatus.preparing;
-    if (s.contains('ontvang') || s.contains('pending'))
+    }
+    if (s.contains('ontvang') || s.contains('pending')) {
       return OrderStatus.pending;
+    }
     return OrderStatus.pending;
   }
 

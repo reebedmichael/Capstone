@@ -87,7 +87,7 @@ class _WeekTemplateCardState extends State<WeekTemplateCard>
 
   Widget _buildDayTabContent(String dagKey, Map<String, dynamic> daeMap) {
     final List<Map<String, dynamic>> kosMaps =
-        (((daeMap[dagKey] as List?) ?? const []) as List)
+        (((daeMap[dagKey] as List?) ?? const []))
             .map((e) => Map<String, dynamic>.from(e as Map))
             .toList();
 
@@ -217,9 +217,7 @@ class _WeekTemplateCardState extends State<WeekTemplateCard>
                     isScrollable: true,
                     labelColor: Theme.of(context).colorScheme.primary,
                     tabs: [
-                      ...widget.daeVanWeek
-                          .map((d) => Tab(text: d['label']))
-                          .toList(),
+                      ...widget.daeVanWeek.map((d) => Tab(text: d['label'])),
                     ],
                   ),
                   const SizedBox(height: 12),

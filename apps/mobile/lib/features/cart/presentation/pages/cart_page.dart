@@ -13,7 +13,8 @@ import '../../../../shared/state/cart_badge.dart';
 class FoodItemModel {
   final String id;
   final String name;
-  final String? imageUrl; // Network images disabled for offline/dev environments
+  final String?
+  imageUrl; // Network images disabled for offline/dev environments
   final double price;
   final bool available;
   final List<String> ingredients;
@@ -77,8 +78,12 @@ class _CartPageState extends State<CartPage> {
   void _setPickup(String? v) => setState(() => pickupLocation = v);
 
   bool get cartIsEmpty => cart.isEmpty;
-  List<CartItemModel> get unavailableItems => cart.where((c) => !c.foodItem.available).toList();
-  double get subtotal => cart.fold(0.0, (double sum, CartItemModel c) => sum + (c.foodItem.price * c.quantity));
+  List<CartItemModel> get unavailableItems =>
+      cart.where((c) => !c.foodItem.available).toList();
+  double get subtotal => cart.fold(
+    0.0,
+    (double sum, CartItemModel c) => sum + (c.foodItem.price * c.quantity),
+  );
   double get deliveryFee => 0.0; // pickup is free
   double get total => subtotal + deliveryFee;
   bool get hasSufficientFunds => walletBalance >= total;
@@ -113,7 +118,12 @@ class _CartPageState extends State<CartPage> {
           .eq('gebr_id', user.id);
       final List prefs = (rows is List) ? rows : const [];
       userDietPrefs = prefs
-          .map((e) => (e['dieet']?['dieet_naam'] ?? '').toString().trim().toLowerCase())
+          .map(
+            (e) => (e['dieet']?['dieet_naam'] ?? '')
+                .toString()
+                .trim()
+                .toLowerCase(),
+          )
           .where((s) => s.isNotEmpty)
           .toList();
     } catch (_) {
@@ -126,32 +136,59 @@ class _CartPageState extends State<CartPage> {
     if (userDietPrefs.isEmpty) return conflicts;
 
     bool requiresVegan = userDietPrefs.contains('vegan');
-    bool requiresVegetarian = userDietPrefs.contains('vegetarian') || userDietPrefs.contains('vegetaries');
+    bool requiresVegetarian =
+        userDietPrefs.contains('vegetarian') ||
+        userDietPrefs.contains('vegetaries');
     final Set<String> allergenPrefs = userDietPrefs
         .where((p) => p != 'vegan' && p != 'vegetarian' && p != 'vegetaries')
         .toSet();
 
     for (final CartItemModel c in cart) {
       final name = c.foodItem.name;
-      final List<String> ingredients = c.foodItem.ingredients.map((e) => e.toLowerCase()).toList();
-      final List<String> allergens = c.foodItem.allergens.map((e) => e.toLowerCase()).toList();
+      final List<String> ingredients = c.foodItem.ingredients
+          .map((e) => e.toLowerCase())
+          .toList();
+      final List<String> allergens = c.foodItem.allergens
+          .map((e) => e.toLowerCase())
+          .toList();
 
       // Allergen conflicts
       for (final a in allergenPrefs) {
-        if (allergens.contains(a) || ingredients.any((ing) => ing.contains(a))) {
+        if (allergens.contains(a) ||
+            ingredients.any((ing) => ing.contains(a))) {
           conflicts.add(_DietConflict(itemName: name, reason: 'Allergeen: $a'));
         }
       }
 
       // Simple vegan/vegetarian inference
       if (requiresVegan || requiresVegetarian) {
-        final hasMeat = ingredients.any((ing) =>
-            ing.contains('vleis') || ing.contains('beef') || ing.contains('chicken') || ing.contains('hoender') || ing.contains('pork') || ing.contains('spekvleis') || ing.contains('ham'));
-        final hasDairyOrEgg = ingredients.any((ing) => ing.contains('milk') || ing.contains('melk') || ing.contains('kaas') || ing.contains('cheese') || ing.contains('egg') || ing.contains('eier'));
+        final hasMeat = ingredients.any(
+          (ing) =>
+              ing.contains('vleis') ||
+              ing.contains('beef') ||
+              ing.contains('chicken') ||
+              ing.contains('hoender') ||
+              ing.contains('pork') ||
+              ing.contains('spekvleis') ||
+              ing.contains('ham'),
+        );
+        final hasDairyOrEgg = ingredients.any(
+          (ing) =>
+              ing.contains('milk') ||
+              ing.contains('melk') ||
+              ing.contains('kaas') ||
+              ing.contains('cheese') ||
+              ing.contains('egg') ||
+              ing.contains('eier'),
+        );
         if (requiresVegan && (hasMeat || hasDairyOrEgg)) {
-          conflicts.add(_DietConflict(itemName: name, reason: 'Konflik met vegan'));
+          conflicts.add(
+            _DietConflict(itemName: name, reason: 'Konflik met vegan'),
+          );
         } else if (requiresVegetarian && hasMeat) {
-          conflicts.add(_DietConflict(itemName: name, reason: 'Konflik met vegetaries'));
+          conflicts.add(
+            _DietConflict(itemName: name, reason: 'Konflik met vegetaries'),
+          );
         }
       }
     }
@@ -174,7 +211,9 @@ class _CartPageState extends State<CartPage> {
                   children: [
                     const Text('Ons het moontlike konflikte gevind:'),
                     const SizedBox(height: 8),
-                    ...conflicts.map((c) => Text('• ${c.itemName}: ${c.reason}')),
+                    ...conflicts.map(
+                      (c) => Text('• ${c.itemName}: ${c.reason}'),
+                    ),
                     const SizedBox(height: 12),
                     const Text('Wil jy voortgaan met die bestelling?'),
                   ],
@@ -212,35 +251,61 @@ class _CartPageState extends State<CartPage> {
                   children: [
                     const Text('Items:'),
                     const SizedBox(height: 6),
-                    ...cart.map((c) => Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(child: Text('${c.foodItem.name} × ${c.quantity}')),
-                            Text('R${(c.foodItem.price * c.quantity).toStringAsFixed(2)}'),
-                          ],
-                        )),
+                    ...cart.map(
+                      (c) => Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text('${c.foodItem.name} × ${c.quantity}'),
+                          ),
+                          Text(
+                            'R${(c.foodItem.price * c.quantity).toStringAsFixed(2)}',
+                          ),
+                        ],
+                      ),
+                    ),
                     const Divider(height: 16),
                     Text('Afhaallokasie: ${pickupLocation ?? '-'}'),
                     const SizedBox(height: 8),
                     if (conflicts.isNotEmpty) ...[
-                      const Text('Waarskuwings:', style: TextStyle(color: Colors.orange)),
+                      const Text(
+                        'Waarskuwings:',
+                        style: TextStyle(color: Colors.orange),
+                      ),
                       const SizedBox(height: 4),
-                      ...conflicts.map((c) => Text('• ${c.itemName}: ${c.reason}', style: const TextStyle(fontSize: 12))),
+                      ...conflicts.map(
+                        (c) => Text(
+                          '• ${c.itemName}: ${c.reason}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
                     ],
                     const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text('Totaal:'),
-                        Text('R${total.toStringAsFixed(2)}', style: AppTypography.titleSmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700)),
+                        Text(
+                          'R${total.toStringAsFixed(2)}',
+                          style: AppTypography.titleSmall.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ],
                     ),
                   ],
                 ),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Wysig Mandjie')),
-                ElevatedButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Bevestig')),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Wysig Mandjie'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Bevestig'),
+                ),
               ],
             );
           },
@@ -255,18 +320,21 @@ class _CartPageState extends State<CartPage> {
     });
     try {
       final data = await sl<KampusRepository>().kryKampusse();
-      final names = (data)
-          .where((m) => m != null && m!['kampus_naam'] != null)
-          .map((m) => m!['kampus_naam'].toString().trim())
-          .where((s) => s.isNotEmpty)
-          .toSet()
-          .toList()
-        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      final names =
+          (data)
+              .where((m) => m != null && m['kampus_naam'] != null)
+              .map((m) => m!['kampus_naam'].toString().trim())
+              .where((s) => s.isNotEmpty)
+              .toSet()
+              .toList()
+            ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
       setState(() {
         pickupLocations
           ..clear()
           ..addAll(names);
-        pickupLocation = pickupLocations.isNotEmpty ? pickupLocations.first : null;
+        pickupLocation = pickupLocations.isNotEmpty
+            ? pickupLocations.first
+            : null;
         pickupLoading = false;
       });
     } catch (e) {
@@ -291,7 +359,7 @@ class _CartPageState extends State<CartPage> {
           .select('beursie_balans')
           .eq('gebr_id', user.id)
           .maybeSingle();
-      if (row != null && row is Map<String, dynamic>) {
+      if (row != null) {
         final raw = row['beursie_balans'];
         if (raw is num) {
           walletBalance = raw.toDouble();
@@ -317,7 +385,9 @@ class _CartPageState extends State<CartPage> {
 
     try {
       // select mandjie rows for the user and join kos_item fields
-      final data = await Supabase.instance.client.from('mandjie').select(r'''
+      final data = await Supabase.instance.client
+          .from('mandjie')
+          .select(r'''
         mand_id,
         qty,
         week_dag_naam,
@@ -330,22 +400,34 @@ class _CartPageState extends State<CartPage> {
           kos_item_bestandele,
           kos_item_allergene
         )
-      ''').eq('gebr_id', user.id);
+      ''')
+          .eq('gebr_id', user.id);
 
-
-      final List<Map<String, dynamic>> rows = List<Map<String, dynamic>>.from(data as List);
+      final List<Map<String, dynamic>> rows = List<Map<String, dynamic>>.from(
+        data as List,
+      );
 
       final List<CartItemModel> loaded = rows.map((r) {
-        final kos = r['kos_item'] as Map<String, dynamic>? ?? <String, dynamic>{};
-        final List<String> parsedIngredients = _parseIngredients(kos['kos_item_bestandele']);
-        final List<String> parsedAllergens = _parseList(kos['kos_item_allergene']);
+        final kos =
+            r['kos_item'] as Map<String, dynamic>? ?? <String, dynamic>{};
+        final List<String> parsedIngredients = _parseIngredients(
+          kos['kos_item_bestandele'],
+        );
+        final List<String> parsedAllergens = _parseList(
+          kos['kos_item_allergene'],
+        );
 
         final food = FoodItemModel(
           id: (kos['kos_item_id'] ?? '').toString(),
           name: (kos['kos_item_naam'] ?? 'Onbekende Item').toString(),
           imageUrl: kos['kos_item_prentjie']?.toString(),
-          price: (kos['kos_item_koste'] is num) ? (kos['kos_item_koste'] as num).toDouble() : double.tryParse('${kos['kos_item_koste']}') ?? 0.0,
-          available: kos.containsKey('is_aktief') ? (kos['is_aktief'] == true || kos['is_aktief'].toString().toLowerCase() == 'true') : true,
+          price: (kos['kos_item_koste'] is num)
+              ? (kos['kos_item_koste'] as num).toDouble()
+              : double.tryParse('${kos['kos_item_koste']}') ?? 0.0,
+          available: kos.containsKey('is_aktief')
+              ? (kos['is_aktief'] == true ||
+                    kos['is_aktief'].toString().toLowerCase() == 'true')
+              : true,
           ingredients: parsedIngredients,
           allergens: parsedAllergens,
         );
@@ -353,7 +435,9 @@ class _CartPageState extends State<CartPage> {
         return CartItemModel(
           id: r['mand_id'].toString(),
           foodItem: food,
-          quantity: (r['qty'] is int) ? r['qty'] as int : int.tryParse('${r['qty']}') ?? 1,
+          quantity: (r['qty'] is int)
+              ? r['qty'] as int
+              : int.tryParse('${r['qty']}') ?? 1,
           weekDag: r['week_dag_naam']?.toString(),
         );
       }).toList();
@@ -369,7 +453,9 @@ class _CartPageState extends State<CartPage> {
     } catch (e) {
       // if error, keep existing cart or clear - show snackbar
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Kon nie mandjie laai nie: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Kon nie mandjie laai nie: $e')));
       }
     }
   }
@@ -379,9 +465,18 @@ class _CartPageState extends State<CartPage> {
     if (raw is List) return raw.map((e) => e.toString()).toList();
     final s = raw.toString().trim();
     if (s.startsWith('{') && s.endsWith('}')) {
-      return s.substring(1, s.length - 1).split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      return s
+          .substring(1, s.length - 1)
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
     }
-    return s.split(RegExp(r'[;,\n]')).map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    return s
+        .split(RegExp(r'[;,\n]'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
   }
 
   List<String> _parseIngredients(dynamic raw) {
@@ -402,14 +497,24 @@ class _CartPageState extends State<CartPage> {
 
     try {
       if (newQuantity <= 0) {
-        await Supabase.instance.client.from('mandjie').delete().eq('mand_id', itemId);
+        await Supabase.instance.client
+            .from('mandjie')
+            .delete()
+            .eq('mand_id', itemId);
       } else {
-        await Supabase.instance.client.from('mandjie').update({'qty': newQuantity}).eq('mand_id', itemId);
+        await Supabase.instance.client
+            .from('mandjie')
+            .update({'qty': newQuantity})
+            .eq('mand_id', itemId);
       }
     } catch (e) {
       // Rollback UI change by reloading cart
       await _loadCart();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Kon nie hoeveelheid opdateer nie: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Kon nie hoeveelheid opdateer nie: $e')),
+        );
+      }
     }
 
     // refresh wallet just in case
@@ -422,10 +527,17 @@ class _CartPageState extends State<CartPage> {
   void removeFromCart(String itemId) async {
     setState(() => cart.removeWhere((c) => c.id == itemId));
     try {
-      await Supabase.instance.client.from('mandjie').delete().eq('mand_id', itemId);
+      await Supabase.instance.client
+          .from('mandjie')
+          .delete()
+          .eq('mand_id', itemId);
     } catch (e) {
       await _loadCart();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Kon nie item verwyder nie: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Kon nie item verwyder nie: $e')),
+        );
+      }
     }
     await _loadWalletBalance();
     CartBadgeState.count.value = cart.fold<int>(0, (s, c) => s + c.quantity);
@@ -434,110 +546,120 @@ class _CartPageState extends State<CartPage> {
   Future<String> _ensureTransTypeId(String name) async {
     final sb = Supabase.instance.client;
     // Try to find the transaksie tipe by name
-    final row = await sb.from('transaksie_tipe').select('trans_tipe_id').eq('trans_tipe_naam', name).maybeSingle();
-    if (row != null && row is Map<String, dynamic> && row['trans_tipe_id'] != null) {
+    final row = await sb
+        .from('transaksie_tipe')
+        .select('trans_tipe_id')
+        .eq('trans_tipe_naam', name)
+        .maybeSingle();
+    if (row != null && row['trans_tipe_id'] != null) {
       return row['trans_tipe_id'].toString();
     }
     // If not found, insert it (so we always have the uuid)
-    final inserted = await sb.from('transaksie_tipe').insert({'trans_tipe_naam': name}).select().maybeSingle();
+    final inserted = await sb
+        .from('transaksie_tipe')
+        .insert({'trans_tipe_naam': name})
+        .select()
+        .maybeSingle();
     if (inserted != null && inserted['trans_tipe_id'] != null) {
       return inserted['trans_tipe_id'].toString();
     }
     throw Exception('Kon transaksie tipe nie kry of skep nie ($name).');
   }
 
-Future<bool> placeOrder(String pickup) async {
-  final user = Supabase.instance.client.auth.currentUser;
-  if (user == null) return false;
+  Future<bool> placeOrder(String pickup) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return false;
 
-  if (cart.isEmpty) return false;
+    if (cart.isEmpty) return false;
 
-  final sb = Supabase.instance.client;
-  final double orderTotal = subtotal;
+    final sb = Supabase.instance.client;
+    final double orderTotal = subtotal;
 
-  // Load latest balance
-  await _loadWalletBalance();
-  if (walletBalance < orderTotal) return false;
+    // Load latest balance
+    await _loadWalletBalance();
+    if (walletBalance < orderTotal) return false;
 
-  try {
-    // 1️⃣ Ensure transaksie_tipe 'uitbetaling'
-    final transTypeId = await _ensureTransTypeId('uitbetaling');
+    try {
+      // 1️⃣ Ensure transaksie_tipe 'uitbetaling'
+      final transTypeId = await _ensureTransTypeId('uitbetaling');
 
-    // 2️⃣ Create bestelling
-    final bestellingInsert = await sb.from('bestelling').insert({
-      'gebr_id': user.id,
-      'best_volledige_prys': orderTotal,
-    }).select().maybeSingle();
+      // 2️⃣ Create bestelling
+      final bestellingInsert = await sb
+          .from('bestelling')
+          .insert({'gebr_id': user.id, 'best_volledige_prys': orderTotal})
+          .select()
+          .maybeSingle();
 
-    if (bestellingInsert == null || bestellingInsert['best_id'] == null) {
-      throw Exception('Kon nie bestelling skep nie.');
+      if (bestellingInsert == null || bestellingInsert['best_id'] == null) {
+        throw Exception('Kon nie bestelling skep nie.');
+      }
+      final String bestId = bestellingInsert['best_id'].toString();
+
+      // 3️⃣ Insert bestelling_kos_item rows
+      final List<Map<String, dynamic>> bkItems = cart.map((c) {
+        return {
+          'best_id': bestId,
+          'kos_item_id': c.foodItem.id,
+          'item_hoev': c.quantity,
+        };
+      }).toList();
+
+      final insertedItems = await sb
+          .from('bestelling_kos_item')
+          .insert(bkItems)
+          .select();
+
+      // 4️⃣ Insert status for each item ('Bestelling Ontvang')
+      const String initialStatusId = 'aef58a24-1a1d-4940-8855-df4c35ae5d5e';
+      final List<Map<String, dynamic>> statusInserts = List.generate(
+        insertedItems.length,
+        (i) {
+          final bestKosId = insertedItems[i]['best_kos_id'];
+          return {'best_kos_id': bestKosId, 'kos_stat_id': initialStatusId};
+        },
+      );
+
+      await sb.from('best_kos_item_statusse').insert(statusInserts);
+
+      // 5️⃣ Record beursie_transaksie
+      await sb.from('beursie_transaksie').insert({
+        'gebr_id': user.id,
+        'trans_bedrag': orderTotal,
+        'trans_tipe_id': transTypeId,
+        'trans_beskrywing': 'Bestelling $bestId - afhaallokasie: $pickup',
+      });
+
+      // 6️⃣ Update wallet
+      final double newBal = walletBalance - orderTotal;
+      await sb
+          .from('gebruikers')
+          .update({'beursie_balans': newBal})
+          .eq('gebr_id', user.id);
+
+      // 7️⃣ Clear mandjie
+      await sb.from('mandjie').delete().eq('gebr_id', user.id);
+
+      // 8️⃣ Update local state
+      setState(() {
+        walletBalance = newBal;
+        cart.clear();
+      });
+
+      return true;
+    } catch (e) {
+      debugPrint('Fout tydens plaasBestelling: $e');
+      await _loadEverything(); // reload to reflect DB state
+      return false;
     }
-    final String bestId = bestellingInsert['best_id'].toString();
-
-    // 3️⃣ Insert bestelling_kos_item rows
-    final List<Map<String, dynamic>> bkItems = cart.map((c) {
-      return {
-        'best_id': bestId,
-        'kos_item_id': c.foodItem.id,
-        'item_hoev': c.quantity,
-      };
-    }).toList();
-
-    final insertedItems = await sb.from('bestelling_kos_item').insert(bkItems).select();
-    if (insertedItems == null) throw Exception('Kon items nie insit nie.');
-
-    // 4️⃣ Insert status for each item ('Bestelling Ontvang')
-    const String initialStatusId = 'aef58a24-1a1d-4940-8855-df4c35ae5d5e';
-    final List<Map<String, dynamic>> statusInserts = List.generate(insertedItems.length, (i) {
-      final bestKosId = insertedItems[i]['best_kos_id'];
-      return {
-        'best_kos_id': bestKosId,
-        'kos_stat_id': initialStatusId,
-      };
-    });
-
-    await sb.from('best_kos_item_statusse').insert(statusInserts);
-
-    // 5️⃣ Record beursie_transaksie
-    await sb.from('beursie_transaksie').insert({
-      'gebr_id': user.id,
-      'trans_bedrag': orderTotal,
-      'trans_tipe_id': transTypeId,
-      'trans_beskrywing': 'Bestelling $bestId - afhaallokasie: $pickup',
-    });
-
-    // 6️⃣ Update wallet
-    final double newBal = walletBalance - orderTotal;
-    await sb.from('gebruikers').update({'beursie_balans': newBal}).eq('gebr_id', user.id);
-
-    // 7️⃣ Clear mandjie
-    await sb.from('mandjie').delete().eq('gebr_id', user.id);
-
-    // 8️⃣ Update local state
-    setState(() {
-      walletBalance = newBal;
-      cart.clear();
-    });
-
-    return true;
-  } catch (e) {
-    debugPrint('Fout tydens plaasBestelling: $e');
-    await _loadEverything(); // reload to reflect DB state
-    return false;
   }
-}
 
-// (pickup helper widget removed; using inline UI)
-
-
+  // (pickup helper widget removed; using inline UI)
 
   @override
   Widget build(BuildContext context) {
     // If loading, show same UI but with progress
     if (loading) {
-      return Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     // Empty State
@@ -560,7 +682,12 @@ Future<bool> placeOrder(String pickup) async {
                       icon: const Icon(Icons.arrow_back),
                       onPressed: () => context.go('/home'),
                     ),
-                    Text('Mandjie', style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600)),
+                    Text(
+                      'Mandjie',
+                      style: AppTypography.titleMedium.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(width: 40),
                   ],
                 ),
@@ -573,15 +700,31 @@ Future<bool> placeOrder(String pickup) async {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.black38),
+                      Icon(
+                        Icons.shopping_cart_outlined,
+                        size: 64,
+                        color: Colors.black38,
+                      ),
                       const SizedBox(height: 12),
-                      Text('Jou mandjie is leeg', style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600)),
+                      Text(
+                        'Jou mandjie is leeg',
+                        style: AppTypography.titleMedium.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       const SizedBox(height: 6),
-                      Text('Voeg items by jou mandjie om te begin bestel', style: AppTypography.bodyMedium.copyWith(color: Colors.black54)),
+                      Text(
+                        'Voeg items by jou mandjie om te begin bestel',
+                        style: AppTypography.bodyMedium.copyWith(
+                          color: Colors.black54,
+                        ),
+                      ),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: () => context.go('/home'),
-                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                        ),
                         child: const Text('Begin Inkopies'),
                       ),
                     ],
@@ -608,7 +751,11 @@ Future<bool> placeOrder(String pickup) async {
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.only(left: Spacing.screenHPad, right: Spacing.screenHPad, bottom: 120),
+            padding: const EdgeInsets.only(
+              left: Spacing.screenHPad,
+              right: Spacing.screenHPad,
+              bottom: 120,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -620,7 +767,12 @@ Future<bool> placeOrder(String pickup) async {
                       icon: const Icon(Icons.arrow_back),
                       onPressed: () => context.go('/home'),
                     ),
-                    Text('Mandjie (${cart.length})', style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.w600)),
+                    Text(
+                      'Mandjie (${cart.length})',
+                      style: AppTypography.titleMedium.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(width: 40),
                   ],
                 ),
@@ -640,12 +792,17 @@ Future<bool> placeOrder(String pickup) async {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
-                          Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700),
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: Colors.orange.shade700,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'Let wel: ${unavailableItems.length} item(s) in jou mandjie is nie meer beskikbaar nie en sal verwyder word.',
-                              style: AppTypography.bodySmall.copyWith(color: Colors.orange.shade800),
+                              style: AppTypography.bodySmall.copyWith(
+                                color: Colors.orange.shade800,
+                              ),
                             ),
                           ),
                         ],
@@ -679,104 +836,167 @@ Future<bool> placeOrder(String pickup) async {
                         },
                         child: Card(
                           child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          children: <Widget>[
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
                               children: <Widget>[
-                                // Image
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    children: <Widget>[
-                                      if (item.foodItem.imageUrl != null)
-                                        Image.network(
-                                          item.foodItem.imageUrl!,
-                                          width: 64,
-                                          height: 64,
-                                          fit: BoxFit.cover,
-                                        )
-                                      else
-                                        Container(
-                                          width: 64,
-                                          height: 64,
-                                          color: Colors.grey.shade300,
-                                          alignment: Alignment.center,
-                                          child: const Icon(Icons.fastfood, color: Colors.white70),
-                                        ),
-                                      if (!item.foodItem.available)
-                                        Container(
-                                          width: 64,
-                                          height: 64,
-                                          color: Colors.black.withOpacity(0.5),
-                                          alignment: Alignment.center,
-                                          child: const Text('Uit', style: TextStyle(color: Colors.white, fontSize: 12)),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-
-                                // Details
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: <Widget>[
-                                      Text(item.foodItem.name, style: AppTypography.labelLarge.copyWith(fontWeight: FontWeight.w600)),
-                                      const SizedBox(height: 4),
-                                      Text('R${item.foodItem.price.toStringAsFixed(2)} elk', style: AppTypography.bodySmall.copyWith(color: Colors.black54)),
-                                      if (!item.foodItem.available)
-                                        const Text('Nie meer beskikbaar nie', style: TextStyle(fontSize: 12, color: Colors.red)),
-                                    ],
-                                  ),
-                                ),
-
-                                // Quantity controls
                                 Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: <Widget>[
-                                    OutlinedButton(
-                                      onPressed: () => updateCartQuantity(item.id, item.quantity - 1),
-                                      style: OutlinedButton.styleFrom(minimumSize: const Size(32, 32), padding: EdgeInsets.zero),
-                                      child: const Icon(Icons.remove, size: 16),
-                                    ),
-                                    SizedBox(
-                                      width: 32,
-                                      child: Center(
-                                        child: Text('${item.quantity}', style: AppTypography.labelLarge),
+                                    // Image
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Stack(
+                                        alignment: Alignment.center,
+                                        children: <Widget>[
+                                          if (item.foodItem.imageUrl != null)
+                                            Image.network(
+                                              item.foodItem.imageUrl!,
+                                              width: 64,
+                                              height: 64,
+                                              fit: BoxFit.cover,
+                                            )
+                                          else
+                                            Container(
+                                              width: 64,
+                                              height: 64,
+                                              color: Colors.grey.shade300,
+                                              alignment: Alignment.center,
+                                              child: const Icon(
+                                                Icons.fastfood,
+                                                color: Colors.white70,
+                                              ),
+                                            ),
+                                          if (!item.foodItem.available)
+                                            Container(
+                                              width: 64,
+                                              height: 64,
+                                              color: Colors.black.withOpacity(
+                                                0.5,
+                                              ),
+                                              alignment: Alignment.center,
+                                              child: const Text(
+                                                'Uit',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                     ),
-                                    OutlinedButton(
-                                      onPressed: item.foodItem.available && item.quantity < 10
-                                          ? () => updateCartQuantity(item.id, item.quantity + 1)
-                                          : null,
-                                      style: OutlinedButton.styleFrom(minimumSize: const Size(32, 32), padding: EdgeInsets.zero),
-                                      child: const Icon(Icons.add, size: 16),
+                                    const SizedBox(width: 12),
+
+                                    // Details
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: <Widget>[
+                                          Text(
+                                            item.foodItem.name,
+                                            style: AppTypography.labelLarge
+                                                .copyWith(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'R${item.foodItem.price.toStringAsFixed(2)} elk',
+                                            style: AppTypography.bodySmall
+                                                .copyWith(
+                                                  color: Colors.black54,
+                                                ),
+                                          ),
+                                          if (!item.foodItem.available)
+                                            const Text(
+                                              'Nie meer beskikbaar nie',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.red,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
                                     ),
-                                    IconButton(
-                                      onPressed: () => removeFromCart(item.id),
-                                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+
+                                    // Quantity controls
+                                    Row(
+                                      children: <Widget>[
+                                        OutlinedButton(
+                                          onPressed: () => updateCartQuantity(
+                                            item.id,
+                                            item.quantity - 1,
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            minimumSize: const Size(32, 32),
+                                            padding: EdgeInsets.zero,
+                                          ),
+                                          child: const Icon(
+                                            Icons.remove,
+                                            size: 16,
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          width: 32,
+                                          child: Center(
+                                            child: Text(
+                                              '${item.quantity}',
+                                              style: AppTypography.labelLarge,
+                                            ),
+                                          ),
+                                        ),
+                                        OutlinedButton(
+                                          onPressed:
+                                              item.foodItem.available &&
+                                                  item.quantity < 10
+                                              ? () => updateCartQuantity(
+                                                  item.id,
+                                                  item.quantity + 1,
+                                                )
+                                              : null,
+                                          style: OutlinedButton.styleFrom(
+                                            minimumSize: const Size(32, 32),
+                                            padding: EdgeInsets.zero,
+                                          ),
+                                          child: const Icon(
+                                            Icons.add,
+                                            size: 16,
+                                          ),
+                                        ),
+                                        IconButton(
+                                          onPressed: () =>
+                                              removeFromCart(item.id),
+                                          icon: const Icon(
+                                            Icons.delete_outline,
+                                            color: Colors.red,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ],
-                            ),
 
-                            // Item total
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: <Widget>[
-                                Text('R${(item.foodItem.price * item.quantity).toStringAsFixed(2)}', style: AppTypography.labelLarge),
+                                // Item total
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: <Widget>[
+                                    Text(
+                                      'R${(item.foodItem.price * item.quantity).toStringAsFixed(2)}',
+                                      style: AppTypography.labelLarge,
+                                    ),
+                                  ],
+                                ),
+                                if (item.weekDag != null &&
+                                    item.weekDag!.isNotEmpty)
+                                  Text(
+                                    'Vir: ${item.weekDag}',
+                                    style: AppTypography.bodySmall.copyWith(
+                                      color: Colors.black54,
+                                    ),
+                                  ),
                               ],
                             ),
-                            if (item.weekDag != null && item.weekDag!.isNotEmpty)
-                              Text(
-                                'Vir: ${item.weekDag}',
-                                style: AppTypography.bodySmall.copyWith(color: Colors.black54),
-                              ),
-                          ],
-                        ),
                           ),
                         ),
                       ),
@@ -809,9 +1029,15 @@ Future<bool> placeOrder(String pickup) async {
                       children: <Widget>[
                         Row(
                           children: const <Widget>[
-                            Icon(Icons.location_on_outlined, color: AppColors.primary),
+                            Icon(
+                              Icons.location_on_outlined,
+                              color: AppColors.primary,
+                            ),
                             SizedBox(width: 8),
-                            Text('Afhaallokasie', style: TextStyle(fontWeight: FontWeight.w600)),
+                            Text(
+                              'Afhaallokasie',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 8),
@@ -820,7 +1046,10 @@ Future<bool> placeOrder(String pickup) async {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Geen afhaal plekke beskikbaar', style: TextStyle(color: Colors.black54)),
+                              const Text(
+                                'Geen afhaal plekke beskikbaar',
+                                style: TextStyle(color: Colors.black54),
+                              ),
                               const SizedBox(height: 8),
                               OutlinedButton.icon(
                                 onPressed: _loadPickupLocations,
@@ -833,15 +1062,30 @@ Future<bool> placeOrder(String pickup) async {
                           DropdownButtonFormField<String>(
                             value: pickupLocation,
                             items: pickupLocations
-                                .map((l) => DropdownMenuItem<String>(value: l, child: Text(l)))
+                                .map(
+                                  (l) => DropdownMenuItem<String>(
+                                    value: l,
+                                    child: Text(l),
+                                  ),
+                                )
                                 .toList(),
-                            onChanged: (v) => setState(() => pickupLocation = v),
-                            decoration: const InputDecoration(border: OutlineInputBorder(), hintText: 'Kies afhaallokasie'),
+                            onChanged: (v) =>
+                                setState(() => pickupLocation = v),
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              hintText: 'Kies afhaallokasie',
+                            ),
                           ),
                         if (pickupError != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 8),
-                            child: Text(pickupError!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                            child: Text(
+                              pickupError!,
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontSize: 12,
+                              ),
+                            ),
                           ),
                       ],
                     ),
@@ -857,7 +1101,12 @@ Future<bool> placeOrder(String pickup) async {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Text('Bestelling Opsomming', style: AppTypography.labelLarge.copyWith(fontWeight: FontWeight.w600)),
+                        Text(
+                          'Bestelling Opsomming',
+                          style: AppTypography.labelLarge.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -871,15 +1120,27 @@ Future<bool> placeOrder(String pickup) async {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: const <Widget>[
                             Text('Afhaalkoste:'),
-                            Text('Gratis', style: TextStyle(color: Colors.green)),
+                            Text(
+                              'Gratis',
+                              style: TextStyle(color: Colors.green),
+                            ),
                           ],
                         ),
                         const Divider(height: 16),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: <Widget>[
-                            const Text('Totaal:', style: TextStyle(fontWeight: FontWeight.w600)),
-                            Text('R${total.toStringAsFixed(2)}', style: AppTypography.titleSmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.w700)),
+                            const Text(
+                              'Totaal:',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            Text(
+                              'R${total.toStringAsFixed(2)}',
+                              style: AppTypography.titleSmall.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -891,7 +1152,9 @@ Future<bool> placeOrder(String pickup) async {
 
                 // Wallet Balance info
                 Card(
-                  color: hasSufficientFunds ? const Color(0xFFEFFAF1) : const Color(0xFFFEECEC),
+                  color: hasSufficientFunds
+                      ? const Color(0xFFEFFAF1)
+                      : const Color(0xFFFEECEC),
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Row(
@@ -900,12 +1163,27 @@ Future<bool> placeOrder(String pickup) async {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
-                            const Text('Beursie Balans', style: TextStyle(fontWeight: FontWeight.w600)),
+                            const Text(
+                              'Beursie Balans',
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
                             const SizedBox(height: 4),
-                            Text('R${walletBalance.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                            Text(
+                              'R${walletBalance.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                             const SizedBox(height: 2),
                             if (!hasSufficientFunds)
-                              Text('Kort: R${(total - walletBalance).toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, color: Colors.red)),
+                              Text(
+                                'Kort: R${(total - walletBalance).toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.red,
+                                ),
+                              ),
                           ],
                         ),
                         if (!hasSufficientFunds)
@@ -918,7 +1196,13 @@ Future<bool> placeOrder(String pickup) async {
                             child: const Text('Laai Beursie'),
                           )
                         else
-                          const Text('Voldoende fondse', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600)),
+                          const Text(
+                            'Voldoende fondse',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -943,12 +1227,24 @@ Future<bool> placeOrder(String pickup) async {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  const Text('Totaal te betaal:', style: TextStyle(fontSize: 12, color: Colors.black54)),
-                  Text('R${total.toStringAsFixed(2)}', style: AppTypography.titleMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Totaal te betaal:',
+                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                  ),
+                  Text(
+                    'R${total.toStringAsFixed(2)}',
+                    style: AppTypography.titleMedium.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
               ElevatedButton(
-                onPressed: (!hasSufficientFunds || pickupLocation == null || unavailableItems.isNotEmpty)
+                onPressed:
+                    (!hasSufficientFunds ||
+                        pickupLocation == null ||
+                        unavailableItems.isNotEmpty)
                     ? null
                     : () async {
                         final conflicts = _validateDietConflicts();
@@ -956,7 +1252,9 @@ Future<bool> placeOrder(String pickup) async {
                         if (!proceed) return;
                         if (conflicts.isNotEmpty) {
                           // Log warning locally
-                          debugPrint('Diet conflicts acknowledged: ${conflicts.map((c) => '${c.itemName}:${c.reason}').join('; ')}');
+                          debugPrint(
+                            'Diet conflicts acknowledged: ${conflicts.map((c) => '${c.itemName}:${c.reason}').join('; ')}',
+                          );
                         }
                         final confirm = await _confirmOrderSummary(conflicts);
                         if (!confirm) return;

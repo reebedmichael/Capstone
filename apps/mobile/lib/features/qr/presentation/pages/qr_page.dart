@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
-import 'package:fluttertoast/fluttertoast.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import '../../../../shared/models/qr_payload.dart';
+import '../../../../core/theme/app_colors.dart';
 
 class QrPage extends StatefulWidget {
   final Map<String, dynamic>? order;
@@ -12,84 +14,81 @@ class QrPage extends StatefulWidget {
 }
 
 class _QrPageState extends State<QrPage> {
-  bool isScanned = false;
-  String timeRemaining = '';
-  Timer? _timer;
-  late List<List<bool>> qrPattern;
-  late String qrCode;
+  Timer? _refreshTimer;
+  int _refreshCountdown = 10;
+  Map<String, QrPayload> _qrPayloads = {};
 
   @override
   void initState() {
     super.initState();
     if (widget.order != null) {
-      qrCode = "ORDER-${widget.order!['id']}";
-      qrPattern = _generateQRPattern(qrCode);
-      _startCountdown();
+      _generateQrPayloads();
+      _startRefreshTimer();
     }
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
-  List<List<bool>> _generateQRPattern(String code) {
-    const size = 15;
-    final pattern = List.generate(size, (_) => List<bool>.filled(size, false));
-    for (int i = 0; i < size; i++) {
-      for (int j = 0; j < size; j++) {
-        final index = (i * size + j) % code.length;
-        final charCode = code.codeUnitAt(index);
-        pattern[i][j] = charCode % 2 == 0;
+  void _generateQrPayloads() {
+    final items = widget.order!['bestelling_kos_item'] as List? ?? [];
+    final Map<String, QrPayload> payloads = {};
+
+    for (final item in items) {
+      final bestKosId = item['best_kos_id']?.toString();
+      if (bestKosId != null) {
+        payloads[bestKosId] = QrPayload.create(
+          bestKosId: bestKosId,
+          bestId: widget.order!['best_id']?.toString() ?? '',
+          kosItemId: item['kos_item_id']?.toString() ?? '',
+        );
       }
     }
-    return pattern;
-  }
 
-  void _startCountdown() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      final orderTime = widget.order!['orderDate'] as DateTime;
-      final pickupEnd = orderTime.add(const Duration(hours: 5));
-      final now = DateTime.now();
-
-      if (now.isAfter(pickupEnd)) {
-        setState(() => timeRemaining = 'Afhaalvenster verstreke');
-      } else {
-        final diff = pickupEnd.difference(now);
-        final hours = diff.inHours;
-        final minutes = diff.inMinutes % 60;
-        setState(() {
-          timeRemaining = hours > 0
-              ? '${hours}u ${minutes}m oor'
-              : '${minutes}m oor';
-        });
-      }
+    setState(() {
+      _qrPayloads = payloads;
     });
   }
 
-  void _simulateScan() {
-    setState(() => isScanned = true);
+  void _startRefreshTimer() {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
 
-    // Update the order status locally and return it to the caller
-    if (widget.order != null) {
-      widget.order!['status'] = 'Afgehaal';
-      // you can also add a timestamp or other fields if desired:
-      widget.order!['orderDate'] = DateTime.now();
-    }
-
-    Fluttertoast.showToast(msg: 'Bestelling suksesvol afgehaal!');
-
-    // wait a moment so user sees the success UI, then pop with the updated order
-    Future.delayed(const Duration(seconds: 1), () {
-      Navigator.pop(context, widget.order);
+      setState(() {
+        _refreshCountdown--;
+        if (_refreshCountdown <= 0) {
+          _refreshCountdown = 10;
+          _generateQrPayloads();
+        }
+      });
     });
+  }
+
+  String _getItemStatus(Map<String, dynamic> item) {
+    final statuses = (item['best_kos_item_statusse'] as List? ?? []);
+    if (statuses.isEmpty) return 'Wag vir afhaal';
+
+    final lastStatus = statuses.last;
+    final statusInfo =
+        lastStatus['kos_item_statusse'] as Map<String, dynamic>? ?? {};
+    return statusInfo['kos_stat_naam'] as String? ?? 'Wag vir afhaal';
+  }
+
+  bool _canShowQr(String status) {
+    // Only show QR for items that are waiting or in preparation
+    return status != 'Afgehandel' &&
+        status != 'Gekanselleer' &&
+        status != 'Ontvang';
   }
 
   @override
   Widget build(BuildContext context) {
     if (widget.order == null) {
       return Scaffold(
+        appBar: AppBar(title: const Text('QR Kode')),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -113,47 +112,9 @@ class _QrPageState extends State<QrPage> {
       );
     }
 
-    if (isScanned) {
-      return Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(FeatherIcons.arrowLeft),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: const Text('Afgehaal'),
-        ),
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircleAvatar(
-                radius: 40,
-                backgroundColor: Colors.green.shade100,
-                child: const Icon(
-                  FeatherIcons.checkCircle,
-                  size: 48,
-                  color: Colors.green,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Bestelling Afgehaal!',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green.shade700,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Jou bestelling #${widget.order!['id']} is suksesvol afgehaal.\nGeniet jou ete!',
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    final items = widget.order!['bestelling_kos_item'] as List? ?? [];
+    final kampus = widget.order!['kampus'] as Map<String, dynamic>?;
+    final kampusName = kampus?['kampus_naam'] as String? ?? 'Onbekende lokasie';
 
     return Scaffold(
       appBar: AppBar(
@@ -161,138 +122,352 @@ class _QrPageState extends State<QrPage> {
           icon: const Icon(FeatherIcons.arrowLeft),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('QR Kode'),
-        // actions: [
-        //   IconButton(icon: const Icon(FeatherIcons.copy), onPressed: _copyQR),
-        // ],
+        title: const Text('QR Kodes vir Afhaal'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Order info card
           Card(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
-            child: ListTile(
-              leading: const Icon(FeatherIcons.clock),
-              title: Text('Status: ${widget.order!['status']}'),
-              subtitle: Text('Afhaalvenster: $timeRemaining'),
+            color: AppColors.primary.withOpacity(0.05),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(FeatherIcons.info, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Bestelling Besonderhede',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Icon(FeatherIcons.mapPin, size: 16),
+                      const SizedBox(width: 6),
+                      Text('Afhaal lokasie: $kampusName'),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(FeatherIcons.dollarSign, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Totaal: R${widget.order!['best_volledige_prys']?.toStringAsFixed(2) ?? '0.00'}',
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),
+
+          // Refresh info
+          Card(
+            color: Colors.blue.shade50,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  const Icon(
+                    FeatherIcons.refreshCw,
+                    size: 16,
+                    color: Colors.blue,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'QR kodes verfris outomaties elke 10 sekondes vir sekuriteit',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue.shade900,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${_refreshCountdown}s',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Items with QR codes
+          ...items.map((item) {
+            final food = item['kos_item'] as Map<String, dynamic>? ?? {};
+            final itemName =
+                food['kos_item_naam'] as String? ?? 'Onbekende item';
+            final itemPrice = food['kos_item_koste'] as num? ?? 0.0;
+            final itemQty = item['item_hoev'] as int? ?? 1;
+            final itemImage = food['kos_item_prentjie'] as String?;
+            final bestKosId = item['best_kos_id']?.toString();
+            final status = _getItemStatus(item);
+            final canShowQr = _canShowQr(status);
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 16),
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Item header
+                    Row(
+                      children: [
+                        if (itemImage != null && itemImage.isNotEmpty)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.network(
+                              itemImage,
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 60,
+                                height: 60,
+                                color: Colors.grey.shade300,
+                                child: const Icon(Icons.fastfood),
+                              ),
+                            ),
+                          )
+                        else
+                          Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade300,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.fastfood, size: 30),
+                          ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                itemName,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '$itemQty x R${itemPrice.toStringAsFixed(2)}',
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _statusColor(status),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            status,
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 24),
+
+                    // QR Code or status message
+                    if (canShowQr &&
+                        bestKosId != null &&
+                        _qrPayloads.containsKey(bestKosId))
+                      Center(
+                        child: Column(
+                          children: [
+                            const Text(
+                              'Wys hierdie QR kode by afhaal',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: QrImageView(
+                                data: _qrPayloads[bestKosId]!.toQrString(),
+                                version: QrVersions.auto,
+                                size: 200,
+                                backgroundColor: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Item ID: ${bestKosId.substring(0, 8)}...',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              Icon(
+                                status == 'Afgehandel' || status == 'Ontvang'
+                                    ? FeatherIcons.checkCircle
+                                    : FeatherIcons.xCircle,
+                                size: 48,
+                                color:
+                                    status == 'Afgehandel' ||
+                                        status == 'Ontvang'
+                                    ? Colors.green
+                                    : Colors.red,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                status == 'Afgehandel' || status == 'Ontvang'
+                                    ? 'Item reeds afgehaal'
+                                    : 'Nie beskikbaar vir afhaal nie',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          }),
+
+          const SizedBox(height: 16),
+
+          // Instructions card
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Wys hierdie QR kode',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Wys hierdie kode by die afhaalpunt om jou bestelling te kry',
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    color: Colors.white,
-                    padding: const EdgeInsets.all(8),
-                    child: Column(
-                      children: qrPattern
-                          .map(
-                            (row) => Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: row
-                                  .map(
-                                    (cell) => Container(
-                                      width: 10,
-                                      height: 10,
-                                      color: cell ? Colors.black : Colors.white,
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
-                          )
-                          .toList(),
-                    ),
+                  Row(
+                    children: [
+                      const Icon(FeatherIcons.helpCircle, size: 20),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Instruksies',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    qrCode,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 16,
-                    ),
+                  _buildInstruction('1', 'Gaan na die afhaallokasie'),
+                  _buildInstruction('2', 'Wys die QR kode vir jou item'),
+                  _buildInstruction(
+                    '3',
+                    'Wag vir die admin om dit te skandeer',
                   ),
+                  _buildInstruction('4', 'Geniet jou ete!'),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: ListTile(
-              title: const Text('Bestelling Besonderhede'),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Bestelling #: ${widget.order!['id']}'),
-                  Text('Totaal: R${widget.order!['total']}'),
-                  Text('Afhaal lokasie: ${widget.order!['pickupLocation']}'),
-                  Text(
-                    'Gereed vir afhaal Tyd: ${(widget.order!['orderDate'] as DateTime).hour.toString().padLeft(2, '0')}:${(widget.order!['orderDate'] as DateTime).minute.toString().padLeft(2, '0')}',
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Items Bestel',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  const SizedBox(height: 8),
-                  ...(widget.order!['items'] as List).map((item) {
-                    final food = item['foodItem'];
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('${item['quantity']}x ${food['name']}'),
-                        Text(
-                          'R${(item['quantity'] * food['price']).toStringAsFixed(2)}',
-                        ),
-                      ],
-                    );
-                  }),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Card(
-            child: ListTile(
-              leading: const Icon(FeatherIcons.mapPin),
-              title: const Text('Instruksies'),
-              subtitle: const Text(
-                '1. Gaan na die afhaallokasie\n2. Wys hierdie QR kode\n3. Wag vir bevestiging\n4. Geniet jou ete!',
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: _simulateScan,
-            icon: const Icon(FeatherIcons.checkCircle),
-            label: const Text('Simuleer Afhaal'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
             ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildInstruction(String number, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                number,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 14))),
+        ],
+      ),
+    );
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'Wag vir afhaal':
+        return Colors.orange.shade100;
+      case 'In voorbereiding':
+        return Colors.blue.shade100;
+      case 'Afgehandel':
+      case 'Ontvang':
+        return Colors.green.shade100;
+      case 'Gekanselleer':
+        return Colors.red.shade100;
+      default:
+        return Colors.grey.shade200;
+    }
   }
 }

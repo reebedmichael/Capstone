@@ -93,7 +93,7 @@ class AdminSpyskaartRepository {
 
     // create new spyskaart row (konsep)
     final insert = {
-      'spyskaart_naam': 'Week Spyskaart ${dateStr}',
+      'spyskaart_naam': 'Week Spyskaart $dateStr',
       'spyskaart_is_templaat': false,
       'spyskaart_is_active': false,
       'spyskaart_datum': dateStr,
@@ -301,8 +301,9 @@ class AdminSpyskaartRepository {
       }
     });
 
-    if (inserts.isNotEmpty)
+    if (inserts.isNotEmpty) {
       await _sb.from('spyskaart_kos_item').insert(inserts);
+    }
 
     return Map<String, dynamic>.from(spyskaart);
   }
@@ -339,8 +340,9 @@ class AdminSpyskaartRepository {
       }
     });
 
-    if (inserts.isNotEmpty)
+    if (inserts.isNotEmpty) {
       await _sb.from('spyskaart_kos_item').insert(inserts);
+    }
   }
 
   Future<void> deleteWeekTemplate(String spyskaartId) async {

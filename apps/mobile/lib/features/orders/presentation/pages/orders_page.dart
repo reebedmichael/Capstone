@@ -571,7 +571,7 @@ class _OrdersPageState extends State<OrdersPage>
                           const Icon(FeatherIcons.clock, size: 14),
                           const SizedBox(width: 4),
                           Text(
-                            formatDate(DateTime.parse(order['best_geskep_datum'])),
+                            formatDate(DateTime.parse(order['best_geskep_datum'] ?? DateTime.now().toIso8601String())),
                             style: const TextStyle(fontSize: 12),
                           ),
                         ],

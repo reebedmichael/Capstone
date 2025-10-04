@@ -12,10 +12,10 @@ class BulkActions extends StatefulWidget {
   final BulkUpdateCallback onBulkUpdate;
 
   const BulkActions({
-    Key? key,
+    super.key,
     required this.orders,
     required this.onBulkUpdate,
-  }) : super(key: key);
+  });
 
   @override
   State<BulkActions> createState() => _BulkActionsState();

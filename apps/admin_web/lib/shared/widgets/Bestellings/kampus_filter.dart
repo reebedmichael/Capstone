@@ -7,12 +7,12 @@ class KampusFilter extends StatelessWidget {
   // final Map<String, int> orderCounts;
 
   const KampusFilter({
-    Key? key,
+    super.key,
     required this.selectedKampus,
     required this.onKampusChange,
     required this.kampusList,
     // required this.orderCounts,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

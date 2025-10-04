@@ -137,7 +137,7 @@ class _OrderDetailsModalState extends State<OrderDetailsModal> {
 
                       return Card(
                         color: isSelected
-                            ? Theme.of(context).colorScheme.background
+                            ? Theme.of(context).colorScheme.surface
                             : null,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -209,7 +209,7 @@ class _OrderDetailsModalState extends State<OrderDetailsModal> {
                                               ),
                                               const SizedBox(width: 8),
                                               Text(
-                                                "\R${(items[i].price * items[i].quantity).toStringAsFixed(2)}",
+                                                "R${(items[i].price * items[i].quantity).toStringAsFixed(2)}",
                                                 style: const TextStyle(
                                                   fontWeight: FontWeight.w500,
                                                 ),
@@ -284,7 +284,7 @@ class _OrderDetailsModalState extends State<OrderDetailsModal> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "${OrderConstants.getUiString('total')} \R${widget.order.totalAmount.toStringAsFixed(2)}",
+                      "${OrderConstants.getUiString('total')} R${widget.order.totalAmount.toStringAsFixed(2)}",
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
