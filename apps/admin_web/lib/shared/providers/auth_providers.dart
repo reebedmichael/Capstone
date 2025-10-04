@@ -25,6 +25,25 @@ final userProfileProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
   return await authService.getUserProfile();
 });
 
+// User approval status provider
+final userApprovalProvider = FutureProvider<bool>((ref) async {
+  final authService = ref.watch(authServiceProvider);
+  return await authService.isCurrentUserApproved();
+});
+
+// Primary admin status provider
+final isPrimaryAdminProvider = FutureProvider<bool>((ref) async {
+  final authService = ref.watch(authServiceProvider);
+  return await authService.isCurrentUserPrimary();
+});
+
+// Current admin type provider
+final currentAdminTypeProvider = FutureProvider<String?>((ref) async {
+  final authService = ref.watch(authServiceProvider);
+  final userProfile = await authService.getUserProfile();
+  return userProfile?['admin_tipe']?['admin_tipe_naam'];
+});
+
 // Auth loading state
 final authLoadingProvider = StateProvider<bool>((ref) => false);
 

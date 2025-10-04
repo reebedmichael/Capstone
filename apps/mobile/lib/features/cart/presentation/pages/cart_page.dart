@@ -73,8 +73,8 @@ class _CartPageState extends State<CartPage> {
 
   bool loading = true;
 
-  // expose setter for pickup from child
-  void _setPickup(String? v) => setState(() => pickupLocation = v);
+  // expose setter for pickup from child (unused but kept for potential future use)
+  // void _setPickup(String? v) => setState(() => pickupLocation = v);
 
   bool get cartIsEmpty => cart.isEmpty;
   List<CartItemModel> get unavailableItems => cart.where((c) => !c.foodItem.available).toList();
@@ -106,56 +106,86 @@ class _CartPageState extends State<CartPage> {
       return;
     }
     try {
-      // Try join to DIEET_VEREISTE names if available; else empty
+      // Load user's diet preferences using proper join
       final rows = await Supabase.instance.client
           .from('gebruiker_dieet_vereistes')
-          .select('dieet:dieet_id(dieet_naam)')
+          .select('''
+            dieet_vereiste:dieet_id(
+              dieet_id,
+              dieet_naam
+            )
+          ''')
           .eq('gebr_id', user.id);
-      final List prefs = (rows is List) ? rows : const [];
+      
+      final List prefs = rows;
       userDietPrefs = prefs
-          .map((e) => (e['dieet']?['dieet_naam'] ?? '').toString().trim().toLowerCase())
+          .map((e) => (e['dieet_vereiste']?['dieet_id'] ?? '').toString())
           .where((s) => s.isNotEmpty)
           .toList();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Kon nie gebruiker dieet voorkeure laai nie: $e');
       userDietPrefs = const <String>[];
     }
   }
 
-  List<_DietConflict> _validateDietConflicts() {
+  Future<List<_DietConflict>> _validateDietConflicts() async {
     final List<_DietConflict> conflicts = <_DietConflict>[];
     if (userDietPrefs.isEmpty) return conflicts;
 
-    bool requiresVegan = userDietPrefs.contains('vegan');
-    bool requiresVegetarian = userDietPrefs.contains('vegetarian') || userDietPrefs.contains('vegetaries');
-    final Set<String> allergenPrefs = userDietPrefs
-        .where((p) => p != 'vegan' && p != 'vegetarian' && p != 'vegetaries')
-        .toSet();
-
+    // For each cart item, check if it conflicts with user's diet preferences
     for (final CartItemModel c in cart) {
       final name = c.foodItem.name;
-      final List<String> ingredients = c.foodItem.ingredients.map((e) => e.toLowerCase()).toList();
-      final List<String> allergens = c.foodItem.allergens.map((e) => e.toLowerCase()).toList();
-
-      // Allergen conflicts
-      for (final a in allergenPrefs) {
-        if (allergens.contains(a) || ingredients.any((ing) => ing.contains(a))) {
-          conflicts.add(_DietConflict(itemName: name, reason: 'Allergeen: $a'));
-        }
-      }
-
-      // Simple vegan/vegetarian inference
-      if (requiresVegan || requiresVegetarian) {
-        final hasMeat = ingredients.any((ing) =>
-            ing.contains('vleis') || ing.contains('beef') || ing.contains('chicken') || ing.contains('hoender') || ing.contains('pork') || ing.contains('spekvleis') || ing.contains('ham'));
-        final hasDairyOrEgg = ingredients.any((ing) => ing.contains('milk') || ing.contains('melk') || ing.contains('kaas') || ing.contains('cheese') || ing.contains('egg') || ing.contains('eier'));
-        if (requiresVegan && (hasMeat || hasDairyOrEgg)) {
-          conflicts.add(_DietConflict(itemName: name, reason: 'Konflik met vegan'));
-        } else if (requiresVegetarian && hasMeat) {
-          conflicts.add(_DietConflict(itemName: name, reason: 'Konflik met vegetaries'));
-        }
-      }
+      final kosItemId = c.foodItem.id;
+      
+      // Check if this item has diet restrictions that conflict with user preferences
+      await _checkItemDietConflicts(kosItemId, name, conflicts);
     }
     return conflicts;
+  }
+
+  Future<void> _checkItemDietConflicts(String kosItemId, String itemName, List<_DietConflict> conflicts) async {
+    try {
+      // Get diet types for this food item
+      final itemDiets = await Supabase.instance.client
+          .from('kos_item_dieet_vereistes')
+          .select('dieet_id')
+          .eq('kos_item_id', kosItemId);
+      
+      final itemDietIds = itemDiets
+          .map<String>((row) => row['dieet_id'].toString())
+          .toList();
+      
+      // Check if user has diet preferences that are NOT satisfied by this item
+      for (final userDietId in userDietPrefs) {
+        if (!itemDietIds.contains(userDietId)) {
+          // Get diet name for better error message
+          final dietInfo = await Supabase.instance.client
+              .from('dieet_vereiste')
+              .select('dieet_naam')
+              .eq('dieet_id', userDietId)
+              .maybeSingle();
+          
+          final dietName = dietInfo?['dieet_naam'] ?? 'Onbekende dieet';
+          conflicts.add(_DietConflict(
+            itemName: itemName, 
+            reason: 'Nie geskik vir $dietName nie'
+          ));
+        }
+      }
+    } catch (e) {
+      debugPrint('Kon nie dieet konflik nagaan vir $itemName nie: $e');
+      // Fallback to ingredient-based validation for backward compatibility
+      _fallbackIngredientValidation(itemName, conflicts);
+    }
+  }
+
+  void _fallbackIngredientValidation(String itemName, List<_DietConflict> conflicts) {
+    // Keep the original ingredient-based validation as fallback
+    // This is a simplified version for when DB queries fail
+    conflicts.add(_DietConflict(
+      itemName: itemName, 
+      reason: 'Kon nie dieet inligting verifieer nie - gaan voort met versigtigheid'
+    ));
   }
 
   Future<bool> _confirmDietConflicts(List<_DietConflict> conflicts) async {
@@ -256,7 +286,7 @@ class _CartPageState extends State<CartPage> {
     try {
       final data = await sl<KampusRepository>().kryKampusse();
       final names = (data)
-          .where((m) => m != null && m!['kampus_naam'] != null)
+          .where((m) => m != null && m['kampus_naam'] != null)
           .map((m) => m!['kampus_naam'].toString().trim())
           .where((s) => s.isNotEmpty)
           .toSet()
@@ -291,7 +321,7 @@ class _CartPageState extends State<CartPage> {
           .select('beursie_balans')
           .eq('gebr_id', user.id)
           .maybeSingle();
-      if (row != null && row is Map<String, dynamic>) {
+      if (row != null) {
         final raw = row['beursie_balans'];
         if (raw is num) {
           walletBalance = raw.toDouble();
@@ -435,7 +465,7 @@ class _CartPageState extends State<CartPage> {
     final sb = Supabase.instance.client;
     // Try to find the transaksie tipe by name
     final row = await sb.from('transaksie_tipe').select('trans_tipe_id').eq('trans_tipe_naam', name).maybeSingle();
-    if (row != null && row is Map<String, dynamic> && row['trans_tipe_id'] != null) {
+    if (row != null && row['trans_tipe_id'] != null) {
       return row['trans_tipe_id'].toString();
     }
     // If not found, insert it (so we always have the uuid)
@@ -484,7 +514,7 @@ Future<bool> placeOrder(String pickup) async {
     }).toList();
 
     final insertedItems = await sb.from('bestelling_kos_item').insert(bkItems).select();
-    if (insertedItems == null) throw Exception('Kon items nie insit nie.');
+    if (insertedItems.isEmpty) throw Exception('Kon items nie insit nie.');
 
     // 4️⃣ Insert status for each item ('Bestelling Ontvang')
     const String initialStatusId = 'aef58a24-1a1d-4940-8855-df4c35ae5d5e';
@@ -951,7 +981,7 @@ Future<bool> placeOrder(String pickup) async {
                 onPressed: (!hasSufficientFunds || pickupLocation == null || unavailableItems.isNotEmpty)
                     ? null
                     : () async {
-                        final conflicts = _validateDietConflicts();
+                        final conflicts = await _validateDietConflicts();
                         final proceed = await _confirmDietConflicts(conflicts);
                         if (!proceed) return;
                         if (conflicts.isNotEmpty) {

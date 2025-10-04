@@ -60,14 +60,18 @@ class AuthService {
     required String cellphone
   }) async {
     try {
+      // New workflow: Create users as Ekstern with is_aktief=false and Pending admin type
+      // Primary admin will approve and assign proper user type
       await _supabase.from('gebruikers').upsert({
         'gebr_id': user.id,
         'gebr_epos': user.email!,
         'gebr_naam': firstName,
         'gebr_van': lastName,
         'gebr_selfoon': cellphone,
-        'is_aktief': true,
-        'gebr_tipe': 'student', // Default to student for mobile app
+        'is_aktief': false, // Requires Primary admin approval
+        'gebr_tipe_id': '4b2cadfb-90ee-4f89-931d-2b1e7abbc284', // Ekstern type ID
+        'admin_tipe_id': 'f5fde633-eea3-4d58-8509-fb80a74f68a6', // Pending admin type ID
+        'requested_admin_tipe_id': null, // Could be set if user requests specific admin role
       }, onConflict: 'gebr_id');
     } catch (e) { 
       rethrow; 
@@ -78,6 +82,7 @@ class AuthService {
     try {
       final existingUser = await _supabase.from('gebruikers').select().eq('gebr_id', user.id).maybeSingle();
       if (existingUser == null) {
+        // Create as Ekstern user requiring approval
         await _createUserInDatabase(
           user: user, 
           firstName: 'Unknown', 

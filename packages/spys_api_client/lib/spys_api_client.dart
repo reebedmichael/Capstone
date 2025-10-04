@@ -8,3 +8,5 @@ export 'src/kampus_repository.dart';
 export 'src/kos_templaat_repository.dart';
 export 'src/week_templaat_repository.dart';
 export 'src/admin_spyskaart_repository.dart';
+export 'src/dieet_repository.dart';
+export 'src/allowance_repository.dart';

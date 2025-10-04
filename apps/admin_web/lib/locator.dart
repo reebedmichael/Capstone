@@ -16,6 +16,7 @@ void setupLocator() {
   sl.registerLazySingleton<SpyskaartRepository>(() => SpyskaartRepository(db));
   sl.registerLazySingleton<MandjieRepository>(() => MandjieRepository(db));
   sl.registerLazySingleton<BeursieRepository>(() => BeursieRepository(db));
+  sl.registerLazySingleton<AllowanceRepository>(() => AllowanceRepository(db));
   
   // Register auth service
   sl.registerLazySingleton<AuthService>(() => AuthService());
