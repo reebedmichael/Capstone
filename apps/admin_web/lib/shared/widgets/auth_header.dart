@@ -7,12 +7,8 @@ import '../../../../core/theme/app_colors.dart';
 class AuthHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
-  
-  const AuthHeader({
-    super.key,
-    required this.title,
-    this.subtitle,
-  });
+
+  const AuthHeader({super.key, required this.title, this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -26,10 +22,7 @@ class AuthHeader extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                AppColors.primary,
-                AppColors.secondary,
-              ],
+              colors: [AppColors.primary, AppColors.secondary],
             ),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
@@ -54,7 +47,9 @@ class AuthHeader extends StatelessWidget {
         Spacing.vGap24,
         Text(
           title,
-          style: AppTypography.headlineLarge,
+          style: AppTypography.headlineLarge.copyWith(
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
           textAlign: TextAlign.center,
         ),
         if (subtitle != null) ...[
@@ -62,7 +57,7 @@ class AuthHeader extends StatelessWidget {
           Text(
             subtitle!,
             style: AppTypography.bodyMedium.copyWith(
-              color: AppColors.onSurfaceVariant,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             textAlign: TextAlign.center,
           ),
