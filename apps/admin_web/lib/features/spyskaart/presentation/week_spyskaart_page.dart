@@ -685,11 +685,29 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
     if (toonQuantityModal && itemVirQuantity != null) {
       toonQuantityModal = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Determine day index (0 = Maandag, 6 = Sondag)
+        final dayIndex = daeVanWeek.indexWhere((d) => d['key'] == aktieweDag);
+
+        // Fallback to "today at 17:00" if we can't match day
+        DateTime initialCutoff;
+        if (dayIndex == -1) {
+          initialCutoff = DateTime.now().copyWith(hour: 17, minute: 0);
+        } else {
+          // Compute the week start for the currently active week (huidige or volgende)
+          final weekStart = _weekStartFor(aktieweWeek);
+          // Add the day offset and set the time to 17:00
+          initialCutoff = weekStart
+              .add(Duration(days: dayIndex - 1))
+              .copyWith(hour: 17, minute: 0);
+        }
+
         showDialog(
           context: context,
           builder: (_) => QuantityDialog(
             item: itemVirQuantity!,
             open: true,
+            initialQuantity: 1,
+            initialCutoffTime: initialCutoff,
             onOpenChange:
                 (open) {}, // Not used anymore, but kept for compatibility
             onConfirm: (itemId, quantity, cutoffTime) {
@@ -711,6 +729,7 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
         );
       });
     }
+
     if (toonTemplateItemsModal && templateItemsVirDialog != null) {
       toonTemplateItemsModal = false;
       WidgetsBinding.instance.addPostFrameCallback((_) {

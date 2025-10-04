@@ -3,7 +3,7 @@ import '../../templates/widgets/kos_item_templaat.dart';
 
 class TemplateItem {
   final String itemId;
-  final String dayName;
+  final String dayName; // expected in lower-case ('maandag', 'dinsdag', ...)
   final String dayLabel;
   final KositemTemplate item;
   int quantity;
@@ -41,14 +41,15 @@ class _TemplateItemsDialogState extends State<TemplateItemsDialog> {
   late List<TemplateItem> _items;
   final Map<String, TextEditingController> _quantityControllers = {};
 
+  // NOTE: keys are lower-case to match dayName values used elsewhere in your app
   final Map<String, int> _dayNameToWeekday = {
-    "Maandag": DateTime.monday,
-    "Dinsdag": DateTime.tuesday,
-    "Woensdag": DateTime.wednesday,
-    "Donderdag": DateTime.thursday,
-    "Vrydag": DateTime.friday,
-    "Saterdag": DateTime.saturday,
-    "Sondag": DateTime.sunday,
+    "maandag": DateTime.monday,
+    "dinsdag": DateTime.tuesday,
+    "woensdag": DateTime.wednesday,
+    "donderdag": DateTime.thursday,
+    "vrydag": DateTime.friday,
+    "saterdag": DateTime.saturday,
+    "sondag": DateTime.sunday,
   };
 
   @override
@@ -62,7 +63,7 @@ class _TemplateItemsDialogState extends State<TemplateItemsDialog> {
             dayLabel: item.dayLabel,
             item: item.item,
             quantity: item.quantity,
-            // set default cutoff date based on dayName (next week, day before)
+            // default cutoff: one day before the corresponding weekday in NEXT week at 17:00
             cutoffTime: _getNextWeekCutoff(item.dayName),
           ),
         )
@@ -78,18 +79,23 @@ class _TemplateItemsDialogState extends State<TemplateItemsDialog> {
 
   DateTime _getNextWeekCutoff(String dayName) {
     final now = DateTime.now();
-    final weekday = _dayNameToWeekday[dayName] ?? DateTime.monday;
+    final weekday = _dayNameToWeekday[dayName.toLowerCase()] ?? DateTime.monday;
 
-    // 🔹 Days until next occurrence of this weekday
-    int daysUntilTarget = (weekday - now.weekday + 7) % 7;
-    if (daysUntilTarget == 0) {
-      daysUntilTarget = 7; // ensure "next week", not today
-    }
+    // Compute the Monday of the current week
+    final thisMonday = now.subtract(Duration(days: now.weekday - 1));
 
-    final targetDate = now.add(Duration(days: daysUntilTarget));
+    // Start of next week = thisMonday + 7 days
+    final nextWeekStart = thisMonday.add(const Duration(days: 7));
 
-    // 🔹 Cutoff = one day before target date, default 17:00
+    // Target date in next week for the requested weekday
+    final targetDate = nextWeekStart.add(
+      Duration(days: weekday - DateTime.monday),
+    );
+
+    // Cutoff day = one day before target date
     final cutoffDay = targetDate.subtract(const Duration(days: 1));
+
+    // Return cutoff at 17:00 local time
     return DateTime(cutoffDay.year, cutoffDay.month, cutoffDay.day, 17, 0);
   }
 
