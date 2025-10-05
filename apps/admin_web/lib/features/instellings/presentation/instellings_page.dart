@@ -310,6 +310,10 @@ class InstellingsPage extends ConsumerWidget {
             // Just close the dialog and stay on settings page
             Navigator.of(context).pop();
           },
+          onLogout: () {
+            // User was logged out due to too many failed attempts
+            context.go('/teken_in');
+          },
         ),
       );
     } catch (e) {

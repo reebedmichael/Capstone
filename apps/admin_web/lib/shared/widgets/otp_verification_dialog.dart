@@ -8,12 +8,14 @@ class OtpVerificationDialog extends ConsumerStatefulWidget {
   final String email;
   final VoidCallback onSuccess;
   final VoidCallback onCancel;
+  final VoidCallback? onLogout;
 
   const OtpVerificationDialog({
     super.key,
     required this.email,
     required this.onSuccess,
     required this.onCancel,
+    this.onLogout,
   });
 
   @override
@@ -26,7 +28,8 @@ class _OtpVerificationDialogState extends ConsumerState<OtpVerificationDialog> {
   final FocusNode _otpFocusNode = FocusNode();
   bool _isVerifying = false;
   bool _isResending = false;
-  int _timeRemaining = 60; // 5 minutes in seconds
+  int _timeRemaining = 60; // 1 min in seconds
+  int _failedAttempts = 0;
   Timer? _timer;
 
   @override
@@ -97,10 +100,26 @@ class _OtpVerificationDialogState extends ConsumerState<OtpVerificationDialog> {
       }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _failedAttempts++;
+        });
+
+        // Check if user has exceeded maximum attempts
+        if (_failedAttempts >= 3) {
+          // Log out user and redirect to login
+          await _handleLogout();
+          return;
+        }
+
+        // Show error message with remaining attempts
+        final remainingAttempts = 3 - _failedAttempts;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Ongeldige OTP kode: ${e.toString()}'),
+            content: Text(
+              'Ongeldige OTP kode. ${remainingAttempts} pogings oor.',
+            ),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -130,9 +149,10 @@ class _OtpVerificationDialogState extends ConsumerState<OtpVerificationDialog> {
           ),
         );
 
-        // Reset timer
+        // Reset timer and failed attempts counter
         setState(() {
           _timeRemaining = 60;
+          _failedAttempts = 0;
         });
         _startTimer();
       }
@@ -150,6 +170,39 @@ class _OtpVerificationDialogState extends ConsumerState<OtpVerificationDialog> {
         setState(() {
           _isResending = false;
         });
+      }
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    try {
+      final authService = ref.read(authServiceProvider);
+      await authService.signOut();
+
+      if (mounted) {
+        // Show logout message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Te veel ongeldige pogings. Jy is uitgeteken vir sekuriteit.',
+            ),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 5),
+          ),
+        );
+
+        // Close dialog and call logout callback
+        Navigator.of(context).pop();
+        widget.onLogout?.call();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fout met uitteken: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -310,32 +363,37 @@ class _OtpVerificationDialogState extends ConsumerState<OtpVerificationDialog> {
                     ),
                   ),
                 ],
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _isVerifying || _isResending ? null : _verifyOtp,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                // Only show verify button when timer is still active
+                if (_timeRemaining > 0) ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isVerifying || _isResending
+                          ? null
+                          : _verifyOtp,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                    ),
-                    child: _isVerifying
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
+                      child: _isVerifying
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               ),
-                            ),
-                          )
-                        : const Text('Verifieer'),
+                            )
+                          : const Text('Verifieer'),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
 
