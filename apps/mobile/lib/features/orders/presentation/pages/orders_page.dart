@@ -643,10 +643,29 @@ class _OrdersPageState extends State<OrdersPage>
                 }
                 final bool isCompletedItem = lastStatus == 'Afgehandel' || lastStatus == 'Gekanselleer';
 
-                // Compute cutoff date for this specific item via kos_item -> spyskaart_kos_item
-                DateTime? itemCutoff;
+                // Determine week day via kos_item -> spyskaart_kos_item -> week_dag if available, fallback to best_datum
+                String? weekDagNaam;
                 final List skItemsForThis = (food['spyskaart_kos_item'] as List? ?? []);
                 for (final sk in skItemsForThis) {
+                  final Map<String, dynamic>? weekDagMap = sk['week_dag'] as Map<String, dynamic>?;
+                  if (weekDagMap != null) {
+                    weekDagNaam = weekDagMap['week_dag_naam'] as String?;
+                    if (weekDagNaam != null && weekDagNaam!.isNotEmpty) break;
+                  }
+                }
+                if (weekDagNaam == null) {
+                  final String? bestDatumStr = item['best_datum'] as String?;
+                  final DateTime? bestDatum = bestDatumStr != null ? DateTime.tryParse(bestDatumStr) : null;
+                  if (bestDatum != null) {
+                    const days = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrydag', 'Saterdag', 'Sondag'];
+                    weekDagNaam = days[bestDatum.weekday - 1];
+                  }
+                }
+
+                // Compute cutoff date for this specific item via kos_item -> spyskaart_kos_item
+                DateTime? itemCutoff;
+                final List skItemsForCutoff = (food['spyskaart_kos_item'] as List? ?? []);
+                for (final sk in skItemsForCutoff) {
                   final String? iso = (sk['spyskaart_kos_afsny_datum'] as String?);
                   if (iso == null) continue;
                   final dt = DateTime.tryParse(iso);
@@ -704,14 +723,29 @@ class _OrdersPageState extends State<OrdersPage>
                                   '${item['item_hoev'] ?? 1} x R${food['kos_item_koste']}',
                                   style: const TextStyle(fontSize: 12),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'ID: ${item['best_kos_id'] ?? ''}',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                if (weekDagNaam != null) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Dag: $weekDagNaam',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
                                   ),
-                                  overflow: TextOverflow.ellipsis,
+                                ],
+                                const SizedBox(height: 2),
+                                SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  physics: const BouncingScrollPhysics(),
+                                  child: Text(
+                                    'ID: ${item['best_kos_id'] ?? ''}',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
+                                    softWrap: false,
+                                    maxLines: 1,
+                                  ),
                                 ),
                               ],
                             ),
