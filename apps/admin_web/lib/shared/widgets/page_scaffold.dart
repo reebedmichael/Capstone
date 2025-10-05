@@ -15,13 +15,17 @@ class PageScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bool showSidebar =
-        (title != 'teken_in' && title != 'registreer_admin');
+        (title != 'teken_in' &&
+        title != 'registreer_admin' &&
+        title != 'wagwoord_herstel');
 
-    // Check if user is on waiting page - if so, hide sidebar
+    // Check if user is on waiting page or password reset page - if so, hide sidebar
     final currentRoute = GoRouterState.of(context).uri.path;
     final bool isWaitingPage = currentRoute == '/wag_goedkeuring';
-    
-    final bool allowSidebar = showSidebar && !isWaitingPage;
+    final bool isPasswordResetPage = currentRoute == '/wagwoord_herstel';
+
+    final bool allowSidebar =
+        showSidebar && !isWaitingPage && !isPasswordResetPage;
 
     // Use screen width to decide collapsed vs expanded
     final double screenWidth = MediaQuery.of(context).size.width;

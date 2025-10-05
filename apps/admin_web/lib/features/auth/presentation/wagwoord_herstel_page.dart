@@ -37,165 +37,34 @@ class _WagwoordHerstelPageState extends ConsumerState<WagwoordHerstelPage> {
     if (!mounted) return;
 
     try {
-      // Get query parameters from both the current URL and base URL
-      // Hash-based routing puts query params in the base URL, not the hash fragment
-      final uri = GoRouterState.of(context).uri;
-      final baseUri = Uri.base;
-
-      final queryParams = uri.queryParameters;
-      final baseQueryParams = baseUri.queryParameters;
-
-      // Check both locations for the parameters
-      final accessToken =
-          queryParams['access_token'] ?? baseQueryParams['access_token'];
-      final refreshToken =
-          queryParams['refresh_token'] ?? baseQueryParams['refresh_token'];
-      final type = queryParams['type'] ?? baseQueryParams['type'];
-      final code = queryParams['code'] ?? baseQueryParams['code'];
-
-      print('DEBUG: Password reset session check');
-      print('DEBUG: Current URI: $uri');
-      print('DEBUG: Base URI: $baseUri');
-      print('DEBUG: Query params: $queryParams');
-      print('DEBUG: Base query params: $baseQueryParams');
-      print('DEBUG: Code: $code');
-      print('DEBUG: Access token: $accessToken');
-      print('DEBUG: Type: $type');
-
-      // Additional debugging - check if we can get the full URL
-      print('DEBUG: Full base URI string: ${baseUri.toString()}');
-      print('DEBUG: Hash fragment: ${baseUri.fragment}');
-
       final supabase = Supabase.instance.client;
 
-      // Handle PKCE/code-based flow (current Supabase default)
-      if (code != null) {
-        print('DEBUG: Attempting to handle code: $code');
-
-        // Try verifyOTP first (most common for password reset)
-        try {
-          print('DEBUG: Trying verifyOTP with recovery type');
-          final response = await supabase.auth.verifyOTP(
-            type: OtpType.recovery,
-            token: code,
-            email: '', // Email will be determined by Supabase from the token
-          );
-
-          print('DEBUG: verifyOTP successful, user: ${response.user?.email}');
-          if (mounted) {
-            setState(() {
-              _isPasswordVerified = true;
-              _isCheckingSession = false;
-              _email = response.user?.email ?? '';
-            });
-          }
-          return;
-        } catch (e) {
-          print('DEBUG: verifyOTP failed: $e');
-
-          // Try alternative - maybe it's a sign-in OTP
-          try {
-            print('DEBUG: Trying verifyOTP with signin type');
-            final response = await supabase.auth.verifyOTP(
-              type: OtpType.email,
-              token: code,
-              email: '',
-            );
-
-            print(
-              'DEBUG: verifyOTP signin successful, user: ${response.user?.email}',
-            );
-            if (mounted) {
-              setState(() {
-                _isPasswordVerified = true;
-                _isCheckingSession = false;
-                _email = response.user?.email ?? '';
-              });
-            }
-            return;
-          } catch (e1) {
-            print('DEBUG: verifyOTP signin failed: $e1');
-          }
-
-          // Try recoverSession as fallback
-          try {
-            print('DEBUG: Trying recoverSession');
-            final response = await supabase.auth.recoverSession(code);
-            print(
-              'DEBUG: recoverSession successful, user: ${response.user?.email}',
-            );
-
-            if (mounted) {
-              setState(() {
-                _isPasswordVerified = true;
-                _isCheckingSession = false;
-                _email = response.user?.email ?? '';
-              });
-            }
-            return;
-          } catch (e2) {
-            print('DEBUG: recoverSession failed: $e2');
-
-            // Try direct session exchange as last resort
-            try {
-              print('DEBUG: Trying exchangeCodeForSession');
-              final response = await supabase.auth.exchangeCodeForSession(code);
-              print(
-                'DEBUG: exchangeCodeForSession successful, user: ${response.session.user.email}',
-              );
-
-              if (mounted) {
-                setState(() {
-                  _isPasswordVerified = true;
-                  _isCheckingSession = false;
-                  _email = response.session.user.email ?? '';
-                });
-              }
-              return;
-            } catch (e3) {
-              print('DEBUG: exchangeCodeForSession failed: $e3');
-              print(
-                'DEBUG: All authentication methods failed, will redirect to login',
-              );
-            }
-          }
+      // Check if user is already authenticated (came from OTP verification)
+      if (supabase.auth.currentUser != null) {
+        print('DEBUG: User already authenticated from OTP verification');
+        if (mounted) {
+          setState(() {
+            _isPasswordVerified = true;
+            _isCheckingSession = false;
+            _email = supabase.auth.currentUser!.email ?? '';
+          });
         }
+        return;
       }
 
-      // Handle legacy token-based flow (fallback)
-      if (accessToken != null && refreshToken != null && type == 'recovery') {
-        try {
-          final response = await supabase.auth.setSession(accessToken);
-
-          if (response.user != null && mounted) {
-            setState(() {
-              _isPasswordVerified = true;
-              _isCheckingSession = false;
-              _email = response.user!.email ?? '';
-            });
-            return;
-          }
-        } catch (e) {
-          print('Error setting session from access token: $e');
-        }
-      }
-
-      // If we reach here, it's not a valid password reset session
-      print(
-        'DEBUG: No valid password reset session found, redirecting to login',
-      );
+      // If no authenticated user, redirect to login
+      print('DEBUG: No authenticated user found, redirecting to login');
       if (mounted) {
         setState(() {
           _isCheckingSession = false;
         });
-        // Use a small delay to ensure the widget is fully built before redirecting
         await Future.delayed(const Duration(milliseconds: 100));
         if (mounted) {
           context.go('/teken_in');
         }
       }
     } catch (e) {
-      print('Error verifying password reset session: $e');
+      print('Error checking password reset session: $e');
       // Redirect to login on error
       if (mounted) {
         setState(() {
@@ -228,10 +97,10 @@ class _WagwoordHerstelPageState extends ConsumerState<WagwoordHerstelPage> {
     }
 
     // Validate password strength
-    if (password.length < 6) {
+    if (password.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Wagwoord moet ten minste 6 karakters wees'),
+          content: Text('Wagwoord moet ten minste 8 karakters wees'),
           backgroundColor: Colors.red,
         ),
       );
@@ -242,10 +111,9 @@ class _WagwoordHerstelPageState extends ConsumerState<WagwoordHerstelPage> {
       // Clear any previous errors
       ref.read(authLoadingProvider.notifier).state = true;
 
-      // Update password using Supabase auth
-      final response = await Supabase.instance.client.auth.updateUser(
-        UserAttributes(password: password),
-      );
+      // Update password using auth service
+      final authService = ref.read(authServiceProvider);
+      final response = await authService.updatePassword(password: password);
 
       if (response.user != null) {
         // Show success message
@@ -271,7 +139,7 @@ class _WagwoordHerstelPageState extends ConsumerState<WagwoordHerstelPage> {
       // Show error message
       String errorMessage = 'Wagwoord opdatering het gefaal';
       if (e.toString().contains('Password should be at least')) {
-        errorMessage = 'Wagwoord moet ten minste 6 karakters wees';
+        errorMessage = 'Wagwoord moet ten minste 8 karakters wees';
       } else if (e.toString().contains('New password should be different')) {
         errorMessage = 'Nuwe wagwoord moet verskil van die huidige een';
       }
@@ -356,15 +224,6 @@ class _WagwoordHerstelPageState extends ConsumerState<WagwoordHerstelPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // back button
-                      Align(
-                        alignment: Alignment.topLeft,
-                        child: IconButton(
-                          onPressed: () => context.go('/teken_in'),
-                          icon: const Icon(Icons.arrow_left),
-                        ),
-                      ),
-
                       Spacing.vGap16,
 
                       // avatar / icon
@@ -458,13 +317,42 @@ class _WagwoordHerstelPageState extends ConsumerState<WagwoordHerstelPage> {
 
                       Spacing.vGap24,
 
-                      // Update button
-                      SpysPrimaryButton(
-                        text: "Opdateer Wagwoord",
-                        isLoading: isLoading,
-                        onPressed: isFormValid
-                            ? () => _handlePasswordUpdate(context, ref)
-                            : null,
+                      // Action buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: isLoading
+                                  ? null
+                                  : () => context.go('/teken_in'),
+                              style: OutlinedButton.styleFrom(
+                                side: BorderSide(color: AppColors.secondary),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                              ),
+                              child: Text(
+                                'Kanselleer',
+                                style: AppTypography.labelLarge.copyWith(
+                                  color: AppColors.secondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: SpysPrimaryButton(
+                              text: "Opdateer Wagwoord",
+                              isLoading: isLoading,
+                              onPressed: isFormValid
+                                  ? () => _handlePasswordUpdate(context, ref)
+                                  : null,
+                            ),
+                          ),
+                        ],
                       ),
 
                       Spacing.vGap24,

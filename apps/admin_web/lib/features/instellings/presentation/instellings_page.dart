@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/providers/auth_providers.dart';
+import '../../../shared/widgets/otp_verification_dialog.dart';
 
 class InstellingsPage extends ConsumerWidget {
   const InstellingsPage({super.key});
@@ -291,33 +293,23 @@ class InstellingsPage extends ConsumerWidget {
 
       await authService.resetPassword(email: currentUser!.email!);
 
-      // Show success message with instructions
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Herstel e-pos is gestuur na ${currentUser.email}",
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                "Klik op die skakel in die e-pos om jou wagwoord te wysig. "
-                "Die skakel sal jou na 'n sekure bladsy lei waar jy 'n nuwe wagwoord kan stel.",
-              ),
-            ],
-          ),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 8),
-          action: SnackBarAction(
-            label: "Verstaan",
-            textColor: Colors.white,
-            onPressed: () {
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-            },
-          ),
+      // Hide loading snackbar
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // Show OTP verification dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => OtpVerificationDialog(
+          email: currentUser.email!,
+          onSuccess: () {
+            // Navigate to password reset page
+            context.go('/wagwoord_herstel');
+          },
+          onCancel: () {
+            // Just close the dialog and stay on settings page
+            Navigator.of(context).pop();
+          },
         ),
       );
     } catch (e) {

@@ -84,8 +84,37 @@ class AuthService {
     try {
       await _supabase.auth.resetPasswordForEmail(
         email,
-        redirectTo: 'http://localhost:51322/wagwoord_herstel',
+        // redirectTo: 'http://localhost:51322/wagwoord_herstel',
       );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Verify OTP for password reset
+  Future<AuthResponse> verifyOtpForPasswordReset({
+    required String email,
+    required String token,
+  }) async {
+    try {
+      final response = await _supabase.auth.verifyOTP(
+        type: OtpType.recovery,
+        token: token,
+        email: email,
+      );
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Update password after OTP verification
+  Future<UserResponse> updatePassword({required String password}) async {
+    try {
+      final response = await _supabase.auth.updateUser(
+        UserAttributes(password: password),
+      );
+      return response;
     } catch (e) {
       rethrow;
     }

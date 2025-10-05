@@ -16,28 +16,32 @@ import '../../../shared/widgets/password_field.dart';
 class TekenInPage extends ConsumerWidget {
   const TekenInPage({super.key});
 
-  Future<void> _checkAdminTypeAndRedirect(BuildContext context, WidgetRef ref) async {
+  Future<void> _checkAdminTypeAndRedirect(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     try {
       final authService = ref.read(authServiceProvider);
       final profile = await authService.getUserProfile();
-      
+
       if (profile == null) {
         print('DEBUG: No profile found, redirecting to dashboard');
         context.go('/dashboard');
         return;
       }
-      
+
       final admin = profile['admin_tipes'] as Map<String, dynamic>?;
-      final adminTypeName = (admin?['admin_tipe_naam'] as String?)?.trim() ?? '';
-      
+      final adminTypeName =
+          (admin?['admin_tipe_naam'] as String?)?.trim() ?? '';
+
       print('DEBUG: Admin type name: "$adminTypeName"');
-      
+
       // Check if admin type is restricted
       final restrictedTypes = {'Pending', 'Tertiary', 'None'};
       final isRestricted = restrictedTypes.contains(adminTypeName);
-      
+
       print('DEBUG: Is restricted: $isRestricted');
-      
+
       if (isRestricted) {
         print('DEBUG: Redirecting to waiting page');
         context.go('/wag_goedkeuring');
@@ -183,8 +187,12 @@ class TekenInPage extends ConsumerWidget {
                                     final password = ref.read(passwordProvider);
 
                                     // Clear any previous errors
-                                    ref.read(authErrorProvider.notifier).state = null;
-                                    ref.read(authLoadingProvider.notifier).state = true;
+                                    ref.read(authErrorProvider.notifier).state =
+                                        null;
+                                    ref
+                                            .read(authLoadingProvider.notifier)
+                                            .state =
+                                        true;
 
                                     try {
                                       final authService = ref.read(
@@ -200,7 +208,10 @@ class TekenInPage extends ConsumerWidget {
 
                                       if (context.mounted) {
                                         // Check admin type directly after login
-                                        await _checkAdminTypeAndRedirect(context, ref);
+                                        await _checkAdminTypeAndRedirect(
+                                          context,
+                                          ref,
+                                        );
                                       }
                                     } catch (e) {
                                       String errorMessage =
@@ -253,7 +264,7 @@ class TekenInPage extends ConsumerWidget {
                               ref.read(emailProvider.notifier).state =
                                   'prvanstaden.phillip@gmail.com';
                               ref.read(passwordProvider.notifier).state =
-                                  '12345Qwerty';
+                                  'Qwerty12345';
 
                               // Clear any previous errors
                               ref.read(authErrorProvider.notifier).state = null;
@@ -267,7 +278,7 @@ class TekenInPage extends ConsumerWidget {
 
                                 await authService.signInWithEmail(
                                   email: 'prvanstaden.phillip@gmail.com',
-                                  password: '12345Qwerty',
+                                  password: 'Qwerty12345',
                                 );
 
                                 // User data is now managed by Supabase authentication
@@ -275,7 +286,10 @@ class TekenInPage extends ConsumerWidget {
 
                                 if (context.mounted) {
                                   // Check admin type directly after login
-                                  await _checkAdminTypeAndRedirect(context, ref);
+                                  await _checkAdminTypeAndRedirect(
+                                    context,
+                                    ref,
+                                  );
                                 }
                               } catch (e) {
                                 String errorMessage =
@@ -296,7 +310,7 @@ class TekenInPage extends ConsumerWidget {
                             },
                           ),
                         ),
-                        
+
                         // Quick Login Button (Jacques)
                         Container(
                           margin: const EdgeInsets.only(bottom: 24),
@@ -330,7 +344,10 @@ class TekenInPage extends ConsumerWidget {
 
                                 if (context.mounted) {
                                   // Check admin type directly after login
-                                  await _checkAdminTypeAndRedirect(context, ref);
+                                  await _checkAdminTypeAndRedirect(
+                                    context,
+                                    ref,
+                                  );
                                 }
                               } catch (e) {
                                 String errorMessage =
