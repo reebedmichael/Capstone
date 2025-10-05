@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:spys_api_client/spys_api_client.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../app/presentation/widgets/app_bottom_nav.dart';
 
@@ -432,7 +431,7 @@ class _WalletPageState extends State<WalletPage>
                         height: 50,
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary),
+                              backgroundColor: Theme.of(context).colorScheme.primary),
                           onPressed: isLaaiing ? null : _laaiBeursieOp,
                           icon: isLaaiing 
                               ? SizedBox(
@@ -603,7 +602,7 @@ class _WalletPageState extends State<WalletPage>
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           border: Border.all(
-              color: isSelected ? AppColors.primary : Theme.of(context).colorScheme.onSurfaceVariant),
+              color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant),
           borderRadius: BorderRadius.circular(8),
           color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent,
         ),

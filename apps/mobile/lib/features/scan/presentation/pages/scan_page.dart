@@ -4,7 +4,6 @@ import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../shared/services/qr_service.dart';
-import '../../../../core/theme/app_colors.dart';
 
 class ScanPage extends StatefulWidget {
   const ScanPage({super.key});
@@ -281,7 +280,7 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
                 height: 280,
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: AppColors.primary,
+                    color: Theme.of(context).colorScheme.primary,
                     width: 3,
                   ),
                   borderRadius: BorderRadius.circular(16),
@@ -393,8 +392,8 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
         height: 40,
         decoration: BoxDecoration(
           border: Border(
-            top: BorderSide(color: AppColors.primary, width: 5),
-            left: BorderSide(color: AppColors.primary, width: 5),
+            top: BorderSide(color: Theme.of(context).colorScheme.primary, width: 5),
+            left: BorderSide(color: Theme.of(context).colorScheme.primary, width: 5),
           ),
         ),
       ),

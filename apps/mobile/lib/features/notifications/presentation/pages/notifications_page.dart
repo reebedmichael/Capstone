@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:spys_api_client/spys_api_client.dart';
-import '../../../../core/theme/app_colors.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -375,7 +374,7 @@ class _NotificationsPageState extends State<NotificationsPage>
                           'Totaal',
                           '${_statistieke['totaal']}',
                           Icons.notifications,
-                          AppColors.primary,
+                          Theme.of(context).colorScheme.primary,
                         ),
                       ),
                       const SizedBox(width: 12),
