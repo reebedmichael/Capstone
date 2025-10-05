@@ -6,6 +6,7 @@ import 'package:capstone_admin/shared/widgets/spys_primary_button.dart';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../shared/providers/auth_form_providers.dart';
 import '../../../shared/providers/auth_providers.dart';
@@ -148,8 +149,24 @@ class RegistreerAdminPage extends ConsumerWidget {
                           // Clear any previous errors
                           ref.read(authErrorProvider.notifier).state = null;
                           ref.read(authLoadingProvider.notifier).state = true;
-                          
+
+                          // Pre-check: abort if email already exists in gebruikers BEFORE signup
+                          final preClient = Supabase.instance.client;
+                          final existingBefore = await preClient
+                            .from('gebruikers')
+                            .select('gebr_id')
+                            .ilike('gebr_epos', email)
+                            .limit(1)
+                            .maybeSingle();
+                          if (existingBefore != null) {
+                            ref.read(authErrorProvider.notifier).state = 'E-pos adres bestaan reeds in die stelsel';
+                            ref.read(authLoadingProvider.notifier).state = false;
+                            return;
+                          }
+
                           try {
+                            final client = Supabase.instance.client;
+
                             final authService = ref.read(authServiceProvider);
                             final response = await authService.signUpWithEmail(
                               email: email,
@@ -160,15 +177,69 @@ class RegistreerAdminPage extends ConsumerWidget {
                             );
                             
                             if (response.user != null) {
+                              // Prevent duplicate email in gebruikers
+                              final existingEmail = await client
+                                .from('gebruikers')
+                                .select('gebr_id')
+                                .ilike('gebr_epos', email)
+                                .limit(1)
+                                .maybeSingle();
+                              if (existingEmail != null) {
+                                ref.read(authErrorProvider.notifier).state = 'E-pos adres bestaan reeds in die stelsel';
+                                return;
+                              }
+
+                              // Resolve defaults (IDs) once
+                              final ekstern = await client
+                                .from('gebruiker_tipes')
+                                .select('gebr_tipe_id')
+                                .ilike('gebr_tipe_naam', 'Ekstern')
+                                .limit(1)
+                                .maybeSingle();
+                              final adminNone = await client
+                                .from('admin_tipes')
+                                .select('admin_tipe_id')
+                                .ilike('admin_tipe_naam', 'None')
+                                .limit(1)
+                                .maybeSingle();
+                              final firstKampus = await client
+                                .from('kampus')
+                                .select('kampus_id')
+                                .order('kampus_naam', ascending: true)
+                                .limit(1)
+                                .maybeSingle();
+
+                              if (ekstern == null || adminNone == null || firstKampus == null) {
+                                throw Exception('Kon nie verstekwaardes laai nie (gebruiker_tipes/admin_tipes/kampus)');
+                              }
+
+                              // Upsert gebruiker record with same defaults as mobile register_page
+                              await client
+                                .from('gebruikers')
+                                .upsert({
+                                  'gebr_id': response.user!.id,
+                                  'gebr_epos': email,
+                                  'gebr_naam': firstName,
+                                  'gebr_van': lastName,
+                                  'gebr_selfoon': cellphone,
+                                  'is_aktief': true,
+                                  'beursie_balans': 0,
+                                  'gebr_tipe_id': ekstern['gebr_tipe_id'],
+                                  'admin_tipe_id': adminNone['admin_tipe_id'],
+                                  'kampus_id': firstKampus['kampus_id'],
+                                }, onConflict: 'gebr_id')
+                                .select()
+                                .single();
+
                               if (context.mounted) {
                                 // Show success message and redirect to pending approval
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Registrasie suksesvol! Jou aansoek wag vir goedkeuring.'),
+                                    content: Text('Registrasie suksesvol! Teken nou in om voort te gaan.'),
                                     backgroundColor: Colors.orange,
                                   ),
                                 );
-                                context.go('/wag_goedkeuring');
+                                context.go('/teken_in');
                               }
                             }
                           } catch (e) {
@@ -179,6 +250,8 @@ class RegistreerAdminPage extends ConsumerWidget {
                               errorMessage = 'Wagwoord moet ten minste 6 karakters wees';
                             } else if (e.toString().contains('Invalid email')) {
                               errorMessage = 'Ongeldige e-pos adres';
+                            } else if (e is PostgrestException) {
+                              errorMessage = 'Data stoor het gefaal: ${e.message}';
                             }
                             
                             ref.read(authErrorProvider.notifier).state = errorMessage;
