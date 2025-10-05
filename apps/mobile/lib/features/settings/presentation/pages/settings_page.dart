@@ -2,23 +2,21 @@ import 'package:capstone_mobile/features/app/presentation/widgets/app_bottom_nav
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:spys_api_client/spys_api_client.dart';
 import '../../../../shared/services/qr_service.dart';
+import '../../../../shared/providers/theme_provider.dart';
 
-class SettingsPage extends StatefulWidget {
+class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
 
   @override
-  State<SettingsPage> createState() => _SettingsPageState();
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
-  bool isDarkMode = false;
+class _SettingsPageState extends ConsumerState<SettingsPage> {
   String language = 'af';
-  bool orderUpdates = true;
-  bool menuAlerts = true;
-  bool allowanceReminders = true;
-  bool promotions = false;
   bool isDeleting = false;
   bool _isTertiaryAdmin = false;
   bool _isLoadingAdminStatus = true;
@@ -62,12 +60,17 @@ class _SettingsPageState extends State<SettingsPage> {
             title: "Voorkoms",
             icon: Icons.wb_sunny,
             children: [
-              SwitchListTile(
-                title: const Text("Donker Modus"),
-                subtitle: const Text("Verander na donker tema"),
-                value: isDarkMode,
-                onChanged: (val) {
-                  setState(() => isDarkMode = val);
+              Consumer(
+                builder: (context, ref, child) {
+                  final isDarkMode = ref.watch(isDarkModeProvider);
+                  return SwitchListTile(
+                    title: const Text("Donker Modus"),
+                    subtitle: const Text("Verander na donker tema"),
+                    value: isDarkMode,
+                    onChanged: (val) {
+                      ref.read(themeProvider.notifier).toggleTheme();
+                    },
+                  );
                 },
               ),
               ListTile(
@@ -88,38 +91,28 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
 
-          // Notifications
+          // Notifications - Functional notification controls
           _buildCard(
             title: "Kennisgewings",
             icon: Icons.notifications,
             children: [
-              SwitchListTile(
-                title: const Text("Bestelling Opdaterings"),
-                subtitle: const Text(
-                  "Ontvang kennisgewings oor jou bestellings",
-                ),
-                value: orderUpdates,
-                onChanged: (val) => setState(() => orderUpdates = val),
+              ListTile(
+                leading: const Icon(Icons.notifications),
+                title: const Text("Kennisgewings Beheer"),
+                subtitle: const Text("Bekyk en beheer jou kennisgewings"),
+                onTap: () => context.go('/notifications'),
               ),
-              SwitchListTile(
-                title: const Text("Spyskaart Kennisgewings"),
-                subtitle: const Text("Nuwe items en spyskaart veranderinge"),
-                value: menuAlerts,
-                onChanged: (val) => setState(() => menuAlerts = val),
+              ListTile(
+                leading: const Icon(Icons.mark_email_read),
+                title: const Text("Merk Alles as Gelees"),
+                subtitle: const Text("Merk alle kennisgewings as gelees"),
+                onTap: () => _markAllAsRead(),
               ),
-              SwitchListTile(
-                title: const Text("Toelae Herinneringe"),
-                subtitle: const Text(
-                  "Maandelikse toelae en balans opdaterings",
-                ),
-                value: allowanceReminders,
-                onChanged: (val) => setState(() => allowanceReminders = val),
-              ),
-              SwitchListTile(
-                title: const Text("Promosies & Aanbiedinge"),
-                subtitle: const Text("Spesiale aanbiedinge en afslag"),
-                value: promotions,
-                onChanged: (val) => setState(() => promotions = val),
+              ListTile(
+                leading: const Icon(Icons.clear_all),
+                title: const Text("Skoon Kennisgewings"),
+                subtitle: const Text("Verwyder alle gelees kennisgewings"),
+                onTap: () => _clearReadNotifications(),
               ),
             ],
           ),
@@ -238,15 +231,15 @@ class _SettingsPageState extends State<SettingsPage> {
 
           // Danger Zone
           Card(
-            color: Colors.red.shade50,
+            color: Theme.of(context).colorScheme.errorContainer,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const ListTile(
+                ListTile(
                   title: Text(
                     "Gevaar Sone",
                     style: TextStyle(
-                      color: Colors.red,
+                      color: Theme.of(context).colorScheme.error,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -255,20 +248,20 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.logout, color: Colors.red),
-                  title: const Text(
+                  leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
+                  title: Text(
                     "Teken Uit",
-                    style: TextStyle(color: Colors.red),
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
                   ),
                   onTap: () => context.go('/auth/login'),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.delete, color: Colors.red),
+                  leading: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
                   title: Text(
                     isDeleting
                         ? "Klik weer om te bevestig"
                         : "Verwyder Rekening",
-                    style: const TextStyle(color: Colors.red),
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
                   ),
                   onTap: () {
                     if (isDeleting) {
@@ -283,14 +276,14 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
 
           const SizedBox(height: 16),
-          const Center(
+          Center(
             child: Column(
               children: [
                 Text(
                   "Spys App Weergawe 1.0.0",
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
-                Text("© 2025 Akademia", style: TextStyle(color: Colors.grey)),
+                Text("© 2025 Akademia", style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ],
             ),
           ),
@@ -329,6 +322,74 @@ class _SettingsPageState extends State<SettingsPage> {
         );
       },
     );
+  }
+
+  Future<void> _markAllAsRead() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        Fluttertoast.showToast(
+          msg: 'Jy moet ingeteken wees',
+          backgroundColor: Theme.of(context).colorScheme.error,
+        );
+        return;
+      }
+
+      final kennisgewingRepo = KennisgewingRepository(SupabaseDb(Supabase.instance.client));
+      final success = await kennisgewingRepo.markeerAllesAsGelees(user.id);
+      
+      if (success) {
+        Fluttertoast.showToast(
+          msg: 'Alle kennisgewings gemerk as gelees',
+          backgroundColor: Theme.of(context).colorScheme.tertiary,
+        );
+      } else {
+        Fluttertoast.showToast(
+          msg: 'Kon nie kennisgewings merk nie',
+          backgroundColor: Theme.of(context).colorScheme.secondary,
+        );
+      }
+    } catch (e) {
+      Fluttertoast.showToast(
+        msg: 'Fout: ${e.toString()}',
+        backgroundColor: Theme.of(context).colorScheme.error,
+      );
+    }
+  }
+
+  Future<void> _clearReadNotifications() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        Fluttertoast.showToast(
+          msg: 'Jy moet ingeteken wees',
+          backgroundColor: Theme.of(context).colorScheme.error,
+        );
+        return;
+      }
+
+      // Get all read notifications and delete them
+      final kennisgewingRepo = KennisgewingRepository(SupabaseDb(Supabase.instance.client));
+      final readNotifications = await kennisgewingRepo.kryKennisgewings(user.id);
+      
+      int deletedCount = 0;
+      for (final notification in readNotifications) {
+        if (notification['kennis_gelees'] == true) {
+          final success = await kennisgewingRepo.verwyderKennisgewing(notification['kennis_id']);
+          if (success) deletedCount++;
+        }
+      }
+      
+      Fluttertoast.showToast(
+        msg: '$deletedCount gelees kennisgewings verwyder',
+        backgroundColor: Theme.of(context).colorScheme.tertiary,
+      );
+    } catch (e) {
+      Fluttertoast.showToast(
+        msg: 'Fout: ${e.toString()}',
+        backgroundColor: Theme.of(context).colorScheme.error,
+      );
+    }
   }
 
   Widget _buildCard({

@@ -134,7 +134,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+                border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.outline)),
                 color: Theme.of(context).colorScheme.surface,
               ),
               child: Row(
@@ -181,14 +181,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                   const SizedBox(height: 4),
                                   Text(
                                     email,
-                                    style: TextStyle(color: Colors.grey.shade600),
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                                   ),
                                   const SizedBox(height: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: Colors.blue.shade50,
+                                      color: Theme.of(context).colorScheme.primaryContainer,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: const Text(
@@ -286,10 +286,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                     }
 
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
+                                      SnackBar(
                                         content: Text(
                                             'Gebruiker Inligting Opgedateer!'),
-                                        backgroundColor: Colors.green,
+                                        backgroundColor: Theme.of(context).colorScheme.tertiary,
                                       ),
                                     );
 
@@ -330,10 +330,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                               children: [
                                 Text(
                                   "R${walletBalance.toStringAsFixed(2)}",
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
-                                    color: Colors.blue,
+                                    color: Theme.of(context).colorScheme.primary,
                                   ),
                                 ),
                                 TextButton(
@@ -420,7 +420,7 @@ class _DietMultiSelect extends StatelessWidget {
           if (allDiets.isEmpty)
             Text(
               'Geen dieet opsies beskikbaar nie',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
         ],
       ],

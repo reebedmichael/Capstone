@@ -169,13 +169,13 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: scheme.surface,
-      textTheme: const TextTheme(
-        displayLarge: AppTypography.displayLarge,
-        headlineMedium: AppTypography.headlineMedium,
-        titleLarge: AppTypography.titleLarge,
-        bodyLarge: AppTypography.bodyLarge,
-        bodyMedium: AppTypography.bodyMedium,
-        labelLarge: AppTypography.labelLarge,
+      textTheme: TextTheme(
+        displayLarge: AppTypography.displayLarge.copyWith(color: scheme.onSurface),
+        headlineMedium: AppTypography.headlineMedium.copyWith(color: scheme.onSurface),
+        titleLarge: AppTypography.titleLarge.copyWith(color: scheme.onSurface),
+        bodyLarge: AppTypography.bodyLarge.copyWith(color: scheme.onSurface),
+        bodyMedium: AppTypography.bodyMedium.copyWith(color: scheme.onSurface),
+        labelLarge: AppTypography.labelLarge.copyWith(color: scheme.onSurface),
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: scheme.surface,
@@ -308,8 +308,8 @@ class AppTheme {
         }),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: const Color(0xFFEEEEEE),
-        contentTextStyle: AppTypography.bodyLarge.copyWith(color: Colors.black),
+        backgroundColor: scheme.surface,
+        contentTextStyle: AppTypography.bodyLarge.copyWith(color: scheme.onSurface),
         behavior: SnackBarBehavior.floating,
         elevation: 2,
         shape: RoundedRectangleBorder(

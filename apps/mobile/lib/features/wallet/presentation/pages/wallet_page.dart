@@ -169,7 +169,7 @@ class _WalletPageState extends State<WalletPage>
           // HEADER + WALLET BALANCE
           // ----------------------------
           Container(
-            color: AppColors.primary,
+            color: Theme.of(context).colorScheme.primary,
             padding: const EdgeInsets.only(
                 top: 20, left: 16, right: 16, bottom: 16),
             child: Column(
@@ -181,14 +181,14 @@ class _WalletPageState extends State<WalletPage>
                   children: [
                     Text('Beursie',
                         style: AppTypography.titleLarge
-                            .copyWith(color: Colors.white)),
+                            .copyWith(color: Theme.of(context).colorScheme.onPrimary)),
                     const SizedBox(width: 40), // spacing
                   ],
                 ),
                 const SizedBox(height: 16),
                 // Wallet balance card
                 Card(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Row(
@@ -197,25 +197,25 @@ class _WalletPageState extends State<WalletPage>
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Beskikbare Balans',
+                            Text('Beskikbare Balans',
                                 style: TextStyle(
-                                    fontSize: 12, color: Colors.grey)),
+                                    fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                             const SizedBox(height: 8),
                             Text('R${beursieBalans.toStringAsFixed(2)}',
                                 style: const TextStyle(
                                     fontSize: 24, fontWeight: FontWeight.bold)),
-                            const Text('Laas opgedateer: Vandag',
+                            Text('Laas opgedateer: Vandag',
                                 style: TextStyle(
-                                    fontSize: 12, color: Colors.grey)),
+                                    fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                           ],
                         ),
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.1),
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(30)),
                           child: Icon(Icons.account_balance_wallet,
-                              size: 32, color: AppColors.primary),
+                              size: 32, color: Theme.of(context).colorScheme.primary),
                         ),
                       ],
                     ),
@@ -230,8 +230,8 @@ class _WalletPageState extends State<WalletPage>
           // ----------------------------
           TabBar(
             controller: _tabController,
-            labelColor: AppColors.primary,
-            unselectedLabelColor: Colors.grey,
+            labelColor: Theme.of(context).colorScheme.primary,
+            unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
             isScrollable: true,
             tabs: const [
               Tab(text: 'Laai Beursie'),
@@ -280,11 +280,11 @@ class _WalletPageState extends State<WalletPage>
                                     selected: isSelected,
                                     onSelected: (_) =>
                                         handleQuickAmount(amount),
-                                    selectedColor: AppColors.primary,
+                                    selectedColor: Theme.of(context).colorScheme.primary,
                                     labelStyle: TextStyle(
                                         color: isSelected
-                                            ? Colors.white
-                                            : AppColors.primary),
+                                            ? Theme.of(context).colorScheme.onPrimary
+                                            : Theme.of(context).colorScheme.primary),
                                   );
                                 }).toList(),
                               ),
@@ -305,9 +305,9 @@ class _WalletPageState extends State<WalletPage>
                                 },
                               ),
                               const SizedBox(height: 4),
-                              const Text('Minimum: R10 | Maksimum: R1000',
+                              Text('Minimum: R10 | Maksimum: R1000',
                                   style: TextStyle(
-                                      fontSize: 12, color: Colors.grey)),
+                                      fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                             ],
                           ),
                         ),
@@ -435,12 +435,12 @@ class _WalletPageState extends State<WalletPage>
                               backgroundColor: AppColors.primary),
                           onPressed: isLaaiing ? null : _laaiBeursieOp,
                           icon: isLaaiing 
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 20,
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.onPrimary),
                                   ),
                                 )
                               : const Icon(Icons.add),
@@ -458,14 +458,14 @@ class _WalletPageState extends State<WalletPage>
                 // HISTORY TAB
                 // ----------------------------
                 transactions.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Padding(
-                          padding: EdgeInsets.all(32.0),
+                          padding: const EdgeInsets.all(32.0),
                           child: Text(
                             'Geen transaksies gevind nie',
                             style: TextStyle(
                               fontSize: 16,
-                              color: Colors.grey,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -485,15 +485,15 @@ class _WalletPageState extends State<WalletPage>
                             child: ListTile(
                               leading: CircleAvatar(
                                 backgroundColor: isInbetaling
-                                    ? Colors.green.shade100
-                                    : Colors.red.shade100,
+                                    ? Theme.of(context).colorScheme.tertiaryContainer
+                                    : Theme.of(context).colorScheme.errorContainer,
                                 child: Icon(
                                   isInbetaling
                                       ? Icons.arrow_upward
                                       : Icons.arrow_downward,
                                   color: isInbetaling
-                                      ? Colors.green
-                                      : Colors.red,
+                                      ? Theme.of(context).colorScheme.tertiary
+                                      : Theme.of(context).colorScheme.error,
                                 ),
                               ),
                               title: Text(t['trans_beskrywing'] ?? 'Transaksie'),
@@ -503,8 +503,8 @@ class _WalletPageState extends State<WalletPage>
                                 style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: isInbetaling
-                                        ? Colors.green
-                                        : Colors.red),
+                                        ? Theme.of(context).colorScheme.tertiary
+                                        : Theme.of(context).colorScheme.error),
                               ),
                             ),
                           );
@@ -515,14 +515,14 @@ class _WalletPageState extends State<WalletPage>
                 // ALLOWANCE HISTORY TAB
                 // ----------------------------
                 toelaeTransactions.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Padding(
-                          padding: EdgeInsets.all(32.0),
+                          padding: const EdgeInsets.all(32.0),
                           child: Text(
                             'Geen toelae transaksies gevind nie',
                             style: TextStyle(
                               fontSize: 16,
-                              color: Colors.grey,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -541,19 +541,19 @@ class _WalletPageState extends State<WalletPage>
                           final datumFormaat = '${datum.day} ${_kryMaandNaam(datum.month)} ${datum.year} ${datum.hour.toString().padLeft(2, '0')}:${datum.minute.toString().padLeft(2, '0')}';
                           
                           return Card(
-                            color: Colors.orange.shade50,
+                            color: Theme.of(context).colorScheme.secondaryContainer,
                             child: ListTile(
                               leading: CircleAvatar(
                                 backgroundColor: isInbetaling
-                                    ? Colors.green.shade100
-                                    : Colors.red.shade100,
+                                    ? Theme.of(context).colorScheme.tertiaryContainer
+                                    : Theme.of(context).colorScheme.errorContainer,
                                 child: Icon(
                                   isInbetaling
                                       ? Icons.arrow_upward
                                       : Icons.arrow_downward,
                                   color: isInbetaling
-                                      ? Colors.green
-                                      : Colors.red,
+                                      ? Theme.of(context).colorScheme.tertiary
+                                      : Theme.of(context).colorScheme.error,
                                 ),
                               ),
                               title: Text(t['trans_beskrywing'] ?? 'Toelae Transaksie'),
@@ -563,8 +563,8 @@ class _WalletPageState extends State<WalletPage>
                                 style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: isInbetaling
-                                        ? Colors.green
-                                        : Colors.red),
+                                        ? Theme.of(context).colorScheme.tertiary
+                                        : Theme.of(context).colorScheme.error),
                               ),
                             ),
                           );
@@ -603,19 +603,19 @@ class _WalletPageState extends State<WalletPage>
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           border: Border.all(
-              color: isSelected ? AppColors.primary : Colors.grey),
+              color: isSelected ? AppColors.primary : Theme.of(context).colorScheme.onSurfaceVariant),
           borderRadius: BorderRadius.circular(8),
-          color: isSelected ? AppColors.primary : Colors.transparent,
+          color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: isSelected ? Colors.white : AppColors.primary),
+            Icon(icon, color: isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.primary),
             const SizedBox(height: 4),
             Text(label,
                 style: TextStyle(
                     fontSize: 12,
-                    color: isSelected ? Colors.white : AppColors.primary)),
+                    color: isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.primary)),
           ],
         ),
       ),

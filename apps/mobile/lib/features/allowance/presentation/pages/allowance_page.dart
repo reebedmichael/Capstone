@@ -102,26 +102,26 @@ class _AllowancePageState extends State<AllowancePage> {
     Widget statusIcon(String status) {
       switch (status) {
         case 'received':
-          return const Icon(Icons.check_circle, color: Colors.green, size: 20);
+          return Icon(Icons.check_circle, color: Theme.of(context).colorScheme.tertiary, size: 20);
         case 'pending':
-          return const Icon(Icons.access_time, color: Colors.orange, size: 20);
+          return Icon(Icons.access_time, color: Theme.of(context).colorScheme.error, size: 20);
         case 'failed':
-          return const Icon(Icons.error, color: Colors.red, size: 20);
+          return Icon(Icons.error, color: Theme.of(context).colorScheme.error, size: 20);
         default:
-          return const Icon(Icons.help_outline, color: Colors.grey, size: 20);
+          return Icon(Icons.help_outline, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20);
       }
     }
 
     Color statusColor(String status) {
       switch (status) {
         case 'received':
-          return Colors.green;
+          return Theme.of(context).colorScheme.tertiary;
         case 'pending':
-          return Colors.orange;
+          return Theme.of(context).colorScheme.error;
         case 'failed':
-          return Colors.red;
+          return Theme.of(context).colorScheme.error;
         default:
-          return Colors.grey;
+          return Theme.of(context).colorScheme.onSurfaceVariant;
       }
     }
 
@@ -143,7 +143,7 @@ class _AllowancePageState extends State<AllowancePage> {
             // Special message for Ekstern users
             if (isEkstern)
               Card(
-                color: Colors.orange.shade50,
+                color: Theme.of(context).colorScheme.errorContainer,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(

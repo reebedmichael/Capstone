@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:spys_api_client/spys_api_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../locator.dart';
 import '../../../../shared/constants/spacing.dart';
@@ -226,7 +225,7 @@ void initState() {
           children: [
             // Header
             Container(
-              color: AppColors.primary,
+              color: Theme.of(context).colorScheme.primary,
               padding: const EdgeInsets.fromLTRB(
                 Spacing.screenHPad,
                 20,
@@ -246,14 +245,14 @@ void initState() {
                                 ? 'Welkom...'
                                 : 'Welkom, ${gebrNaam != null && gebrNaam!.isNotEmpty ? gebrNaam : 'Gebruiker'}!',
                             style: AppTypography.titleLarge.copyWith(
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onPrimary,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'Wat gaan jy vandag eet?',
                             style: AppTypography.bodySmall.copyWith(
-                              color: Colors.white70,
+                              color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
                             ),
                           ),
                         ],
@@ -262,9 +261,9 @@ void initState() {
                         children: [
                           IconButton(
                             onPressed: () => context.go('/db-test'),
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.storage_rounded,
-                              color: Colors.white,
+                              color: Theme.of(context).colorScheme.onPrimary,
                             ),
                             tooltip: 'DB Test',
                           ),
@@ -273,9 +272,9 @@ void initState() {
                             icon: Stack(
                               clipBehavior: Clip.none,
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.notifications_outlined,
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.onPrimary,
                                 ),
                                 Positioned(
                                   right: -2,
@@ -290,9 +289,9 @@ void initState() {
                             icon: Stack(
                               clipBehavior: Clip.none,
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.shopping_cart_outlined,
-                                  color: Colors.white,
+                                  color: Theme.of(context).colorScheme.onPrimary,
                                 ),
                                 Positioned(
                                   right: -2,
@@ -318,7 +317,7 @@ void initState() {
                     decoration: InputDecoration(
                       hintText: 'Soek na kos, bestanddele...',
                       prefixIcon: const Icon(Icons.search),
-                      fillColor: Colors.white,
+                      fillColor: Theme.of(context).colorScheme.surface,
                       filled: true,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -350,9 +349,9 @@ SizedBox(
             selectedDay = day;
             _applyFilters();
           }),
-          selectedColor: AppColors.primary,
+          selectedColor: Theme.of(context).colorScheme.primary,
           labelStyle: TextStyle(
-            color: isSelected ? Colors.white : AppColors.onSurfaceVariant,
+            color: isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           labelPadding: const EdgeInsets.symmetric(horizontal: 12),
         );
@@ -383,11 +382,11 @@ SizedBox(
             selectedDietType = dietId;
             _applyFilters();
           }),
-          selectedColor: AppColors.primary,
+          selectedColor: Theme.of(context).colorScheme.primary,
           labelStyle: TextStyle(
-            color: isSelected ? Colors.white : AppColors.primary,
+            color: isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.primary,
           ),
-          side: BorderSide(color: AppColors.primary),
+          side: BorderSide(color: Theme.of(context).colorScheme.primary),
           labelPadding: const EdgeInsets.symmetric(horizontal: 12),
         );
       },
@@ -456,13 +455,13 @@ SizedBox(
     return Container(
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: Colors.red,
+        color: Theme.of(context).colorScheme.error,
         borderRadius: BorderRadius.circular(8),
       ),
       constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
       child: Text(
         count,
-        style: const TextStyle(color: Colors.white, fontSize: 10),
+        style: TextStyle(color: Theme.of(context).colorScheme.onError, fontSize: 10),
       ),
     );
   }
@@ -477,13 +476,13 @@ SizedBox(
         return Container(
           padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
-            color: Colors.red,
+            color: Theme.of(context).colorScheme.error,
             borderRadius: BorderRadius.circular(8),
           ),
           constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
           child: Text(
             '$display',
-            style: const TextStyle(color: Colors.white, fontSize: 10),
+            style: TextStyle(color: Theme.of(context).colorScheme.onError, fontSize: 10),
           ),
         );
       },
@@ -519,7 +518,7 @@ SizedBox(
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant,
+                  color: Theme.of(context).colorScheme.surfaceVariant,
                   borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(12),
                     bottomLeft: Radius.circular(12),
@@ -532,10 +531,10 @@ SizedBox(
                       : null,
                 ),
                 child: imageUrl.isEmpty
-                    ? const Icon(
+                    ? Icon(
                         Icons.fastfood,
                         size: 40,
-                        color: AppColors.onSurfaceVariant,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       )
                     : null,
               ),
@@ -545,7 +544,7 @@ SizedBox(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name, style: AppTypography.titleMedium),
+                      Text(name, style: AppTypography.titleMedium.copyWith(color: Theme.of(context).colorScheme.onSurface)),
                       if (description.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 6),
@@ -553,7 +552,7 @@ SizedBox(
                             description,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: AppTypography.bodySmall,
+                            style: AppTypography.bodySmall.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                           ),
                         ),
                       const SizedBox(height: 8),
@@ -562,12 +561,12 @@ SizedBox(
                           Text(
                             'R${price.toStringAsFixed(2)}',
                             style: AppTypography.titleMedium.copyWith(
-                              color: AppColors.primary,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
                           const SizedBox(width: 12),
                           if (dayName.isNotEmpty && selectedDay == 'Alle')
-                            Text(dayName, style: AppTypography.labelSmall),
+                            Text(dayName, style: AppTypography.labelSmall.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                           const Spacer(),
                           // Keep visible action button with exact text "Meer detail"
                           TextButton(
@@ -582,9 +581,9 @@ SizedBox(
                       if (!available)
                         Padding(
                           padding: const EdgeInsets.only(top: 6),
-                          child: const Text(
+                          child: Text(
                             'Nie beskikbaar nie',
-                            style: TextStyle(color: Colors.red),
+                            style: TextStyle(color: Theme.of(context).colorScheme.error),
                           ),
                         ),
                     ],

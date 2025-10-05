@@ -3,6 +3,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'core/theme/app_theme.dart';
 import 'core/routes/app_router.dart';
 import 'shared/constants/strings_af.dart';
+import 'shared/providers/theme_provider.dart';
 import 'bootstrap.dart';
 import 'locator.dart';
 import 'shared/services/notification_service.dart';
@@ -34,11 +35,18 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ProviderScope(
-      child: MaterialApp.router(
-        title: StringsAf.appTitle,
-        theme: AppTheme.lightTheme,
-        routerConfig: AppRouter.router,
-        debugShowCheckedModeBanner: false,
+      child: Consumer(
+        builder: (context, ref, child) {
+          final themeMode = ref.watch(themeProvider);
+          return MaterialApp.router(
+            title: StringsAf.appTitle,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeMode,
+            routerConfig: AppRouter.router,
+            debugShowCheckedModeBanner: false,
+          );
+        },
       ),
     );
   }

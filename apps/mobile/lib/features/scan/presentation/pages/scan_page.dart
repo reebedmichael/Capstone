@@ -74,7 +74,7 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
         if (mounted) {
           Fluttertoast.showToast(
             msg: 'Jy het nie toestemming om QR kodes te skandeer nie',
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           );
         }
       });
@@ -110,7 +110,7 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
           title: 'Suksesvol Afgehaal',
           message: result['message'] as String? ?? 'Item suksesvol afgehaal',
           icon: FeatherIcons.checkCircle,
-          iconColor: Colors.green,
+          iconColor: Theme.of(context).colorScheme.tertiary,
         );
       } else {
         // Show error dialog
@@ -120,7 +120,7 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
           title: isAlreadyCollected ? 'Reeds Afgehaal' : 'Fout',
           message: result['message'] as String? ?? 'Kon nie QR kode verwerk nie',
           icon: isAlreadyCollected ? FeatherIcons.info : FeatherIcons.xCircle,
-          iconColor: isAlreadyCollected ? Colors.orange : Colors.red,
+          iconColor: isAlreadyCollected ? Theme.of(context).colorScheme.error : Theme.of(context).colorScheme.error,
         );
       }
     } catch (e) {
@@ -130,7 +130,7 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
         title: 'Fout',
         message: 'Kon nie QR kode verwerk nie: $e',
         icon: FeatherIcons.xCircle,
-        iconColor: Colors.red,
+        iconColor: Theme.of(context).colorScheme.error,
       );
     } finally {
       // Allow scanning again after a delay
@@ -195,10 +195,10 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
+                Icon(
                   FeatherIcons.alertCircle,
                   size: 64,
-                  color: Colors.red,
+                  color: Theme.of(context).colorScheme.error,
                 ),
                 const SizedBox(height: 16),
                 const Text(
@@ -255,10 +255,10 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
+                      Icon(
                         FeatherIcons.camera,
                         size: 64,
-                        color: Colors.red,
+                        color: Theme.of(context).colorScheme.error,
                       ),
                       const SizedBox(height: 16),
                       Text(

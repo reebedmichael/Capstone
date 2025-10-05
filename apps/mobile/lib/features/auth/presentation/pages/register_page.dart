@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../shared/constants/strings_af.dart';
 import '../../../../shared/constants/spacing.dart';
 import '../../../../shared/widgets/spys_primary_button.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 
 import '../../../../shared/providers/auth_form_providers.dart';
@@ -32,8 +31,8 @@ class RegisterPage extends ConsumerWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              AppColors.primary.withValues(alpha: 0.05),
-              AppColors.secondary.withValues(alpha: 0.05),
+              Theme.of(context).colorScheme.primary.withOpacity(0.05),
+              Theme.of(context).colorScheme.secondary.withOpacity(0.05),
             ],
           ),
         ),
@@ -60,7 +59,7 @@ class RegisterPage extends ConsumerWidget {
                       },
                       icon: const Icon(Icons.arrow_back),
                       style: IconButton.styleFrom(
-                        backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                        backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                       ),
                     ),
                     const Spacer(),
@@ -78,7 +77,7 @@ class RegisterPage extends ConsumerWidget {
                 // Registration Form Card
                 Card(
                   elevation: 8,
-                  shadowColor: AppColors.shadow,
+                  shadowColor: Theme.of(context).colorScheme.shadow,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -123,13 +122,13 @@ class RegisterPage extends ConsumerWidget {
                             margin: const EdgeInsets.only(bottom: 16),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.1),
+                              color: Theme.of(context).colorScheme.errorContainer,
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.red),
+                              border: Border.all(color: Theme.of(context).colorScheme.error),
                             ),
                             child: Text(
                               authError,
-                              style: const TextStyle(color: Colors.red, fontSize: 14),
+                              style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 14),
                               textAlign: TextAlign.center,
                             ),
                           ),
@@ -170,7 +169,7 @@ class RegisterPage extends ConsumerWidget {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text('Registrasie suksesvol! Jy kan nou in teken.'),
-                                      backgroundColor: Colors.green,
+                                      backgroundColor: Theme.of(context).colorScheme.tertiary,
                                     )
                                   );
                                   context.go('/auth/login');

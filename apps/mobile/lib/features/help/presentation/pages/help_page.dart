@@ -145,24 +145,24 @@ class _HelpPageState extends State<HelpPage> {
                     ),
                     const SizedBox(height: 8),
                     Row(
-                      children: const [
-                        Icon(Icons.phone, color: Colors.blue),
+                      children: [
+                        Icon(Icons.phone, color: Theme.of(context).colorScheme.primary),
                         SizedBox(width: 8),
                         Text('021 808 4622'),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Row(
-                      children: const [
-                        Icon(Icons.mail, color: Colors.blue),
+                      children: [
+                        Icon(Icons.mail, color: Theme.of(context).colorScheme.primary),
                         SizedBox(width: 8),
                         Text('spys@sun.ac.za'),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Row(
-                      children: const [
-                        Icon(Icons.access_time, color: Colors.grey),
+                      children: [
+                        Icon(Icons.access_time, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         SizedBox(width: 8),
                         Text('Ure: Maandag-Vrydag 08:00-17:00'),
                       ],
@@ -314,7 +314,7 @@ class _HelpPageState extends State<HelpPage> {
 
             // Tips
             Card(
-              color: Colors.green[50],
+              color: Theme.of(context).colorScheme.tertiaryContainer,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(

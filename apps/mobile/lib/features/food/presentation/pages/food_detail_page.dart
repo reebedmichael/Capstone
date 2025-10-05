@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:spys_api_client/spys_api_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/constants/spacing.dart';
 
@@ -364,15 +363,15 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     })();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: Column(
         children: [
           // Header
           Container(
             padding: const EdgeInsets.fromLTRB(16, 50, 16, 16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+              color: Theme.of(context).colorScheme.surface,
+              border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.outline)),
             ),
             child: Row(
               children: [
@@ -389,26 +388,12 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                 Expanded(
                   child: Text(
                     _name,
-                    style: AppTypography.titleLarge,
+                    style: AppTypography.titleLarge.copyWith(color: Theme.of(context).colorScheme.onSurface),
                     textAlign: TextAlign.center,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                IconButton(
-                  onPressed: () => setState(() => isFavorite = !isFavorite),
-                  icon: Icon(
-                    isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: isFavorite ? Colors.red : null,
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Skakel gekopieer na klipbord'),
-                    ),
-                  ),
-                  icon: const Icon(Icons.share_outlined),
-                ),
+                // removed like/share controls per requirements
               ],
             ),
           ),
@@ -445,12 +430,12 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                                         : '';
                                     if (url.isEmpty) {
                                       return Container(
-                                        color: Colors.grey.shade200,
-                                        child: const Center(
+                                        color: Theme.of(context).colorScheme.surfaceVariant,
+                                        child: Center(
                                           child: Icon(
                                             Icons.fastfood,
                                             size: 56,
-                                            color: Colors.black38,
+                                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.38),
                                           ),
                                         ),
                                       );
@@ -466,7 +451,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                                               return child;
                                             }
                                             return Container(
-                                              color: Colors.grey.shade200,
+                                              color: Theme.of(context).colorScheme.surfaceVariant,
                                               child: const Center(
                                                 child:
                                                     CircularProgressIndicator(),
@@ -476,12 +461,12 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                                       errorBuilder:
                                           (context, error, stackTrace) =>
                                               Container(
-                                                color: Colors.grey.shade200,
-                                                child: const Center(
+                                                color: Theme.of(context).colorScheme.surfaceVariant,
+                                                child: Center(
                                                   child: Icon(
                                                     Icons.broken_image,
                                                     size: 56,
-                                                    color: Colors.black26,
+                                                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.26),
                                                   ),
                                                 ),
                                               ),
@@ -500,20 +485,20 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                                   vertical: 8,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary,
+                                  color: Theme.of(context).colorScheme.primary,
                                   borderRadius: BorderRadius.circular(999),
-                                  boxShadow: const [
+                                  boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black26,
+                                      color: Theme.of(context).colorScheme.shadow.withOpacity(0.3),
                                       blurRadius: 6,
-                                      offset: Offset(0, 2),
+                                      offset: const Offset(0, 2),
                                     ),
                                   ],
                                 ),
                                 child: Text(
                                   'R${_price.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onPrimary,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -544,12 +529,12 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                                     decoration: BoxDecoration(
                                       border: Border.all(
                                         color: isActive
-                                            ? AppColors.primary
-                                            : Colors.grey.shade300,
+                                            ? Theme.of(context).colorScheme.primary
+                                            : Theme.of(context).colorScheme.outline,
                                         width: isActive ? 2 : 1,
                                       ),
                                       borderRadius: BorderRadius.circular(8),
-                                      color: Colors.grey.shade100,
+                                      color: Theme.of(context).colorScheme.surfaceVariant,
                                       image: url.isNotEmpty
                                           ? DecorationImage(
                                               image: NetworkImage(url),
@@ -559,10 +544,10 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                                     ),
                                     alignment: Alignment.center,
                                     child: url.isEmpty
-                                        ? const Icon(
+                                        ? Icon(
                                             Icons.image,
                                             size: 24,
-                                            color: Colors.black26,
+                                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.26),
                                           )
                                         : null,
                                   ),
@@ -587,7 +572,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                             child: Text(
                               _day,
                               style: AppTypography.labelLarge.copyWith(
-                                color: Colors.grey.shade700,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ),
@@ -597,6 +582,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                           _name,
                           style: AppTypography.displayLarge.copyWith(
                             fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -604,7 +590,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                           Text(
                             _description,
                             style: AppTypography.bodyMedium.copyWith(
-                              color: Colors.grey.shade600,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         const SizedBox(height: 12),
@@ -615,13 +601,13 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                             Icon(
                               Icons.access_time,
                               size: 16,
-                              color: Colors.grey.shade600,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               '15-20 min',
                               style: TextStyle(
-                                color: Colors.grey.shade600,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 fontSize: 12,
                               ),
                             ),
@@ -629,13 +615,13 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                             Icon(
                               Icons.group_outlined,
                               size: 16,
-                              color: Colors.grey.shade600,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               '1 porsie',
                               style: TextStyle(
-                                color: Colors.grey.shade600,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 fontSize: 12,
                               ),
                             ),
@@ -648,15 +634,15 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFFF7ED),
+                              color: Theme.of(context).colorScheme.errorContainer.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.orange.shade200),
+                              border: Border.all(color: Theme.of(context).colorScheme.error.withOpacity(0.3)),
                             ),
                             child: Row(
                               children: [
                                 Icon(
                                   Icons.warning_amber_rounded,
-                                  color: Colors.orange.shade600,
+                                  color: Theme.of(context).colorScheme.error,
                                   size: 20,
                                 ),
                                 const SizedBox(width: 8),
@@ -664,7 +650,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                                   child: Text(
                                     'Allergene: ${allergens.join(', ')}',
                                     style: TextStyle(
-                                      color: Colors.orange.shade800,
+                                      color: Theme.of(context).colorScheme.error,
                                       fontSize: 12,
                                     ),
                                   ),
@@ -693,7 +679,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                             padding: const EdgeInsets.symmetric(vertical: 8),
                             child: Text(
                               'Geen bestanddele beskikbaar nie.',
-                              style: TextStyle(color: Colors.grey.shade600),
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                             ),
                           ),
 
@@ -704,13 +690,13 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: available
-                                ? const Color(0xFFEFFAF1)
-                                : const Color(0xFFFEECEC),
+                                ? Theme.of(context).colorScheme.tertiaryContainer
+                                : Theme.of(context).colorScheme.errorContainer,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: available
-                                  ? Colors.green.shade200
-                                  : Colors.red.shade200,
+                                  ? Theme.of(context).colorScheme.tertiaryContainer
+                                  : Theme.of(context).colorScheme.errorContainer,
                             ),
                           ),
                           child: Row(
@@ -724,8 +710,8 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: available
-                                          ? Colors.green.shade800
-                                          : Colors.red.shade800,
+                                          ? Theme.of(context).colorScheme.tertiary
+                                          : Theme.of(context).colorScheme.error,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
@@ -736,8 +722,8 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: available
-                                          ? Colors.green.shade600
-                                          : Colors.red.shade600,
+                                          ? Theme.of(context).colorScheme.tertiary
+                                          : Theme.of(context).colorScheme.error,
                                     ),
                                   ),
                                 ],
@@ -746,7 +732,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                                 width: 12,
                                 height: 12,
                                 decoration: BoxDecoration(
-                                  color: available ? Colors.green : Colors.red,
+                                  color: available ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.error,
                                   shape: BoxShape.circle,
                                 ),
                               ),
@@ -766,8 +752,8 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Colors.grey.shade200)),
+          color: Theme.of(context).colorScheme.surface,
+          border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outline.withOpacity(0.12))),
         ),
         padding: const EdgeInsets.all(16),
         child: SafeArea(
@@ -778,12 +764,12 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
               // Quantity row
               Row(
                 children: [
-                  const Text(
+                  Text(
                     'Hoeveelheid:',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: Colors.black87,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   const Spacer(),
@@ -804,6 +790,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                         '$quantity',
                         style: AppTypography.titleMedium.copyWith(
                           fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ),
@@ -826,14 +813,14 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Totaal:',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                       Text(
                         'R${(_price * quantity).toStringAsFixed(2)}',
                         style: AppTypography.titleLarge.copyWith(
-                          color: AppColors.primary,
+                          color: Theme.of(context).colorScheme.primary,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -844,8 +831,8 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                     child: ElevatedButton.icon(
                       onPressed: available ? handleAddToCart : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
                         minimumSize: const Size(0, 48),
                       ),
                       icon: const Icon(Icons.shopping_cart_outlined),
@@ -871,9 +858,9 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity(0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -881,7 +868,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
           Row(
             children: [
               if (icon != null) ...[
-                Icon(icon, size: 16, color: titleColor ?? Colors.grey.shade600),
+                Icon(icon, size: 16, color: titleColor ?? Theme.of(context).colorScheme.onSurfaceVariant),
                 const SizedBox(width: 8),
               ],
               Text(
@@ -904,7 +891,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: backgroundColor ?? Colors.grey.shade100,
+        color: backgroundColor ?? Theme.of(context).colorScheme.surfaceVariant,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Text(

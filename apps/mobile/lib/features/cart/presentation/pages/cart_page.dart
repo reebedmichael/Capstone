@@ -266,9 +266,9 @@ class _CartPageState extends State<CartPage> {
                     Text('Afhaallokasie: ${pickupLocation ?? '-'}'),
                     const SizedBox(height: 8),
                     if (conflicts.isNotEmpty) ...[
-                      const Text(
+                      Text(
                         'Waarskuwings:',
-                        style: TextStyle(color: Colors.orange),
+                        style: TextStyle(color: Theme.of(context).colorScheme.error),
                       ),
                       const SizedBox(height: 4),
                       ...conflicts.map(
@@ -286,7 +286,7 @@ class _CartPageState extends State<CartPage> {
                         Text(
                           'R${total.toStringAsFixed(2)}',
                           style: AppTypography.titleSmall.copyWith(
-                            color: AppColors.primary,
+                            color: Theme.of(context).colorScheme.primary,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -659,9 +659,9 @@ class _CartPageState extends State<CartPage> {
         body: Column(
           children: <Widget>[
             Container(
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: Color(0x1F000000))),
-                color: Colors.white,
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.outline.withOpacity(0.1))),
+                color: Theme.of(context).colorScheme.surface,
               ),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: SafeArea(
@@ -694,7 +694,7 @@ class _CartPageState extends State<CartPage> {
                       Icon(
                         Icons.shopping_cart_outlined,
                         size: 64,
-                        color: Colors.black38,
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.38),
                       ),
                       const SizedBox(height: 12),
                       Text(
@@ -707,14 +707,14 @@ class _CartPageState extends State<CartPage> {
                       Text(
                         'Voeg items by jou mandjie om te begin bestel',
                         style: AppTypography.bodyMedium.copyWith(
-                          color: Colors.black54,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.54),
                         ),
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: () => context.go('/home'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
                         ),
                         child: const Text('Begin Inkopies'),
                       ),
@@ -735,8 +735,8 @@ class _CartPageState extends State<CartPage> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: <Color>[
-              AppColors.primary.withValues(alpha: 0.05),
-              AppColors.secondary.withValues(alpha: 0.05),
+              Theme.of(context).colorScheme.primary.withOpacity(0.05),
+              Theme.of(context).colorScheme.secondary.withOpacity(0.05),
             ],
           ),
         ),
@@ -773,9 +773,9 @@ class _CartPageState extends State<CartPage> {
                 // Unavailable Items Alert
                 if (unavailableItems.isNotEmpty)
                   Card(
-                    color: const Color(0xFFFFF7ED),
+                    color: Theme.of(context).colorScheme.errorContainer,
                     shape: RoundedRectangleBorder(
-                      side: BorderSide(color: Colors.orange.shade500),
+                      side: BorderSide(color: Theme.of(context).colorScheme.error),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Padding(
@@ -785,14 +785,14 @@ class _CartPageState extends State<CartPage> {
                         children: <Widget>[
                           Icon(
                             Icons.warning_amber_rounded,
-                            color: Colors.orange.shade700,
+                            color: Theme.of(context).colorScheme.error,
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'Let wel: ${unavailableItems.length} item(s) in jou mandjie is nie meer beskikbaar nie en sal verwyder word.',
                               style: AppTypography.bodySmall.copyWith(
-                                color: Colors.orange.shade800,
+                                color: Theme.of(context).colorScheme.error,
                               ),
                             ),
                           ),
@@ -850,25 +850,25 @@ class _CartPageState extends State<CartPage> {
                                             Container(
                                               width: 64,
                                               height: 64,
-                                              color: Colors.grey.shade300,
+                                              color: Theme.of(context).colorScheme.surfaceVariant,
                                               alignment: Alignment.center,
-                                              child: const Icon(
+                                              child: Icon(
                                                 Icons.fastfood,
-                                                color: Colors.white70,
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                               ),
                                             ),
                                           if (!item.foodItem.available)
                                             Container(
                                               width: 64,
                                               height: 64,
-                                              color: Colors.black.withOpacity(
+                                              color: Theme.of(context).colorScheme.onSurface.withOpacity(
                                                 0.5,
                                               ),
                                               alignment: Alignment.center,
-                                              child: const Text(
+                                              child: Text(
                                                 'Uit',
                                                 style: TextStyle(
-                                                  color: Colors.white,
+                                                  color: Theme.of(context).colorScheme.onSurface,
                                                   fontSize: 12,
                                                 ),
                                               ),
@@ -889,6 +889,7 @@ class _CartPageState extends State<CartPage> {
                                             style: AppTypography.labelLarge
                                                 .copyWith(
                                                   fontWeight: FontWeight.w600,
+                                                  color: Theme.of(context).colorScheme.onSurface,
                                                 ),
                                           ),
                                           const SizedBox(height: 4),
@@ -896,15 +897,15 @@ class _CartPageState extends State<CartPage> {
                                             'R${item.foodItem.price.toStringAsFixed(2)} elk',
                                             style: AppTypography.bodySmall
                                                 .copyWith(
-                                                  color: Colors.black54,
+                                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.54),
                                                 ),
                                           ),
                                           if (!item.foodItem.available)
-                                            const Text(
+                                            Text(
                                               'Nie meer beskikbaar nie',
                                               style: TextStyle(
                                                 fontSize: 12,
-                                                color: Colors.red,
+                                                color: Theme.of(context).colorScheme.error,
                                               ),
                                             ),
                                         ],
@@ -933,7 +934,7 @@ class _CartPageState extends State<CartPage> {
                                           child: Center(
                                             child: Text(
                                               '${item.quantity}',
-                                              style: AppTypography.labelLarge,
+                                              style: AppTypography.labelLarge.copyWith(color: Theme.of(context).colorScheme.onSurface),
                                             ),
                                           ),
                                         ),
@@ -958,9 +959,9 @@ class _CartPageState extends State<CartPage> {
                                         IconButton(
                                           onPressed: () =>
                                               removeFromCart(item.id),
-                                          icon: const Icon(
+                                          icon: Icon(
                                             Icons.delete_outline,
-                                            color: Colors.red,
+                                            color: Theme.of(context).colorScheme.error,
                                           ),
                                         ),
                                       ],
@@ -974,7 +975,7 @@ class _CartPageState extends State<CartPage> {
                                   children: <Widget>[
                                     Text(
                                       'R${(item.foodItem.price * item.quantity).toStringAsFixed(2)}',
-                                      style: AppTypography.labelLarge,
+                                      style: AppTypography.labelLarge.copyWith(color: Theme.of(context).colorScheme.onSurface),
                                     ),
                                   ],
                                 ),
@@ -983,7 +984,7 @@ class _CartPageState extends State<CartPage> {
                                   Text(
                                     'Vir: ${item.weekDag}',
                                     style: AppTypography.bodySmall.copyWith(
-                                      color: Colors.black54,
+                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.54),
                                     ),
                                   ),
                               ],
@@ -1037,9 +1038,9 @@ class _CartPageState extends State<CartPage> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
+                              Text(
                                 'Geen afhaal plekke beskikbaar',
-                                style: TextStyle(color: Colors.black54),
+                                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
                               ),
                               const SizedBox(height: 8),
                               OutlinedButton.icon(
@@ -1072,8 +1073,8 @@ class _CartPageState extends State<CartPage> {
                             padding: const EdgeInsets.only(top: 8),
                             child: Text(
                               pickupError!,
-                              style: const TextStyle(
-                                color: Colors.red,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
                                 fontSize: 12,
                               ),
                             ),
@@ -1102,18 +1103,18 @@ class _CartPageState extends State<CartPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: <Widget>[
-                            const Text('Subtotaal:'),
-                            Text('R${subtotal.toStringAsFixed(2)}'),
+                            Text('Subtotaal:', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+                            Text('R${subtotal.toStringAsFixed(2)}', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
                           ],
                         ),
                         const SizedBox(height: 6),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: const <Widget>[
-                            Text('Afhaalkoste:'),
+                          children: <Widget>[
+                            Text('Afhaalkoste:', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
                             Text(
                               'Gratis',
-                              style: TextStyle(color: Colors.green),
+                              style: TextStyle(color: Theme.of(context).colorScheme.tertiary),
                             ),
                           ],
                         ),
@@ -1121,14 +1122,14 @@ class _CartPageState extends State<CartPage> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: <Widget>[
-                            const Text(
+                            Text(
                               'Totaal:',
-                              style: TextStyle(fontWeight: FontWeight.w600),
+                              style: TextStyle(fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface),
                             ),
                             Text(
                               'R${total.toStringAsFixed(2)}',
                               style: AppTypography.titleSmall.copyWith(
-                                color: AppColors.primary,
+                                color: Theme.of(context).colorScheme.primary,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -1144,8 +1145,8 @@ class _CartPageState extends State<CartPage> {
                 // Wallet Balance info
                 Card(
                   color: hasSufficientFunds
-                      ? const Color(0xFFEFFAF1)
-                      : const Color(0xFFFEECEC),
+                      ? Theme.of(context).colorScheme.tertiaryContainer
+                      : Theme.of(context).colorScheme.errorContainer,
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Row(
@@ -1154,25 +1155,26 @@ class _CartPageState extends State<CartPage> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
-                            const Text(
+                            Text(
                               'Beursie Balans',
-                              style: TextStyle(fontWeight: FontWeight.w600),
+                              style: TextStyle(fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               'R${walletBalance.toStringAsFixed(2)}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 2),
                             if (!hasSufficientFunds)
                               Text(
                                 'Kort: R${(total - walletBalance).toStringAsFixed(2)}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
-                                  color: Colors.red,
+                                  color: Theme.of(context).colorScheme.error,
                                 ),
                               ),
                           ],
@@ -1181,16 +1183,16 @@ class _CartPageState extends State<CartPage> {
                           OutlinedButton(
                             onPressed: () => context.go('/wallet'),
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: AppColors.primary),
-                              foregroundColor: AppColors.primary,
+                              side: BorderSide(color: Theme.of(context).colorScheme.primary),
+                              foregroundColor: Theme.of(context).colorScheme.primary,
                             ),
                             child: const Text('Laai Beursie'),
                           )
                         else
-                          const Text(
+                          Text(
                             'Voldoende fondse',
                             style: TextStyle(
-                              color: Colors.green,
+                              color: Theme.of(context).colorScheme.tertiary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -1204,9 +1206,9 @@ class _CartPageState extends State<CartPage> {
         ),
       ),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Color(0x1F000000))),
-          color: Colors.white,
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outline.withOpacity(0.12))),
+          color: Theme.of(context).colorScheme.surface,
         ),
         padding: const EdgeInsets.all(16),
         child: SafeArea(
@@ -1218,14 +1220,14 @@ class _CartPageState extends State<CartPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  const Text(
+                  Text(
                     'Totaal te betaal:',
-                    style: TextStyle(fontSize: 12, color: Colors.black54),
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
                   ),
                   Text(
                     'R${total.toStringAsFixed(2)}',
                     style: AppTypography.titleMedium.copyWith(
-                      color: AppColors.primary,
+                      color: Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),

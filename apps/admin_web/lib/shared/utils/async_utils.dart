@@ -42,7 +42,7 @@ class AsyncUtils {
       ]);
       
       // Cancel watchdog and mark as completed
-      watchdogTimer?.cancel();
+      watchdogTimer.cancel();
       operationCompleted = true;
       
       // Execute success callback

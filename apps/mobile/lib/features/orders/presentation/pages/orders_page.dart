@@ -368,15 +368,15 @@ class _OrdersPageState extends State<OrdersPage>
   Color _statusColor(String status) {
     switch (status) {
       case 'Wag vir afhaal':
-        return Colors.orange.shade100;
+        return Theme.of(context).colorScheme.errorContainer;
       case 'In voorbereiding':
-        return Colors.blue.shade100;
+        return Theme.of(context).colorScheme.primaryContainer;
       case 'Afgehandel':
-        return Colors.green.shade100;
+        return Theme.of(context).colorScheme.tertiaryContainer;
       case 'Gekanselleer':
-        return Colors.red.shade100;
+        return Theme.of(context).colorScheme.errorContainer;
       default:
-        return Colors.grey.shade200;
+        return Theme.of(context).colorScheme.surfaceVariant;
     }
   }
 
@@ -542,7 +542,7 @@ class _OrdersPageState extends State<OrdersPage>
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade300),
+        side: BorderSide(color: Theme.of(context).colorScheme.outline),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -561,6 +561,7 @@ class _OrdersPageState extends State<OrdersPage>
                         style: AppTypography.labelLarge.copyWith(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 2,
@@ -664,7 +665,7 @@ class _OrdersPageState extends State<OrdersPage>
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: Theme.of(context).colorScheme.surfaceVariant,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
@@ -685,7 +686,7 @@ class _OrdersPageState extends State<OrdersPage>
                                 : Container(
                                     width: 48,
                                     height: 48,
-                                    color: Colors.grey.shade300,
+                                    color: Theme.of(context).colorScheme.outline,
                                     alignment: Alignment.center,
                                     child: const Icon(Icons.fastfood, size: 20),
                                   ),
@@ -708,7 +709,7 @@ class _OrdersPageState extends State<OrdersPage>
                                   'ID: ${item['best_kos_id'] ?? ''}',
                                   style: TextStyle(
                                     fontSize: 10,
-                                    color: Colors.grey.shade600,
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -739,7 +740,7 @@ class _OrdersPageState extends State<OrdersPage>
                                     if (lastUpdated != null) ...[
                                       const SizedBox(width: 6),
                                       Text(
-                                        formatDate(lastUpdated!),
+                                        formatDate(lastUpdated),
                                         style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
                                       ),
                                     ],
@@ -845,7 +846,7 @@ class _OrdersPageState extends State<OrdersPage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(FeatherIcons.package, size: 56, color: Colors.grey),
+            Icon(FeatherIcons.package, size: 56, color: Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(height: 16),
             Text(
               'Geen ${activeTab ? 'aktiewe' : 'voltooide'} bestellings',
@@ -856,7 +857,7 @@ class _OrdersPageState extends State<OrdersPage>
               activeTab
                   ? 'Jou aktiewe bestellings sal hier verskyn'
                   : 'Jou voltooide bestellings sal hier verskyn',
-              style: const TextStyle(color: Colors.grey),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),

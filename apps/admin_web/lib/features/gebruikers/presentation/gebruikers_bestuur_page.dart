@@ -151,21 +151,25 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gebruikers Bestuur'),
+        actions: [
+          IconButton(
+            onPressed: _loadData,
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Herlaai data',
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
             Tab(text: 'Gebruikers', icon: Icon(Icons.people)),
-            Tab(text: 'Toelae', icon: Icon(Icons.account_balance_wallet)),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          // Users Tab
+          // Users Tab only (toelae panel removed)
           _buildUsersTab(filteredUsers),
-          // Allowances Tab
-          _buildToelaeTab(),
         ],
       ),
     );
@@ -240,37 +244,109 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
           if (_loading) const LinearProgressIndicator(),
           if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
 
-          // 🔹 Rol-oorsig blok (counts based on filtered live data)
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            alignment: WrapAlignment.center,
-            children: [
-              _buildStatCard("Primêre Admins", filteredUsers.where((u) => (u['admin_tipe']?['admin_tipe_naam'] ?? '') == 'Primary').length.toString()),
-              _buildStatCard("Admins", filteredUsers.where((u) => (u['admin_tipe']?['admin_tipe_naam'] ?? '') != '' ).length.toString()),
-              _buildStatCard("Studente", filteredUsers.where((u) => (u['gebr_tipe']?['gebr_tipe_naam'] ?? '') == 'Student').length.toString()),
-              _buildStatCard("Personeel", filteredUsers.where((u) => (u['gebr_tipe']?['gebr_tipe_naam'] ?? '') == 'Personeel').length.toString()),
-            ],
+          // 🔹 Rol-oorsig blok (counts based on filtered live data) - improved UI
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 1100;
+              final isMedium = constraints.maxWidth >= 700;
+              final crossAxisCount = isWide ? 4 : (isMedium ? 2 : 1);
+              final roleStats = [
+                {
+                  'title': 'Primêre Admins',
+                  'value': filteredUsers.where((u) => (u['admin_tipe']?['admin_tipe_naam'] ?? '') == 'Primary').length.toString(),
+                  'icon': Icons.admin_panel_settings,
+                  'color': Colors.blue,
+                },
+                {
+                  'title': 'Admins',
+                  'value': filteredUsers.where((u) => (u['admin_tipe']?['admin_tipe_naam'] ?? '') != '').length.toString(),
+                  'icon': Icons.security,
+                  'color': Colors.purple,
+                },
+                {
+                  'title': 'Studente',
+                  'value': filteredUsers.where((u) => (u['gebr_tipe']?['gebr_tipe_naam'] ?? '') == 'Student').length.toString(),
+                  'icon': Icons.school,
+                  'color': Colors.green,
+                },
+                {
+                  'title': 'Personeel',
+                  'value': filteredUsers.where((u) => (u['gebr_tipe']?['gebr_tipe_naam'] ?? '') == 'Personeel').length.toString(),
+                  'icon': Icons.work,
+                  'color': Colors.orange,
+                },
+              ];
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: isWide ? 3.8 : (isMedium ? 3.2 : 3.0),
+                ),
+                itemCount: roleStats.length,
+                itemBuilder: (context, index) {
+                  final stat = roleStats[index];
+                  return _buildBigStat(
+                    stat['title'] as String,
+                    stat['value'] as String,
+                    small: 'Gebruiker tipe',
+                  );
+                },
+              );
+            },
           ),
 
           const SizedBox(height: 30),
 
           // 🔹 Statistiek blok (live counts)
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            alignment: WrapAlignment.center,
-            children: [
-              _buildBigStat("Totaal Gebruikers", _rows.length.toString()),
-              _buildBigStat("Wag Goedkeuring", _rows.where((u) => 
-                u['is_aktief'] == false && (
-                  u['admin_tipe_id'] != null || // Pending admins
-                  (u['gebr_tipe']?['gebr_tipe_naam'] ?? '') == 'Ekstern' // Pending registrations
-                )
-              ).length.toString()),
-              _buildBigStat("Studente met Toelae", _usersWithAllowancesCount.toString()),
-              _buildBigStat("Aktiewe Gebruikers", _rows.where((u) => u['is_aktief'] == true).length.toString()),
-            ],
+          // improved stats card layout
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 1100;
+              final isMedium = constraints.maxWidth >= 700;
+              final crossAxisCount = isWide ? 4 : (isMedium ? 2 : 1);
+              final stats = [
+                {
+                  'title': 'Totaal Gebruikers',
+                  'value': _rows.length.toString(),
+                  'label': 'Algeheel'
+                },
+                {
+                  'title': 'Wag Goedkeuring',
+                  'value': _rows.where((u) => u['is_aktief'] == false && (
+                    u['admin_tipe_id'] != null || (u['gebr_tipe']?['gebr_tipe_naam'] ?? '') == 'Ekstern'
+                  )).length.toString(),
+                  'label': 'Nie aktief'
+                },
+                {
+                  'title': 'Studente met Toelae',
+                  'value': _usersWithAllowancesCount.toString(),
+                  'label': 'Toelae per tipe'
+                },
+                {
+                  'title': 'Aktiewe Gebruikers',
+                  'value': _rows.where((u) => u['is_aktief'] == true).length.toString(),
+                  'label': 'Huidig aktief'
+                },
+              ];
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: isWide ? 3.8 : (isMedium ? 3.2 : 3.0),
+                ),
+                itemCount: stats.length,
+                itemBuilder: (context, index) {
+                  final s = stats[index];
+                  return _buildBigStat(s['title'] as String, s['value'] as String, small: s['label'] as String);
+                },
+              );
+            },
           ),
 
           const SizedBox(height: 30),
@@ -489,48 +565,45 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
     );
   }
 
-  Widget _buildStatCard(String title, String count) {
-    return Container(
-      width: 140,
-      height: 110,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.orange.shade100,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange, width: 1),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(count,
-              style:
-                  const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          Text(title, style: const TextStyle(fontSize: 14)),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildBigStat(String title, String count) {
-    return Container(
-      width: 150,
-      height: 110,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
+
+Widget _buildBigStat(String title, String count, {String? small}) {
+  return Card(
+    elevation: 1,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(count,
-              style:
-                  const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          Text(
+            title, 
+            style: TextStyle(
+              fontSize: 12, 
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)
+            )
+          ),
+          const SizedBox(height: 8),
+          Text(
+            count, 
+            style: TextStyle(
+              fontSize: 26, 
+              fontWeight: FontWeight.w700,
+              color: Theme.of(context).colorScheme.onSurface,
+            )
+          ),
+          if (small != null) ...[
           const SizedBox(height: 4),
-          Text(title, style: const TextStyle(fontSize: 14)),
+            Text(
+              small, 
+              style: TextStyle(
+                fontSize: 11, 
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+              )
+            ),
+          ],
         ],
+      ),
       ),
     );
   }
@@ -597,17 +670,17 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                         data: (isPrimary) {
                           return adminTypeAsync.when(
                             data: (adminTypeName) {
-                              final userId = u['gebr_id'].toString();
-                              final isSelf = userId == currentUserId;
-                              
-                              // Disable actions for self-modification
-                              if (isSelf) {
-                                return const Tooltip(
-                                  message: 'Jy kan nie jou eie status verander nie',
-                                  child: Icon(Icons.lock, color: Colors.grey),
-                                );
-                              }
-                              
+                          final userId = u['gebr_id'].toString();
+                          final isSelf = userId == currentUserId;
+                          
+                          // Disable actions for self-modification
+                          if (isSelf) {
+                            return const Tooltip(
+                              message: 'Jy kan nie jou eie status verander nie',
+                              child: Icon(Icons.lock, color: Colors.grey),
+                            );
+                          }
+                          
                               // Primary admins have full access to everything
                               if (isPrimary) {
                                 // Primary admin - show all buttons
@@ -618,7 +691,17 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                                       ElevatedButton.icon(
                                         icon: const Icon(Icons.check_circle, size: 16),
                                         label: const Text('Keur Goed'),
-                                        onPressed: () => _showAcceptUserDialog(u),
+                                        onPressed: () {
+                                          // Use async pattern with watchdog
+                                          AsyncUtils.executeWithWatchdog(
+                                            operation: () async => _showAcceptUserDialog(u),
+                                            onSuccess: (result) {},
+                                            onError: (error) {},
+                                            context: context,
+                                            successMessage: 'Goedkeur dialoog oopgemaak',
+                                            errorMessage: 'Kon nie goedkeur dialoog oopmaak nie',
+                                          );
+                                        },
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.green,
                                           foregroundColor: Colors.white,
@@ -644,17 +727,58 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                                     children: [
                                       IconButton(
                                         icon: const Icon(Icons.person_off, color: Colors.orange),
-                                        onPressed: () => _setUserActive(userId, false),
+                                        onPressed: () {
+                                          // Use async pattern with watchdog
+                                          AsyncUtils.executeWithWatchdog(
+                                            operation: () async => _setUserActive(userId, false),
+                                            onSuccess: (result) async {
+                                              // Data will be refreshed manually via refresh button
+                                            },
+                                            onError: (error) {},
+                                            context: context,
+                                            successMessage: 'Gebruiker status opgedateer',
+                                            errorMessage: 'Kon nie gebruiker status opdateer nie',
+                                          );
+                                        },
                                         tooltip: 'Deaktiveer gebruiker',
                                       ),
                                       IconButton(
                                         icon: const Icon(Icons.admin_panel_settings, color: Colors.blue),
-                                        onPressed: () => _showChangeAdminTypeDialog(u),
+                                        onPressed: () {
+                                          // Use async pattern with watchdog
+                                          AsyncUtils.executeWithWatchdog(
+                                            operation: () async => _showChangeAdminTypeDialog(u),
+                                            onSuccess: (result) {},
+                                            onError: (error) {},
+                                            context: context,
+                                            successMessage: 'Admin tipe dialoog oopgemaak',
+                                            errorMessage: 'Kon nie admin tipe dialoog oopmaak nie',
+                                          );
+                                        },
                                         tooltip: 'Verander Admin Tipe',
                                       ),
                                       IconButton(
                                         icon: const Icon(Icons.person, color: Colors.purple),
-                                        onPressed: () => _showChangeUserTypeDialog(u),
+                                        onPressed: () {
+                                          // fixed: enforce Secondary cannot edit admin targets
+                                          final adminTipeId = (u['admin_tipe_id'] ?? '').toString();
+                                          final isAdminTarget = adminTipeId.isNotEmpty && adminTipeId != '902397b6-c835-44c2-80cb-d6ad93407048';
+                                          if (!isPrimary && isAdminTarget) {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(content: Text('Sekondêr kan nie admin gebruikers wysig nie')),
+                                            );
+                                            return;
+                                          }
+                                          // Use async pattern with watchdog
+                                          AsyncUtils.executeWithWatchdog(
+                                            operation: () async => _showChangeUserTypeDialog(u),
+                                            onSuccess: (result) {},
+                                            onError: (error) {},
+                                            context: context,
+                                            successMessage: 'Gebruiker tipe dialoog oopgemaak',
+                                            errorMessage: 'Kon nie gebruiker tipe dialoog oopmaak nie',
+                                          );
+                                        },
                                         tooltip: 'Verander Gebruiker Tipe',
                                       ),
                                     ],
@@ -667,41 +791,51 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                                 final canModifyUserTypes = AdminPermissions.canModifyUserTypes(adminTypeName);
                                 
                                 if (!canManageUsers && !canChangeAdminTypes && !canModifyUserTypes) {
-                                  return const Tooltip(
+                            return const Tooltip(
                                     message: 'Jy het nie die regte om gebruikers te bestuur nie',
-                                    child: Icon(Icons.lock, color: Colors.grey),
-                                  );
-                                }
-                                
-                                if (isPending) {
+                              child: Icon(Icons.lock, color: Colors.grey),
+                            );
+                          }
+                          
+                          if (isPending) {
                                   // This is a pending user - show approve/decline buttons (if allowed)
                                   if (canManageUsers) {
-                                    return Row(
-                                      children: [
-                                        ElevatedButton.icon(
-                                          icon: const Icon(Icons.check_circle, size: 16),
-                                          label: const Text('Keur Goed'),
-                                          onPressed: () => _showAcceptUserDialog(u),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.green,
-                                            foregroundColor: Colors.white,
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        ElevatedButton.icon(
-                                          icon: const Icon(Icons.cancel, size: 16),
-                                          label: const Text('Verwerp'),
-                                          onPressed: () => _showDeclineUserDialog(u),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.red,
-                                            foregroundColor: Colors.white,
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  } else {
+                              return Row(
+                                children: [
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.check_circle, size: 16),
+                                    label: const Text('Keur Goed'),
+                                          onPressed: () {
+                                          // Use async pattern with watchdog
+                                          AsyncUtils.executeWithWatchdog(
+                                            operation: () async => _showAcceptUserDialog(u),
+                                            onSuccess: (result) {},
+                                            onError: (error) {},
+                                            context: context,
+                                            successMessage: 'Goedkeur dialoog oopgemaak',
+                                            errorMessage: 'Kon nie goedkeur dialoog oopmaak nie',
+                                          );
+                                        },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.cancel, size: 16),
+                                    label: const Text('Verwerp'),
+                                    onPressed: () => _showDeclineUserDialog(u),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            } else {
                                     return const Tooltip(
                                       message: 'Slegs Primêre Admins kan gebruikers goedkeur',
                                       child: Icon(Icons.lock, color: Colors.grey),
@@ -713,9 +847,21 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                                   
                                   if (canManageUsers) {
                                     buttons.add(
-                                      IconButton(
+                        IconButton(
                                         icon: const Icon(Icons.person_off, color: Colors.orange),
-                                        onPressed: () => _setUserActive(userId, false),
+                                        onPressed: () {
+                                          // Use async pattern with watchdog
+                                          AsyncUtils.executeWithWatchdog(
+                                            operation: () async => _setUserActive(userId, false),
+                                            onSuccess: (result) async {
+                                              // Data will be refreshed manually via refresh button
+                                            },
+                                            onError: (error) {},
+                                            context: context,
+                                            successMessage: 'Gebruiker status opgedateer',
+                                            errorMessage: 'Kon nie gebruiker status opdateer nie',
+                                          );
+                                        },
                                         tooltip: 'Deaktiveer gebruiker',
                                       ),
                                     );
@@ -723,9 +869,19 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                                   
                                   if (canChangeAdminTypes) {
                                     buttons.add(
-                                      IconButton(
+                        IconButton(
                                         icon: const Icon(Icons.admin_panel_settings, color: Colors.blue),
-                                        onPressed: () => _showChangeAdminTypeDialog(u),
+                                        onPressed: () {
+                                          // Use async pattern with watchdog
+                                          AsyncUtils.executeWithWatchdog(
+                                            operation: () async => _showChangeAdminTypeDialog(u),
+                                            onSuccess: (result) {},
+                                            onError: (error) {},
+                                            context: context,
+                                            successMessage: 'Admin tipe dialoog oopgemaak',
+                                            errorMessage: 'Kon nie admin tipe dialoog oopmaak nie',
+                                          );
+                                        },
                                         tooltip: 'Verander Admin Tipe',
                                       ),
                                     );
@@ -802,11 +958,9 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                           // Don't show for self
                           if (isSelf) return const SizedBox.shrink();
                           
-                          return IconButton(
-                            icon: const Icon(Icons.swap_horiz, color: Colors.teal),
-                            onPressed: () => _showChangeUserTypeDialog(u),
-                            tooltip: 'Verander Gebruiker Tipe',
-                          );
+                          // Removed duplicate "Verander Gebruiker Tipe" button
+                          // This functionality is already available in the main action buttons
+                          return const SizedBox.shrink();
                         },
                         loading: () => const SizedBox.shrink(),
                         error: (_, __) => const SizedBox.shrink(),
@@ -846,11 +1000,11 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
     // fixed: async + watchdog + refresh
     AsyncUtils.executeWithWatchdog(
       operation: () async {
-        final sb = Supabase.instance.client;
+    final sb = Supabase.instance.client;
         return await sb.from('gebruikers').update({'is_aktief': active}).eq('gebr_id', gebrId);
       },
       onSuccess: (result) async {
-        await _loadData(); // Refresh the users list
+        // Data will be refreshed manually via refresh button
       },
       onError: (error) {
         // Error handling is done by AsyncUtils
@@ -871,34 +1025,34 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
     await showDialog<void>(
       context: context,
       builder: (context) {
-        return AlertDialog(
+            return AlertDialog(
           title: Text('Toelae vir: $userName'),
-          content: SizedBox(
-            width: 400,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Current allowance info
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+              content: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Current allowance info
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                       Text('Toelae vir $userName ($userTypeName):', 
-                           style: const TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
+                               style: const TextStyle(fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
                       Text('Maandelikse toelae: R${typeAllowance.toStringAsFixed(2)}'),
                       Text('Bron: Van gebruiker tipe', 
-                           style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                
+                               style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
                 // Info message
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -907,9 +1061,9 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.orange.shade200),
                   ),
-                  child: Column(
+                          child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                            children: [
                       Row(
                         children: [
                           Icon(Icons.info_outline, color: Colors.orange.shade700, size: 20),
@@ -922,14 +1076,14 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                                  'Om toelae te verander, gaan na die "Toelae" tab om die '
                                  'standaard bedrag vir hierdie gebruiker tipe te wysig.'),
                     ],
-                  ),
+                        ),
+                      ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
               child: const Text('Sluit'),
             ),
           ],
@@ -1080,12 +1234,12 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                   onPressed: (selectedGebrTipeId == null || isLoading) ? null : () {
                     final adminId = currentUserId;
                     if (adminId == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                        ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Not authenticated'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                            backgroundColor: Colors.red,
+                          ),
+                        );
                       return;
                     }
                     
@@ -1104,7 +1258,7 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                           isLoading = false;
                         });
                         Navigator.pop(context);
-                        await _loadData(); // Refresh the users list
+                        // Data will be refreshed manually via refresh button // Refresh the users list
                       },
                       onError: (error) {
                         setDialogState(() {
@@ -1358,228 +1512,15 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
     );
   }
   
-  Widget _buildToelaeTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Maandelikse Toelae per Gebruiker Tipe',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Hier kan jy die standaard maandelikse toelae vir elke gebruiker tipe bestuur. '
-            'Hierdie bedrae sal outomaties toegeken word aan alle gebruikers van daardie tipe.',
-            style: TextStyle(fontSize: 14, color: Colors.grey),
-          ),
-          const SizedBox(height: 24),
-          
-          // User Types with Allowances (excluding Ekstern)
-          ...(_gebrTipes.where((gebrTipe) => gebrTipe['gebr_tipe_id'] != AdminPermissions.eksternTypeId).map((gebrTipe) => _buildToelaeCard(gebrTipe))),
-          
-          const SizedBox(height: 32),
-          
-          // Summary Card
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Opsomming',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  Text('Totaal Gebruikers met Toelae: $_usersWithAllowancesCount'),
-                  const SizedBox(height: 8),
-                  Text('Totaal Gebruiker Tipes: ${_gebrTipes.where((gebrTipe) => gebrTipe['gebr_tipe_id'] != AdminPermissions.eksternTypeId).length}'),
-                  const SizedBox(height: 8),
-                  Text('Totaal Maandelikse Uitbetaling: R${_calculateTotalMonthlyPayout().toStringAsFixed(2)}'),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // removed: _buildToelaeTab (Toelae side panel) per requirements
   
-  Widget _buildToelaeCard(Map<String, dynamic> gebrTipe) {
-    final typeName = gebrTipe['gebr_tipe_naam'] ?? 'Onbekend';
-    final currentAllowance = gebrTipe['gebr_toelaag']?.toDouble() ?? 0.0;
-    final userCount = _rows.where((u) => u['gebr_tipe_id'] == gebrTipe['gebr_tipe_id']).length;
-    
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    typeName,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Huidige Toelae: R${currentAllowance.toStringAsFixed(2)}',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
-                  Text(
-                    'Gebruikers: $userCount',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
-                  Text(
-                    'Maandelikse Totaal: R${(currentAllowance * userCount).toStringAsFixed(2)}',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ),
-            Consumer(
-              builder: (context, ref, child) {
-                final isPrimaryAsync = ref.watch(isPrimaryAdminProvider);
-                return isPrimaryAsync.when(
-                  data: (isPrimary) {
-                    if (!isPrimary) return const SizedBox.shrink();
-                    
-                    // Make Ekstern type read-only
-                    final isEkstern = gebrTipe['gebr_tipe_id'] == AdminPermissions.eksternTypeId;
-                    
-                    return ElevatedButton.icon(
-                      onPressed: isEkstern ? null : () => _showEditToelaeDialog(gebrTipe),
-                      icon: const Icon(Icons.edit, size: 16),
-                      label: Text(isEkstern ? 'Read-only' : 'Wysig'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isEkstern ? Colors.grey : Colors.blue,
-                        foregroundColor: Colors.white,
-                      ),
-                    );
-                  },
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // removed: _buildToelaeCard (Toelae side panel) per requirements
   
-  Future<void> _showEditToelaeDialog(Map<String, dynamic> gebrTipe) async {
-    final typeName = gebrTipe['gebr_tipe_naam'] ?? 'Unknown';
-    final currentAllowance = gebrTipe['gebr_toelaag']?.toDouble() ?? 0.0;
-    final controller = TextEditingController(text: currentAllowance.toString());
-    
-    bool isLoading = false;
-    
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false, // Prevent dismissing during loading
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text('Wysig Toelae: $typeName'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Huidige toelae: R${currentAllowance.toStringAsFixed(2)}'),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: controller,
-                    enabled: !isLoading,
-                    decoration: const InputDecoration(
-                      labelText: 'Nuwe Maandelikse Toelae (R)',
-                      border: OutlineInputBorder(),
-                      helperText: 'Hierdie sal alle gebruikers van hierdie tipe affekteer',
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isLoading ? null : () => Navigator.pop(context),
-                  child: const Text('Kanselleer'),
-                ),
-                ElevatedButton(
-                  onPressed: isLoading ? null : () async {
-                    final newAmount = double.tryParse(controller.text);
-                    if (newAmount == null || newAmount < 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Ongeldige bedrag')),
-                      );
-                      return;
-                    }
-                    
-                    setDialogState(() {
-                      isLoading = true;
-                    });
-                    
-                    // fixed: async + watchdog + refresh
-                    AsyncUtils.executeWithWatchdog(
-                      operation: () async {
-                        return await sl<AllowanceRepository>().updateGebrTipeAllowance(
-                          gebrTipeId: gebrTipe['gebr_tipe_id'],
-                          bedrag: newAmount,
-                        );
-                      },
-                      onSuccess: (result) async {
-                        setDialogState(() {
-                          isLoading = false;
-                        });
-                        Navigator.pop(context);
-                        await _loadData(); // Refresh data to prevent stale state
-                      },
-                      onError: (error) {
-                        setDialogState(() {
-                          isLoading = false;
-                        });
-                      },
-                      context: context,
-                      successMessage: 'Toelae opgedateer',
-                      errorMessage: 'Kon nie toelae opdateer nie',
-                    );
-                  },
-                  child: isLoading 
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Text('Stoor'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
   
-  double _calculateTotalMonthlyPayout() {
-    double total = 0.0;
-    for (final gebrTipe in _gebrTipes) {
-      // Exclude Ekstern from payout calculation
-      if (gebrTipe['gebr_tipe_id'] == AdminPermissions.eksternTypeId) continue;
-      
-      final allowance = gebrTipe['gebr_toelaag']?.toDouble() ?? 0.0;
-      final userCount = _rows.where((u) => u['gebr_tipe_id'] == gebrTipe['gebr_tipe_id']).length;
-      total += allowance * userCount;
-    }
-    return total;
-  }
+  // removed: _showEditToelaeDialog (Toelae side panel) per requirements
+  
+  // removed: _calculateTotalMonthlyPayout (Toelae side panel) per requirements
+  // removed: _calculateTotalMonthlyPayout (Toelae side panel) per requirements
   
   Future<void> _showChangeAdminTypeDialog(Map<String, dynamic> user) async {
     final userId = user['gebr_id'].toString();
@@ -1633,10 +1574,10 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                         );
                       }).toList(),
                         onChanged: isLoading ? null : (value) {
-                          setDialogState(() {
-                            selectedAdminTipeId = value;
-                          });
-                        },
+                        setDialogState(() {
+                          selectedAdminTipeId = value;
+                        });
+                      },
                     ),
                     const SizedBox(height: 16),
                     if (selectedAdminTipeId != null) ...[
@@ -1683,21 +1624,21 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                     // fixed: async + watchdog + refresh
                     AsyncUtils.executeWithWatchdog(
                       operation: () async {
-                        final sb = Supabase.instance.client;
-                        
-                        // TODO: SERVER-SIDE ENFORCEMENT REQUIRED
-                        // Server must validate Primary admin status before allowing admin type changes
-                        
+                      final sb = Supabase.instance.client;
+                      
+                      // TODO: SERVER-SIDE ENFORCEMENT REQUIRED
+                      // Server must validate Primary admin status before allowing admin type changes
+                      
                         return await sb.from('gebruikers').update({
-                          'admin_tipe_id': selectedAdminTipeId,
-                        }).eq('gebr_id', userId);
+                        'admin_tipe_id': selectedAdminTipeId,
+                      }).eq('gebr_id', userId);
                       },
                       onSuccess: (result) async {
                         setDialogState(() {
                           isLoading = false;
                         });
-                        Navigator.pop(context);
-                        await _loadData();
+                      Navigator.pop(context);
+                      await _loadData();
                       },
                       onError: (error) {
                         setDialogState(() {
@@ -1835,24 +1776,24 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                     // fixed: async + watchdog + refresh
                     AsyncUtils.executeWithWatchdog(
                       operation: () async {
-                        final sb = Supabase.instance.client;
-                        
+                      final sb = Supabase.instance.client;
+                      
                         // Removed: override validation - toelaag_override column doesn't exist in client schema
-                        
-                        // TODO: SERVER-SIDE ENFORCEMENT REQUIRED
-                        // Server must validate Primary admin status before allowing user type changes
-                        
+                      
+                      // TODO: SERVER-SIDE ENFORCEMENT REQUIRED
+                      // Server must validate Primary admin status before allowing user type changes
+                      
                         // Only update user type - toelaag_override column doesn't exist in client schema
                         return await sb.from('gebruikers').update({
-                          'gebr_tipe_id': selectedGebrTipeId,
-                        }).eq('gebr_id', userId);
+                        'gebr_tipe_id': selectedGebrTipeId,
+                      }).eq('gebr_id', userId);
                       },
                       onSuccess: (result) async {
                         setDialogState(() {
                           isLoading = false;
                         });
-                        Navigator.pop(context);
-                        await _loadData();
+                      Navigator.pop(context);
+                      await _loadData();
                       },
                       onError: (error) {
                         setDialogState(() {

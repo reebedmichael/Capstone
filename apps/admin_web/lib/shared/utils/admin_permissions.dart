@@ -5,6 +5,7 @@ class AdminPermissions {
   static const String secondaryAdminType = 'Secondary';
   static const String tierseriyAdminType = 'Tierseriy';
   static const String pendingAdminType = 'Pending';
+  static const String noneAdminType = 'None';
   
   // Admin type IDs (use exact IDs from requirements)
   static const String primaryAdminId = 'ab47ded0-4703-4e7d-8269-f6e5400cbdd8';
@@ -34,7 +35,8 @@ class AdminPermissions {
   
   /// Check if admin type can modify user types (change Student <-> Personeel)
   static bool canModifyUserTypes(String? adminTypeName) {
-    return adminTypeName == primaryAdminType;
+    // Allow Secondary to edit regular users (handled in UI logic to restrict targets)
+    return adminTypeName == primaryAdminType || adminTypeName == secondaryAdminType;
   }
   
   /// Check if admin type can change admin types of other users

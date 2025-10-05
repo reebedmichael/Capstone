@@ -31,8 +31,8 @@ class LoginPage extends ConsumerWidget
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              AppColors.primary.withValues(alpha: 0.05),
-              AppColors.secondary.withValues(alpha: 0.05),
+              Theme.of(context).colorScheme.primary.withOpacity(0.05),
+              Theme.of(context).colorScheme.secondary.withOpacity(0.05),
             ],
           ),
         ),
@@ -56,13 +56,13 @@ class LoginPage extends ConsumerWidget
                     margin: const EdgeInsets.only(bottom: 16),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.1),
+                      color: Theme.of(context).colorScheme.errorContainer,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.red),
+                      border: Border.all(color: Theme.of(context).colorScheme.error),
                     ),
                     child: Text(
                       authError,
-                      style: const TextStyle(color: Colors.red, fontSize: 14),
+                      style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 14),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -117,7 +117,7 @@ class LoginPage extends ConsumerWidget
                       child: Text(
                         StringsAf.orDivider,
                         style: AppTypography.caption.copyWith(
-                          color: AppColors.onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -130,7 +130,7 @@ class LoginPage extends ConsumerWidget
                 // Login Form Card
                 Card(
                   elevation: 8,
-                  shadowColor: AppColors.shadow,
+                  shadowColor: Theme.of(context).colorScheme.shadow,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -241,7 +241,7 @@ class LoginPage extends ConsumerWidget
                             child: Text(
                               StringsAf.orDivider,
                               style: AppTypography.caption.copyWith(
-                                color: AppColors.onSurfaceVariant,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ),
@@ -262,7 +262,7 @@ class LoginPage extends ConsumerWidget
                       OutlinedButton(
                         onPressed: () => context.go('/auth/register'),
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: AppColors.primary),
+                          side: BorderSide(color: Theme.of(context).colorScheme.primary),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),

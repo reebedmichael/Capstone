@@ -187,12 +187,12 @@ class _NotificationsPageState extends State<NotificationsPage>
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   Text(
                     _formatDate(datum),
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -259,11 +259,11 @@ class _NotificationsPageState extends State<NotificationsPage>
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Icon(Icons.access_time, size: 16, color: Colors.grey[600]),
+                  Icon(Icons.access_time, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   const SizedBox(width: 8),
                   Text(
                     'Gestuur op: ${_formatDate(datum)}',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -273,14 +273,14 @@ class _NotificationsPageState extends State<NotificationsPage>
                   Icon(
                     isGelees ? Icons.mark_email_read : Icons.mark_email_unread,
                     size: 16,
-                    color: isGelees ? Colors.green : Colors.orange,
+                    color: isGelees ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.error,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     isGelees ? 'Gelees' : 'Ongelees',
                     style: TextStyle(
                       fontSize: 14,
-                      color: isGelees ? Colors.green : Colors.orange,
+                      color: isGelees ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.error,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -325,13 +325,13 @@ class _NotificationsPageState extends State<NotificationsPage>
   Color _getTipeKleur(String tipe) {
     switch (tipe) {
       case 'order':
-        return Colors.blue;
+        return Theme.of(context).colorScheme.primary;
       case 'menu':
-        return Colors.green;
+        return Theme.of(context).colorScheme.tertiary;
       case 'allowance':
-        return Colors.orange;
+        return Theme.of(context).colorScheme.secondary;
       default:
-        return Colors.grey;
+        return Theme.of(context).colorScheme.onSurfaceVariant;
     }
   }
 
@@ -384,7 +384,7 @@ class _NotificationsPageState extends State<NotificationsPage>
                           'Ongelees',
                           '${_statistieke['ongelees']}',
                           Icons.notifications_active,
-                          Colors.orange,
+                          Theme.of(context).colorScheme.secondary,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -393,7 +393,7 @@ class _NotificationsPageState extends State<NotificationsPage>
                           'Gelees',
                           '${_statistieke['gelees']}',
                           Icons.notifications_off,
-                          Colors.grey,
+                          Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -445,21 +445,21 @@ class _NotificationsPageState extends State<NotificationsPage>
                 // Kennisgewings lys
                 Expanded(
                   child: _gefilterdeKennisgewings.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
                                 Icons.notifications_none,
                                 size: 64,
-                                color: Colors.grey,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                               SizedBox(height: 16),
                               Text(
                                 'Geen kennisgewings nie',
                                 style: TextStyle(
                                   fontSize: 18,
-                                  color: Colors.grey,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -485,7 +485,7 @@ class _NotificationsPageState extends State<NotificationsPage>
                                 borderRadius: BorderRadius.circular(12),
                                 side: BorderSide(
                                   color: isGelees
-                                      ? Colors.grey.withOpacity(0.3)
+                                      ? Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.3)
                                       : _getTipeKleur(tipe).withOpacity(0.3),
                                   width: isGelees ? 1 : 2,
                                 ),
@@ -539,8 +539,8 @@ class _NotificationsPageState extends State<NotificationsPage>
                                                           : FontWeight.bold,
                                                       fontSize: 16,
                                                       color: isGelees
-                                                          ? Colors.grey[700]
-                                                          : Colors.black87,
+                                                          ? Theme.of(context).colorScheme.onSurface.withOpacity(0.6)
+                                                          : Theme.of(context).colorScheme.onSurface,
                                                     ),
                                                     maxLines: 2,
                                                     overflow:
@@ -566,14 +566,14 @@ class _NotificationsPageState extends State<NotificationsPage>
                                                 Icon(
                                                   Icons.access_time,
                                                   size: 14,
-                                                  color: Colors.grey[600],
+                                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                                 ),
                                                 const SizedBox(width: 4),
                                                 Text(
                                                   _formatDate(datum),
                                                   style: TextStyle(
                                                     fontSize: 12,
-                                                    color: Colors.grey[600],
+                                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                                                   ),
                                                 ),
                                                 const Spacer(),
@@ -661,7 +661,7 @@ class _NotificationsPageState extends State<NotificationsPage>
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                   Text(
                     value,

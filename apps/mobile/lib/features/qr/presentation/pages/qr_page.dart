@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../shared/models/qr_payload.dart';
-import '../../../../core/theme/app_colors.dart';
 
 class QrPage extends StatefulWidget {
   final Map<String, dynamic>? order;
@@ -93,7 +92,7 @@ class _QrPageState extends State<QrPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.qr_code, size: 64, color: Colors.grey),
+              Icon(Icons.qr_code, size: 64, color: Theme.of(context).colorScheme.onSurfaceVariant),
               const SizedBox(height: 12),
               const Text(
                 'Geen bestelling gekies',
@@ -129,7 +128,7 @@ class _QrPageState extends State<QrPage> {
         children: [
           // Order info card
           Card(
-            color: AppColors.primary.withOpacity(0.05),
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -174,15 +173,15 @@ class _QrPageState extends State<QrPage> {
 
           // Refresh info
           Card(
-            color: Colors.blue.shade50,
+            color: Theme.of(context).colorScheme.primaryContainer,
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     FeatherIcons.refreshCw,
                     size: 16,
-                    color: Colors.blue,
+                    color: Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -190,7 +189,7 @@ class _QrPageState extends State<QrPage> {
                       'QR kodes verfris outomaties elke 10 sekondes vir sekuriteit',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.blue.shade900,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ),
@@ -200,13 +199,13 @@ class _QrPageState extends State<QrPage> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.blue,
+                      color: Theme.of(context).colorScheme.primary,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       '${_refreshCountdown}s',
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
@@ -255,7 +254,7 @@ class _QrPageState extends State<QrPage> {
                               errorBuilder: (_, __, ___) => Container(
                                 width: 60,
                                 height: 60,
-                                color: Colors.grey.shade300,
+                                color: Theme.of(context).colorScheme.surfaceVariant,
                                 child: const Icon(Icons.fastfood),
                               ),
                             ),
@@ -265,7 +264,7 @@ class _QrPageState extends State<QrPage> {
                             width: 60,
                             height: 60,
                             decoration: BoxDecoration(
-                              color: Colors.grey.shade300,
+                              color: Theme.of(context).colorScheme.surfaceVariant,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Icon(Icons.fastfood, size: 30),
@@ -326,15 +325,15 @@ class _QrPageState extends State<QrPage> {
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.surface,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.grey.shade300),
+                                border: Border.all(color: Theme.of(context).colorScheme.outline),
                               ),
                               child: QrImageView(
                                 data: _qrPayloads[bestKosId]!.toQrString(),
                                 version: QrVersions.auto,
                                 size: 200,
-                                backgroundColor: Colors.white,
+                                backgroundColor: Theme.of(context).colorScheme.surface,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -434,14 +433,14 @@ class _QrPageState extends State<QrPage> {
             width: 24,
             height: 24,
             decoration: BoxDecoration(
-              color: AppColors.primary,
+              color: Theme.of(context).colorScheme.primary,
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Text(
                 number,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimary,
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                 ),
@@ -449,7 +448,7 @@ class _QrPageState extends State<QrPage> {
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(child: Text(text, style: const TextStyle(fontSize: 14))),
+          Expanded(child: Text(text, style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface))),
         ],
       ),
     );
@@ -458,16 +457,16 @@ class _QrPageState extends State<QrPage> {
   Color _statusColor(String status) {
     switch (status) {
       case 'Wag vir afhaal':
-        return Colors.orange.shade100;
+        return Theme.of(context).colorScheme.errorContainer;
       case 'In voorbereiding':
-        return Colors.blue.shade100;
+        return Theme.of(context).colorScheme.primaryContainer;
       case 'Afgehandel':
       case 'Ontvang':
-        return Colors.green.shade100;
+        return Theme.of(context).colorScheme.tertiaryContainer;
       case 'Gekanselleer':
-        return Colors.red.shade100;
+        return Theme.of(context).colorScheme.errorContainer;
       default:
-        return Colors.grey.shade200;
+        return Theme.of(context).colorScheme.surfaceVariant;
     }
   }
 }
