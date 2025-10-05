@@ -7,6 +7,7 @@ import 'shared/providers/theme_provider.dart';
 import 'bootstrap.dart';
 import 'locator.dart';
 import 'shared/services/notification_service.dart';
+import 'core/services/timezone_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +19,9 @@ Future<void> main() async {
     await bootstrapSupabase();
 
     setupLocator();
+
+    // Initialize timezone service
+    TimezoneService.initialize();
 
     // Initialiseer notifikasie service
     await NotificationService().initialize();

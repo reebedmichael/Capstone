@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/constants/spacing.dart';
 import '../../../../locator.dart';
@@ -1002,8 +1001,8 @@ class _CartPageState extends State<CartPage> {
                 OutlinedButton.icon(
                   onPressed: () => context.go('/home'),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.primary),
-                    foregroundColor: AppColors.primary,
+                    side: BorderSide(color: Theme.of(context).colorScheme.primary),
+                    foregroundColor: Theme.of(context).colorScheme.primary,
                     minimumSize: const Size.fromHeight(44),
                   ),
                   icon: const Icon(Icons.add, size: 18),
@@ -1020,10 +1019,10 @@ class _CartPageState extends State<CartPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Row(
-                          children: const <Widget>[
+                          children: <Widget>[
                             Icon(
                               Icons.location_on_outlined,
-                              color: AppColors.primary,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                             SizedBox(width: 8),
                             Text(
@@ -1114,7 +1113,7 @@ class _CartPageState extends State<CartPage> {
                             Text('Afhaalkoste:', style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
                             Text(
                               'Gratis',
-                              style: TextStyle(color: Theme.of(context).colorScheme.tertiary),
+                              style: TextStyle(color: Theme.of(context).colorScheme.primary),
                             ),
                           ],
                         ),
@@ -1145,7 +1144,7 @@ class _CartPageState extends State<CartPage> {
                 // Wallet Balance info
                 Card(
                   color: hasSufficientFunds
-                      ? Theme.of(context).colorScheme.tertiaryContainer
+                      ? Theme.of(context).colorScheme.surface
                       : Theme.of(context).colorScheme.errorContainer,
                   child: Padding(
                     padding: const EdgeInsets.all(12),
@@ -1157,7 +1156,12 @@ class _CartPageState extends State<CartPage> {
                           children: <Widget>[
                             Text(
                               'Beursie Balans',
-                              style: TextStyle(fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600, 
+                                color: hasSufficientFunds 
+                                  ? Theme.of(context).colorScheme.onSurface
+                                  : Theme.of(context).colorScheme.onError
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -1165,7 +1169,9 @@ class _CartPageState extends State<CartPage> {
                               style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.onSurface,
+                                color: hasSufficientFunds 
+                                  ? Theme.of(context).colorScheme.onSurface
+                                  : Theme.of(context).colorScheme.onError
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -1192,7 +1198,7 @@ class _CartPageState extends State<CartPage> {
                           Text(
                             'Voldoende fondse',
                             style: TextStyle(
-                              color: Theme.of(context).colorScheme.tertiary,
+                              color: Theme.of(context).colorScheme.primary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -1255,7 +1261,7 @@ class _CartPageState extends State<CartPage> {
                         if (success) context.go('/orders');
                       },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   minimumSize: const Size(140, 48),
                 ),
                 child: const Text('Plaas Bestelling'),

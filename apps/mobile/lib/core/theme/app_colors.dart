@@ -14,7 +14,7 @@ class AppColors {
   static const Color onError = Color(0xFFFFFFFF);
 
   // Additional semantic tokens (light)
-  static const Color accent = Color(0xFF8B5A9F);
+  static const Color accent = Color(0xFF2563EB); // Blue for success/positive actions
   static const Color onAccent = Color(0xFFFFFFFF);
   static const Color muted = Color(0xFFECECF0);
   static const Color onMuted = Color(0xFF717182);
@@ -47,7 +47,7 @@ class AppColors {
   static const Color onErrorDark = Color(0xFFF7F7F7);
 
   // Additional semantic tokens (dark)
-  static const Color accentDark = Color(0xFFA066B3);
+  static const Color accentDark = Color(0xFF3B82F6); // Brighter blue for dark mode
   static const Color onAccentDark = Color(0xFFFFFFFF);
   static const Color mutedDark = Color(0xFF2B2B2B);
   static const Color onMutedDark = Color(0xFFB4B4B4);
