@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,6 +26,9 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
   
   String _searchQuery = '';
   bool _showLowAllowance = false;
+  Timer? _searchDebounce;
+  List<Map<String, dynamic>> _searchResults = [];
+  bool _isSearching = false;
 
   @override
   void initState() {
@@ -36,6 +40,7 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
   void dispose() {
     _bedragController.dispose();
     _beskrywingController.dispose();
+    _searchDebounce?.cancel();
     super.dispose();
   }
 
@@ -72,18 +77,62 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
     }
   }
 
-  List<Map<String, dynamic>> get _filteredGebruikers {
-    var filtered = _gebruikers;
+  void _onSearchChanged(String query) {
+    setState(() {
+      _searchQuery = query;
+    });
 
-    // Apply search filter
-    if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((g) {
-        final naam = '${g['gebr_naam'] ?? ''} ${g['gebr_van'] ?? ''}'.toLowerCase();
-        final epos = (g['gebr_epos'] ?? '').toString().toLowerCase();
-        return naam.contains(_searchQuery.toLowerCase()) ||
-            epos.contains(_searchQuery.toLowerCase());
-      }).toList();
+    // Cancel previous search
+    _searchDebounce?.cancel();
+
+    if (query.isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
+      return;
     }
+
+    // Start new search with debounce
+    _searchDebounce = Timer(const Duration(milliseconds: 500), () {
+      _performSearch(query);
+    });
+  }
+
+  Future<void> _performSearch(String query) async {
+    if (query.isEmpty) return;
+
+    setState(() {
+      _isSearching = true;
+    });
+
+    try {
+      final sb = Supabase.instance.client;
+      
+      // Search users by name or email
+      final searchResults = await sb
+          .from('gebruikers')
+          .select('gebr_id, gebr_naam, gebr_van, gebr_epos, beursie_balans, gebr_tipe:gebr_tipe_id(gebr_tipe_naam)')
+          .eq('is_aktief', true)
+          .or('gebr_naam.ilike.%$query%,gebr_van.ilike.%$query%,gebr_epos.ilike.%$query%')
+          .order('gebr_naam')
+          .limit(20);
+
+      setState(() {
+        _searchResults = List<Map<String, dynamic>>.from(searchResults);
+        _isSearching = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isSearching = false;
+      });
+      print('Search error: $e');
+    }
+  }
+
+  List<Map<String, dynamic>> get _filteredGebruikers {
+    // Use search results if available, otherwise use all users
+    var filtered = _searchQuery.isNotEmpty ? _searchResults : _gebruikers;
 
     // Apply low balance filter
     if (_showLowAllowance) {
@@ -247,37 +296,78 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
 
                     const SizedBox(height: 16),
 
-                    // User selector
-                    DropdownButtonFormField<Map<String, dynamic>>(
-                      value: _selectedGebruiker,
-                      decoration: const InputDecoration(
-                        labelText: 'Gebruiker',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.person),
-                      ),
-                      items: _filteredGebruikers.map((g) {
-                        final naam = '${g['gebr_naam'] ?? ''} ${g['gebr_van'] ?? ''}'.trim();
-                        final epos = g['gebr_epos'] ?? '';
-                        final balans = (g['beursie_balans'] as num?)?.toDouble() ?? 0.0;
-                        return DropdownMenuItem(
-                          value: g,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(naam.isEmpty ? 'Geen naam' : naam),
-                              Text(
-                                '$epos - Balans: R${balans.toStringAsFixed(2)}',
-                                style: Theme.of(context).textTheme.bodySmall,
+                    // User selector - Show search results or all users
+                    if (_searchQuery.isNotEmpty && _searchResults.isNotEmpty)
+                      // Show search results as a list
+                      Container(
+                        height: 200,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ListView.builder(
+                          itemCount: _searchResults.length,
+                          itemBuilder: (context, index) {
+                            final g = _searchResults[index];
+                            final naam = '${g['gebr_naam'] ?? ''} ${g['gebr_van'] ?? ''}'.trim();
+                            final epos = g['gebr_epos'] ?? '';
+                            final balans = (g['beursie_balans'] as num?)?.toDouble() ?? 0.0;
+                            final isSelected = _selectedGebruiker?['gebr_id'] == g['gebr_id'];
+                            
+                            return ListTile(
+                              selected: isSelected,
+                              leading: CircleAvatar(
+                                backgroundColor: isSelected 
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Colors.grey.shade300,
+                                child: Text(
+                                  (naam.isNotEmpty ? naam[0] : 'U').toUpperCase(),
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.white : Colors.black,
+                                  ),
+                                ),
                               ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() => _selectedGebruiker = value);
-                      },
-                    ),
+                              title: Text(naam.isEmpty ? 'Geen naam' : naam),
+                              subtitle: Text('$epos - Balans: R${balans.toStringAsFixed(2)}'),
+                              onTap: () {
+                                setState(() => _selectedGebruiker = g);
+                              },
+                            );
+                          },
+                        ),
+                      )
+                    else
+                      // Show dropdown for all users
+                      DropdownButtonFormField<Map<String, dynamic>>(
+                        value: _selectedGebruiker,
+                        decoration: const InputDecoration(
+                          labelText: 'Gebruiker',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.person),
+                        ),
+                        items: _filteredGebruikers.map((g) {
+                          final naam = '${g['gebr_naam'] ?? ''} ${g['gebr_van'] ?? ''}'.trim();
+                          final epos = g['gebr_epos'] ?? '';
+                          final balans = (g['beursie_balans'] as num?)?.toDouble() ?? 0.0;
+                          return DropdownMenuItem(
+                            value: g,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(naam.isEmpty ? 'Geen naam' : naam),
+                                Text(
+                                  '$epos - Balans: R${balans.toStringAsFixed(2)}',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() => _selectedGebruiker = value);
+                        },
+                      ),
 
                     const SizedBox(height: 16),
 
@@ -368,14 +458,32 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
 
                     // Search bar
                     TextField(
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Soek gebruikers',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.search),
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _isSearching
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                              )
+                            : _searchQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      setState(() {
+                                        _searchQuery = '';
+                                        _searchResults = [];
+                                      });
+                                    },
+                                  )
+                                : null,
                       ),
-                      onChanged: (value) {
-                        setState(() => _searchQuery = value);
-                      },
+                      onChanged: _onSearchChanged,
                     ),
 
                     const SizedBox(height: 16),

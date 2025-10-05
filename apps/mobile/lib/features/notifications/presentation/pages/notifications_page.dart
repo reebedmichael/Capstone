@@ -339,6 +339,9 @@ class _NotificationsPageState extends State<NotificationsPage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: BackButton(
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text('Kennisgewings'),
         actions: [
           if (_statistieke['ongelees']! > 0)

@@ -1,37 +1,156 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:spys_api_client/spys_api_client.dart';
+import '../../../locator.dart';
 
-class DashboardPage extends StatelessWidget {
+class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Dummy data to render the dashboard nicely
-    final List<Map<String, dynamic>> kennisgewings = <Map<String, dynamic>>[
-      {
-        'id': 'k1',
-        'beskrywing': 'Nuwe bestelling wag vir afhaal',
-        'tipe': 'info',
-        'datum': DateTime.now(),
-      },
-      {
-        'id': 'k2',
-        'beskrywing': 'Lae voorraad: Hoenderburgers',
-        'tipe': 'waarskuwing',
-        'datum': DateTime.now().subtract(const Duration(hours: 2)),
-      },
-      {
-        'id': 'k3',
-        'beskrywing': 'Verslag: Weeklikse verkope beskikbaar',
-        'tipe': 'info',
-        'datum': DateTime.now().subtract(const Duration(days: 1)),
-      },
-    ];
+  State<DashboardPage> createState() => _DashboardPageState();
+}
 
-    final int aktieweBestellings = 8;
-    final double afgelopeWeekVerkope = 4250.00;
-    final int nuweGebruikers = 12;
-    final String gewildsteKos = 'Vetkoek';
+class _DashboardPageState extends State<DashboardPage> {
+  bool _isLoading = true;
+  String? _error;
+  
+  // Dashboard data
+  int _aktieweBestellings = 0;
+  double _afgelopeWeekVerkope = 0.0;
+  int _nuweGebruikers = 0;
+  String _gewildsteKos = 'Geen data';
+  List<Map<String, dynamic>> _kennisgewings = [];
+  int _totaleGebruikers = 0;
+  double _totaleBeursieBalans = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final sb = Supabase.instance.client;
+      
+      // Load active orders
+      final aktieweBestellingsData = await sb
+          .from('bestelling')
+          .select('best_id')
+          .in_('best_status', ['Wag vir afhaal', 'In voorbereiding'])
+          .eq('is_aktief', true);
+      _aktieweBestellings = aktieweBestellingsData.length;
+
+      // Load sales for last 7 days
+      final weekAgo = DateTime.now().subtract(const Duration(days: 7));
+      final verkopeData = await sb
+          .from('bestelling')
+          .select('best_volledige_prys')
+          .gte('best_geskep_datum', weekAgo.toIso8601String())
+          .eq('is_aktief', true);
+      
+      _afgelopeWeekVerkope = verkopeData.fold(0.0, (sum, order) {
+        return sum + ((order['best_volledige_prys'] as num?)?.toDouble() ?? 0.0);
+      });
+
+      // Load new users (last 7 days)
+      final nuweGebruikersData = await sb
+          .from('gebruikers')
+          .select('gebr_id')
+          .gte('gebr_geskep_datum', weekAgo.toIso8601String())
+          .eq('is_aktief', true);
+      _nuweGebruikers = nuweGebruikersData.length;
+
+      // Load total users
+      final totaleGebruikersData = await sb
+          .from('gebruikers')
+          .select('gebr_id')
+          .eq('is_aktief', true);
+      _totaleGebruikers = totaleGebruikersData.length;
+
+      // Load total wallet balance
+      final beursieData = await sb
+          .from('gebruikers')
+          .select('beursie_balans')
+          .eq('is_aktief', true);
+      
+      _totaleBeursieBalans = beursieData.fold(0.0, (sum, user) {
+        return sum + ((user['beursie_balans'] as num?)?.toDouble() ?? 0.0);
+      });
+
+      // Load most popular food item
+      final gewildsteKosData = await sb
+          .from('bestelling_kos_item')
+          .select('kos_item_id, kos_item:kos_item_id(kos_item_naam)')
+          .eq('is_aktief', true);
+      
+      if (gewildsteKosData.isNotEmpty) {
+        final Map<String, int> itemCounts = {};
+        for (final item in gewildsteKosData) {
+          final itemName = item['kos_item']?['kos_item_naam'] as String? ?? 'Onbekend';
+          itemCounts[itemName] = (itemCounts[itemName] ?? 0) + 1;
+        }
+        
+        if (itemCounts.isNotEmpty) {
+          _gewildsteKos = itemCounts.entries
+              .reduce((a, b) => a.value > b.value ? a : b)
+              .key;
+        }
+      }
+
+      // Load recent notifications
+      final kennisgewingRepo = sl<KennisgewingRepository>();
+      final user = sb.auth.currentUser;
+      if (user != null) {
+        _kennisgewings = await kennisgewingRepo.kryKennisgewings(user.id);
+        // Take only the first 3
+        _kennisgewings = _kennisgewings.take(3).toList();
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text('Error loading dashboard: $_error'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadDashboardData,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -56,25 +175,37 @@ class DashboardPage extends StatelessWidget {
                 children: <Widget>[
                   _StatCard(
                     title: 'Aktiewe Bestellings',
-                    value: '$aktieweBestellings',
+                    value: '$_aktieweBestellings',
                     icon: Icons.receipt_long,
                     iconColor: Theme.of(context).colorScheme.primary,
                   ),
                   _StatCard(
                     title: 'Afgelope Week Verkope',
-                    value: 'R${afgelopeWeekVerkope.toStringAsFixed(2)}',
+                    value: 'R${_afgelopeWeekVerkope.toStringAsFixed(2)}',
                     icon: Icons.payments_outlined,
                     iconColor: Theme.of(context).colorScheme.secondary,
                   ),
                   _StatCard(
-                    title: 'Nuwe Gebruikers',
-                    value: '$nuweGebruikers',
+                    title: 'Nuwe Gebruikers (7 dae)',
+                    value: '$_nuweGebruikers',
+                    icon: Icons.group_add,
+                    iconColor: Colors.green,
+                  ),
+                  _StatCard(
+                    title: 'Totale Gebruikers',
+                    value: '$_totaleGebruikers',
                     icon: Icons.group_outlined,
                     iconColor: Theme.of(context).colorScheme.secondary,
                   ),
                   _StatCard(
+                    title: 'Totale Beursie Balans',
+                    value: 'R${_totaleBeursieBalans.toStringAsFixed(2)}',
+                    icon: Icons.account_balance_wallet,
+                    iconColor: Colors.orange,
+                  ),
+                  _StatCard(
                     title: 'Gewildste Kos',
-                    value: gewildsteKos,
+                    value: _gewildsteKos,
                     icon: Icons.star_rate_rounded,
                     iconColor: Theme.of(context).colorScheme.primary,
                   ),
@@ -86,7 +217,7 @@ class DashboardPage extends StatelessWidget {
           const SizedBox(height: 24),
 
           // Notifications section (only shows if we have any)
-          if (kennisgewings.isNotEmpty)
+          if (_kennisgewings.isNotEmpty)
             _CardSection(
               title: 'Belangrike Kennisgewings',
               leadingIcon: Icons.warning_amber_rounded,
@@ -97,15 +228,20 @@ class DashboardPage extends StatelessWidget {
                   child: const Text('Bekyk Alle Kennisgewings'),
                 ),
                 TextButton(
-                  onPressed: () => context.go('/db-test'),
-                  child: const Text('DB Test'),
+                  onPressed: _loadDashboardData,
+                  child: const Text('Herlaai'),
                 ),
               ],
               child: Column(
-                children: kennisgewings.take(3).map((Map<String, dynamic> k) {
-                  final Color dotColor = k['tipe'] == 'waarskuwing'
+                children: _kennisgewings.map((Map<String, dynamic> k) {
+                  final isGelees = k['kennis_gelees'] as bool? ?? false;
+                  final tipe = k['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info';
+                  final Color dotColor = tipe == 'waarskuwing'
                       ? Colors.orange
-                      : Colors.blue;
+                      : tipe == 'bestelling'
+                          ? Colors.blue
+                          : Colors.green;
+                  
                   return InkWell(
                     onTap: () => context.go('/kennisgewings'),
                     child: Container(
@@ -116,6 +252,9 @@ class DashboardPage extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surface,
                         borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isGelees ? Colors.grey.shade300 : dotColor.withOpacity(0.3),
+                        ),
                       ),
                       child: Row(
                         children: <Widget>[
@@ -123,7 +262,7 @@ class DashboardPage extends StatelessWidget {
                             width: 8,
                             height: 8,
                             decoration: BoxDecoration(
-                              color: dotColor,
+                              color: isGelees ? Colors.grey : dotColor,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -133,20 +272,22 @@ class DashboardPage extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
                                 Text(
-                                  k['beskrywing'] as String,
-                                  style: Theme.of(context).textTheme.titleSmall,
+                                  k['kennis_beskrywing'] as String? ?? 'Kennisgewing',
+                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: isGelees ? FontWeight.normal : FontWeight.bold,
+                                  ),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  _formatDate(k['datum'] as DateTime),
+                                  _formatDate(DateTime.parse(k['kennis_geskep_datum'])),
                                   style: Theme.of(context).textTheme.bodySmall,
                                 ),
                               ],
                             ),
                           ),
-                          const Icon(
-                            Icons.notifications_none,
-                            color: Colors.grey,
+                          Icon(
+                            isGelees ? Icons.notifications_none : Icons.notifications_active,
+                            color: isGelees ? Colors.grey : dotColor,
                           ),
                         ],
                       ),
