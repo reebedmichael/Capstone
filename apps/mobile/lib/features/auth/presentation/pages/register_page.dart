@@ -6,6 +6,7 @@ import '../../../../shared/constants/spacing.dart';
 import '../../../../shared/widgets/spys_primary_button.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../shared/providers/auth_form_providers.dart';
 import '../../../../shared/providers/auth_providers.dart';
@@ -155,6 +156,20 @@ class RegisterPage extends ConsumerWidget {
                             ref.read(authErrorProvider.notifier).state = null;
                             ref.read(authLoadingProvider.notifier).state = true;
 
+                            // Pre-check: abort if email already exists in gebruikers BEFORE signup (prevents upsert in auth service)
+                            final preClient = Supabase.instance.client;
+                            final existingBefore = await preClient
+                              .from('gebruikers')
+                              .select('gebr_id')
+                              .ilike('gebr_epos', email)
+                              .limit(1)
+                              .maybeSingle();
+                            if (existingBefore != null) {
+                              ref.read(authErrorProvider.notifier).state = 'E-pos adres bestaan reeds in die stelsel';
+                              ref.read(authLoadingProvider.notifier).state = false;
+                              return;
+                            }
+
                             try {
                               final authService = ref.read(authServiceProvider);
                               final response = await authService.signUpWithEmail(
@@ -166,12 +181,65 @@ class RegisterPage extends ConsumerWidget {
                               );
 
                               if (response.user != null) {
+                                // Create gebruiker record with defaults
+                                final client = Supabase.instance.client;
+                                // Check existence and abort
+                                final existing = await client
+                                  .from('gebruikers')
+                                  .select('gebr_id')
+                                  .ilike('gebr_epos', email)
+                                  .limit(1)
+                                  .maybeSingle();
+                                final ekstern = await client
+                                  .from('gebruiker_tipes')
+                                  .select('gebr_tipe_id')
+                                  .ilike('gebr_tipe_naam', 'Ekstern')
+                                  .limit(1)
+                                  .maybeSingle();
+                                final adminNone = await client
+                                  .from('admin_tipes')
+                                  .select('admin_tipe_id')
+                                  .ilike('admin_tipe_naam', 'None')
+                                  .limit(1)
+                                  .maybeSingle();
+                                final firstKampus = await client
+                                  .from('kampus')
+                                  .select('kampus_id')
+                                  .order('kampus_naam', ascending: true)
+                                  .limit(1)
+                                  .maybeSingle();
+
+                                if (ekstern == null || adminNone == null || firstKampus == null) {
+                                  throw Exception('Kon nie verstekwaardes laai nie');
+                                }
+
+                                if (existing != null) {
+                                  ref.read(authErrorProvider.notifier).state = 'E-pos adres bestaan reeds in die stelsel';
+                                  return;
+                                }
+
+                                await client
+                                  .from('gebruikers')
+                                  .insert({
+                                    'gebr_epos': email,
+                                    'gebr_naam': firstName,
+                                    'gebr_van': lastName,
+                                    'gebr_selfoon': cellphone,
+                                    'is_aktief': true,
+                                    'beursie_balans': 0,
+                                    'gebr_tipe_id': ekstern['gebr_tipe_id'],
+                                    'admin_tipe_id': adminNone['admin_tipe_id'],
+                                    'kampus_id': firstKampus['kampus_id'],
+                                  })
+                                  .select()
+                                  .single();
+
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Registrasie suksesvol! Jy kan nou in teken.'),
+                                    const SnackBar(
+                                      content: Text('Registrasie suksesvol! Bevestig jou e-pos en teken in.'),
                                       backgroundColor: Colors.green,
-                                    )
+                                    ),
                                   );
                                   context.go('/auth/login');
                                 }
@@ -184,6 +252,8 @@ class RegisterPage extends ConsumerWidget {
                                 errorMessage = 'Wagwoord moet ten minste 6 karakters wees';
                               } else if (e.toString().contains('Invalid email')) {
                                 errorMessage = 'Ongeldige e-pos adres';
+                              } else if (e is PostgrestException) {
+                                errorMessage = 'Data stoor het gefaal: ${e.message}';
                               }
                               ref.read(authErrorProvider.notifier).state = errorMessage;
                             } finally {
