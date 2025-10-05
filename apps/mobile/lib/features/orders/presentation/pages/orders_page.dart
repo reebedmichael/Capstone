@@ -629,6 +629,17 @@ class _OrdersPageState extends State<OrdersPage>
                 final String? lastStatus = statuses.isNotEmpty
                     ? ((statuses.last['kos_item_statusse'] as Map<String, dynamic>? ?? {})['kos_stat_naam'] as String?)
                     : null;
+                // Extract last updated timestamp (best_kos_wysig_datum) if available
+                DateTime? lastUpdated;
+                if (statuses.isNotEmpty) {
+                  final String? iso = statuses.last['best_kos_wysig_datum'] as String?;
+                  if (iso != null) {
+                    final parsed = DateTime.tryParse(iso);
+                    if (parsed != null) {
+                      lastUpdated = parsed;
+                    }
+                  }
+                }
                 final bool isCompletedItem = lastStatus == 'Afgehandel' || lastStatus == 'Gekanselleer';
 
                 // Compute cutoff date for this specific item via kos_item -> spyskaart_kos_item
@@ -692,6 +703,15 @@ class _OrdersPageState extends State<OrdersPage>
                                   '${item['item_hoev'] ?? 1} x R${food['kos_item_koste']}',
                                   style: const TextStyle(fontSize: 12),
                                 ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'ID: ${item['best_kos_id'] ?? ''}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ],
                             ),
                           ),
@@ -709,9 +729,21 @@ class _OrdersPageState extends State<OrdersPage>
                                   color: _statusColor(lastStatus ?? ''),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: Text(
-                                  lastStatus ?? 'Onbekend',
-                                  style: const TextStyle(fontSize: 11),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      lastStatus ?? 'Onbekend',
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                    if (lastUpdated != null) ...[
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        formatDate(lastUpdated!),
+                                        style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ),
                               const SizedBox(height: 6),
