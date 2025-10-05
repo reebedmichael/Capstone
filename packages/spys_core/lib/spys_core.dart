@@ -14,4 +14,6 @@ export 'models/gebruiker.dart';
 export 'models/kennisgewing.dart';
 export 'models/beursie_transaksie.dart';
 
+export 'services/notification_service.dart';
+
 // TODO: Export any libraries intended for clients of this package.
