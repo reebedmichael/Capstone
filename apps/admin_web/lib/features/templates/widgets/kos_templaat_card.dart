@@ -126,6 +126,7 @@ class _KositemTemplateCardState extends State<KositemTemplateCard> {
                         ),
                         // Likes display (only shown when showLikes is true)
                         if (widget.showLikes) ...[
+                          // Expanded(child: SizedBox()),
                           const SizedBox(height: 8),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,

@@ -61,8 +61,8 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
         dietCategories = ["Alle"]; // Reset and include the default "All" filter
         dietCategories.addAll(
           rows
-              .where((row) => row?['dieet_naam'] != null)
-              .map((row) => row!['dieet_naam'] as String)
+              .where((row) => row['dieet_naam'] != null)
+              .map((row) => row['dieet_naam'] as String)
               .toList(),
         );
       });

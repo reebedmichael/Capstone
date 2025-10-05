@@ -122,11 +122,34 @@ class KosTemplaatRepository {
     final response = await _sb
         .from('kos_item')
         .select(
-          '*, kos_item_dieet_vereistes(dieet_id, dieet:dieet_id(dieet_naam))',
+          '*, kos_item_dieet_vereistes(dieet_id, dieet:dieet_id(dieet_naam)), bestelling_kos_item!inner(best_kos_is_liked)',
         )
         .eq('is_aktief', true);
 
-    return List<Map<String, dynamic>>.from(response as List);
+    // Process the response to count likes
+    final List<Map<String, dynamic>> processedResponse = [];
+
+    for (final item in response) {
+      final Map<String, dynamic> processedItem = Map<String, dynamic>.from(
+        item,
+      );
+
+      // Count likes from bestelling_kos_item where best_kos_is_liked is true
+      final bestellingKosItems = item['bestelling_kos_item'] as List? ?? [];
+      final likesCount = bestellingKosItems
+          .where((bki) => bki['best_kos_is_liked'] == true)
+          .length;
+
+      // Add the calculated likes count
+      processedItem['kos_item_likes'] = likesCount;
+
+      // Remove the bestelling_kos_item data as it's not needed in the final result
+      processedItem.remove('bestelling_kos_item');
+
+      processedResponse.add(processedItem);
+    }
+
+    return processedResponse;
   }
 
   Future<List<Map<String, dynamic>>> lysSpyskaartVirWeek(
