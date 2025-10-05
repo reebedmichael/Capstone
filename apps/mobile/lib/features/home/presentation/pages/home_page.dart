@@ -431,9 +431,23 @@ Future<void> _checkAndCleanExpiredCartItems() async {
 
       // Add cutoff status to item for UI display
       item['is_past_cutoff'] = isPastCutoff;
-
+      
       return matchesDay && matchesDietType && matchesSearch;
     }).toList();
+    
+    // Sort by day order: Monday (1) to Sunday (7)
+    final dayOrder = {
+      'maandag': 1, 'dinsdag': 2, 'woensdag': 3, 'donderdag': 4,
+      'vrydag': 5, 'saterdag': 6, 'sondag': 7
+    };
+    
+    filteredMenuItems.sort((a, b) {
+      final dayA = (a['week_dag_naam'] ?? '').toString().toLowerCase();
+      final dayB = (b['week_dag_naam'] ?? '').toString().toLowerCase();
+      final orderA = dayOrder[dayA] ?? 999;
+      final orderB = dayOrder[dayB] ?? 999;
+      return orderA.compareTo(orderB);
+    });
   }
 
   @override

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
+import '../../features/auth/presentation/pages/password_reset_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/orders/presentation/pages/orders_page.dart';
 import '../../features/wallet/presentation/pages/wallet_page.dart';
@@ -33,6 +34,10 @@ class AppRouter {
       GoRoute(
         path: '/auth/register',
         builder: (context, state) => const RegisterPage(),
+      ),
+      GoRoute(
+        path: '/password-reset',
+        builder: (context, state) => const PasswordResetPage(),
       ),
       GoRoute(path: '/home', builder: (context, state) => const HomePage()),
       GoRoute(path: '/orders', builder: (context, state) => const OrdersPage()),
