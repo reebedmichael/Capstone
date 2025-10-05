@@ -70,4 +70,11 @@ class BestellingRepository {
         .order('best_geskep_datum', ascending: false);
     return List<Map<String, dynamic>>.from(rows);
   }
+
+  Future<void> likeBestellingKosItem(String bestKosId) async {
+    await _sb
+        .from('bestelling_kos_item')
+        .update({'best_kos_is_liked': true})
+        .eq('best_kos_id', bestKosId);
+  }
 } 

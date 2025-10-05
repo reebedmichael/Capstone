@@ -23,6 +23,9 @@ class ProfilePage extends ConsumerStatefulWidget {
 
 class _ProfilePageState extends ConsumerState<ProfilePage> {
   bool isLoading = true;
+  bool isLoadingDiets = true;
+  List<Map<String, dynamic>> _allDiets = const [];
+  Set<String> _selectedDietIds = <String>{};
 
   @override
   void initState() {
@@ -53,6 +56,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ref.read(walletBalanceProvider.notifier).state = data['beursie_balans'] ?? '';
           isLoading = false;
         });
+        await _loadDietData(user.id);
       } else {
         debugPrint("User data not found");
         setState(() {
@@ -63,6 +67,41 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       debugPrint("Error loading user: $e");
       setState(() {
         isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadDietData(String userId) async {
+    try {
+      setState(() {
+        isLoadingDiets = true;
+      });
+      // Laai alle dieet keuses
+      final all = await Supabase.instance.client
+          .from('dieet_vereiste')
+          .select('dieet_id, dieet_naam')
+          .order('dieet_naam');
+      // Laai gebruiker se huidige keuses
+      final rows = await Supabase.instance.client
+          .from('gebruiker_dieet_vereistes')
+          .select('dieet_id')
+          .eq('gebr_id', userId);
+
+      final selected = rows
+          .map<String>((e) => e['dieet_id'].toString())
+          .toSet();
+
+      setState(() {
+        _allDiets = List<Map<String, dynamic>>.from(all);
+        _selectedDietIds = selected;
+        isLoadingDiets = false;
+      });
+    } catch (e) {
+      debugPrint('Kon nie dieet data laai nie: $e');
+      setState(() {
+        _allDiets = const [];
+        _selectedDietIds = <String>{};
+        isLoadingDiets = false;
       });
     }
   }
@@ -111,7 +150,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 child: Column(
                   children: [
                     // Profile Card
@@ -165,8 +204,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       ),
                     ),
 
-                    const SizedBox(height: 16),
-
                     // Personal Information
                     Card(
                       child: Padding(
@@ -196,6 +233,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             Spacing.vGap16,
                             LocationDropdown(initialValue: location),
                             Spacing.vGap16,
+                            _DietMultiSelect(
+                              isLoading: isLoadingDiets,
+                              allDiets: _allDiets,
+                              selectedDietIds: _selectedDietIds,
+                              onChanged: (ids) {
+                                setState(() {
+                                  _selectedDietIds = ids;
+                                });
+                              },
+                            ),
+                            Spacing.vGap16,
                             SpysPrimaryButton(
                               text: "Stoor",
                               onPressed: isFormValid
@@ -204,8 +252,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                     if (user == null) return;
 
                                     final gebRepository = sl<GebruikersRepository>();
-                                    // final kamRepository = sl<KampusRepository>();
-                                    // final newKampusID = await kamRepository.kryKampusID(location);
+                                    final kamRepository = sl<KampusRepository>();
+                                    final newKampusID = await kamRepository.kryKampusID(location);
 
                                     await gebRepository.skepOfOpdateerGebruiker({
                                       "gebr_id": user.id,
@@ -213,8 +261,29 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                       "gebr_van": lastName,
                                       "gebr_epos": email,
                                       "gebr_selfoon": cellphone,
-                                      // "kampus_id": newKampusID,
+                                      "kampus_id": newKampusID,
                                     });
+
+                                    // Opdateer gebruiker se dieet vereistes
+                                    try {
+                                      final sb = Supabase.instance.client;
+                                      await sb
+                                          .from('gebruiker_dieet_vereistes')
+                                          .delete()
+                                          .eq('gebr_id', user.id);
+
+                                      if (_selectedDietIds.isNotEmpty) {
+                                        final inserts = _selectedDietIds
+                                            .map((id) => {
+                                                  'gebr_id': user.id,
+                                                  'dieet_id': id,
+                                                })
+                                            .toList();
+                                        await sb.from('gebruiker_dieet_vereistes').insert(inserts);
+                                      }
+                                    } catch (e) {
+                                      debugPrint('Kon nie dieet vereistes stoor nie: $e');
+                                    }
 
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
@@ -287,6 +356,74 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         ),
       ),
       bottomNavigationBar: const AppBottomNav(currentIndex: 3),
+    );
+  }
+}
+
+class _DietMultiSelect extends StatelessWidget {
+  const _DietMultiSelect({
+    required this.isLoading,
+    required this.allDiets,
+    required this.selectedDietIds,
+    required this.onChanged,
+  });
+
+  final bool isLoading;
+  final List<Map<String, dynamic>> allDiets;
+  final Set<String> selectedDietIds;
+  final ValueChanged<Set<String>> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: const [
+            Icon(Icons.restaurant_menu, size: 20),
+            SizedBox(width: 8),
+            Text(
+              "Dieet Vereistes",
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (isLoading)
+          const LinearProgressIndicator(minHeight: 2)
+        else ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: allDiets.map((d) {
+              final id = d['dieet_id'].toString();
+              final naam = d['dieet_naam'].toString();
+              final isSelected = selectedDietIds.contains(id);
+              return FilterChip(
+                label: Text(naam),
+                selected: isSelected,
+                onSelected: (sel) {
+                  final next = Set<String>.from(selectedDietIds);
+                  if (sel) {
+                    next.add(id);
+                  } else {
+                    next.remove(id);
+                  }
+                  onChanged(next);
+                },
+              );
+            }).toList(),
+          ),
+          if (allDiets.isEmpty)
+            Text(
+              'Geen dieet opsies beskikbaar nie',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+        ],
+      ],
     );
   }
 }
