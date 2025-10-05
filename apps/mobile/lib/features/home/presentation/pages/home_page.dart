@@ -43,6 +43,8 @@ class _HomePageState extends State<HomePage> {
   static Map<String, dynamic>? _cachedSpyskaart;
   static List<Map<String, dynamic>> _cachedMenuItems = [];
   static Map<String, List<String>> _cachedDietMappings = {};
+  static DateTime? _cachedMenuDate;
+  static bool _cachedIsNextWeekMenu = false;
   static DateTime? _lastCacheTime;
   
   // Timer for periodic cart cleanup
@@ -272,6 +274,8 @@ Future<void> _checkAndCleanExpiredCartItems() async {
         spyskaart = _cachedSpyskaart;
         allMenuItems = _cachedMenuItems;
         itemDietMapping = _cachedDietMappings;
+        currentMenuDate = _cachedMenuDate;
+        isNextWeekMenu = _cachedIsNextWeekMenu;
         _applyFilters();
         isLoading = false;
       });
@@ -328,6 +332,8 @@ Future<void> _checkAndCleanExpiredCartItems() async {
         _cachedSpyskaart = spyskaartData;
         _cachedMenuItems = mappedItems;
         _cachedDietMappings = itemDietMapping;
+        _cachedMenuDate = menuDate;
+        _cachedIsNextWeekMenu = shouldUseNextWeek;
         _lastCacheTime = now;
 
         setState(() {
