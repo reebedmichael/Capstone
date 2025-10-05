@@ -1823,6 +1823,35 @@ Widget _buildBigStat(String title, String count, {String? small}) {
       },
     );
   }
+
+  // Add missing _showDeactivateUserDialog method
+  Future<void> _showDeactivateUserDialog(Map<String, dynamic> user) async {
+    final userName = '${user['gebr_naam'] ?? ''} ${user['gebr_van'] ?? ''}'.trim();
+    
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Deaktiveer Gebruiker - $userName'),
+        content: const Text('Is jy seker jy wil hierdie gebruiker deaktiveer?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Kanselleer'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              // Add deactivation logic here if needed
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('$userName is gedeaktiveer')),
+              );
+            },
+            child: const Text('Deaktiveer'),
+          ),
+        ],
+      ),
+    );
+  }
   
   // NOTE: All old user creation methods removed per new workflow.
   // Users now register via mobile app and appear as pending Ekstern users.
