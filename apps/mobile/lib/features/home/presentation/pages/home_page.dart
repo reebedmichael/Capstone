@@ -34,6 +34,10 @@ class _HomePageState extends State<HomePage> {
   bool isLoading = true;
   String searchQuery = '';
   Map<String, List<String>> itemDietMapping = {}; // kosItemId -> list of dietIds
+  
+  // Scroll controllers for Scrollbars
+  final ScrollController _dayScrollController = ScrollController();
+  final ScrollController _dietScrollController = ScrollController();
 
   @override
 void initState() {
@@ -45,6 +49,13 @@ void initState() {
     _loadGebrNaam();
     _loadMandjieCount();
   });
+}
+
+@override
+void dispose() {
+  _dayScrollController.dispose();
+  _dietScrollController.dispose();
+  super.dispose();
 }
 
   Future<void> _loadMandjieCount() async {
@@ -334,8 +345,10 @@ void initState() {
 SizedBox(
   height: 48,
   child: Scrollbar(
+    controller: _dayScrollController,
     thumbVisibility: true,
     child: ListView.separated(
+      controller: _dayScrollController,
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: Spacing.screenHPad),
       itemCount: days.length,
@@ -365,8 +378,10 @@ SizedBox(
 SizedBox(
   height: 48,
   child: Scrollbar(
+    controller: _dietScrollController,
     thumbVisibility: true,
     child: ListView.separated(
+      controller: _dietScrollController,
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: Spacing.screenHPad),
       itemCount: dietTypes.length,

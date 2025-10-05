@@ -1,24 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'core/theme/app_theme.dart';
 import 'core/routes/app_router.dart';
 import 'shared/constants/strings_af.dart';
 import 'bootstrap.dart';
 import 'locator.dart';
-import 'shared/services/notification_service.dart';
+import 'package:spys_core/spys_core.dart';
+import 'firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    // Skip dotenv loading for now since .env files are not available
-    // await dotenv.load(fileName: kReleaseMode ? '.env.prod' : '.env.dev');
+    // Initialize Firebase
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    
+    // Set up background message handler
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+    // Environment variables are loaded in bootstrapSupabase()
 
     await bootstrapSupabase();
 
     setupLocator();
 
-    // Initialiseer notifikasie service
+    // Initialize notification service
     await NotificationService().initialize();
 
     runApp(const MyApp());

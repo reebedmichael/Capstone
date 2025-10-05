@@ -19,6 +19,7 @@ void setupLocator() {
   sl.registerLazySingleton<AllowanceRepository>(() => AllowanceRepository(db));
   sl.registerLazySingleton<ToelaeRepository>(() => ToelaeRepository(db));
   sl.registerLazySingleton<TerugvoerRepository>(() => TerugvoerRepository(db));
+  sl.registerLazySingleton<KennisgewingRepository>(() => KennisgewingRepository(db));
   // Register auth service
   sl.registerLazySingleton<AuthService>(() => AuthService());
 } 
