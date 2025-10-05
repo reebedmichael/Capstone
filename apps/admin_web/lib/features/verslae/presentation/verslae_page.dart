@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:html' as html;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'dart:math' as math;
 
 class VerslaePage extends StatefulWidget {
 	const VerslaePage({super.key});
@@ -45,6 +46,7 @@ class _VerslaePageState extends State<VerslaePage> {
 	List<_LabeledCount> userCountsByGebruikerTipe = const [];
 	List<_LabeledCount> userCountsByAdminTipe = const [];
 	List<_LabeledCount> orderCountsByKampus = const [];
+	List<_FieldStats> _numericStats = const [];
 
 	// Constants
 	static const List<String> _exportTables = <String>[
@@ -120,6 +122,7 @@ class _VerslaePageState extends State<VerslaePage> {
 			// Calculate KPIs
 			_calculateKPIs();
 			_computeAggregations();
+			_computeNumericStatistics();
 
 			setState(() {
 				isLoading = false;
@@ -447,6 +450,77 @@ class _VerslaePageState extends State<VerslaePage> {
 		}).toList();
 	}
 
+	void _computeNumericStatistics() {
+		final List<_FieldStats> out = [];
+		void collect(String datasetName, List<Map<String, dynamic>> rows) {
+			final Map<String, List<double>> valuesByField = {};
+			for (final row in rows) {
+				row.forEach((key, value) {
+					if (value is num) {
+						(valuesByField[key] ??= <double>[]).add(value.toDouble());
+					}
+				});
+			}
+			valuesByField.forEach((field, values) {
+				values.sort();
+				final int count = values.length;
+				final double sum = values.fold(0.0, (s, v) => s + v);
+				final double mean = count == 0 ? 0.0 : sum / count;
+				final double median = count == 0
+					? 0.0
+					: (count % 2 == 1)
+						? values[count ~/ 2]
+						: (values[count ~/ 2 - 1] + values[count ~/ 2]) / 2.0;
+				// mode
+				final Map<double, int> freq = {};
+				for (final v in values) {
+					freq[v] = (freq[v] ?? 0) + 1;
+				}
+				double mode = 0.0;
+				int modeCount = 0;
+				for (final e in freq.entries) {
+					if (e.value > modeCount || (e.value == modeCount && e.key < mode)) {
+						modeCount = e.value;
+						mode = e.key;
+					}
+				}
+				// std dev (population)
+				final double variance = count == 0
+					? 0.0
+					: values.fold(0.0, (s, v) => s + math.pow(v - mean, 2).toDouble()) / count;
+				final double stdDev = math.sqrt(variance);
+				final double minV = count == 0 ? 0.0 : values.first;
+				final double maxV = count == 0 ? 0.0 : values.last;
+				out.add(_FieldStats(
+					dataset: datasetName,
+					field: field,
+					count: count,
+					sum: sum,
+					mean: mean,
+					median: median,
+					mode: mode,
+					stdDev: stdDev,
+					min: minV,
+					max: maxV,
+				));
+			});
+		}
+		collect('bestelling', bestellings);
+		collect('bestelling_kos_item', bestellingItems);
+		collect('gebruikers', gebruikers);
+		collect('kos_item', kosItems);
+		collect('gebruiker_tipes', gebruikerTipes);
+		collect('admin_tipes', adminTipes);
+		collect('kampus', kampusse);
+		collect('bestelling_kos_item_terugvoer', bestellingTerugvoer);
+		collect('terugvoer', terugvoerTipes);
+		// Order by dataset then field for stable display
+		out.sort((a, b) => a.dataset != b.dataset ? a.dataset.compareTo(b.dataset) : a.field.compareTo(b.field));
+		setState(() {
+			_numericStats = out;
+		});
+	}
+
 	List<_KPI> _getKPIs(BuildContext context) {
 		return [
 			_KPI('Totale Verkope', 'R ${totalSales.toStringAsFixed(2)}', 
@@ -602,6 +676,9 @@ class _VerslaePageState extends State<VerslaePage> {
 					// Users by types
 					_buildUsersByTypeCharts(context),
 					const SizedBox(height: 24),
+					// Numerical statistics across datasets
+					_buildNumericStatsSection(context),
+					const SizedBox(height: 24),
 					
 					// Orders per campus
 					_buildOrdersByCampusChart(context),
@@ -676,8 +753,8 @@ class _VerslaePageState extends State<VerslaePage> {
 										],
 									),
 								),
-						),
-					],
+							),
+						],
 				),
 			),
 		);
@@ -772,7 +849,7 @@ class _VerslaePageState extends State<VerslaePage> {
 						Text('Top Verkoper Items', style: Theme.of(context).textTheme.titleMedium),
 						const SizedBox(height: 12),
 						Container(
-							height: 400,
+							height: 360,
 							decoration: BoxDecoration(
 								borderRadius: BorderRadius.circular(12),
 								border: Border.all(color: Colors.grey.shade300),
@@ -793,33 +870,7 @@ class _VerslaePageState extends State<VerslaePage> {
 													},
 												),
 											),
-											bottomTitles: AxisTitles(
-												sideTitles: SideTitles(
-													showTitles: true,
-									getTitlesWidget: (value, meta) {
-														final index = value.toInt();
-														if (index >= 0 && index < topItems.length) {
-															return SideTitleWidget(
-																axisSide: meta.axisSide,
-																space: 16,
-																child: Transform.translate(
-																	offset: const Offset(0, 48),
-																	child: Transform.rotate(
-																		angle: -1.57,
-																		child: Text(
-																			topItems[index].name,
-																			style: const TextStyle(fontSize: 10),
-																			overflow: TextOverflow.visible,
-																		),
-																	),
-																),
-															);
-														}
-														return const Text('');
-													},
-												reservedSize: 140,
-												),
-											),
+											bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
 											topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
 											rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
 										),
@@ -831,7 +882,7 @@ class _VerslaePageState extends State<VerslaePage> {
 													BarChartRodData(
 														toY: e.value.quantity.toDouble(),
 														color: Colors.blue.withOpacity(0.7),
-														width: 20,
+														width: 10,
 														borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
 													),
 												],
@@ -849,6 +900,108 @@ class _VerslaePageState extends State<VerslaePage> {
 										],
 									),
 								),
+						),
+						const SizedBox(height: 8),
+						Text('Likes vir Top Items', style: Theme.of(context).textTheme.titleMedium),
+						const SizedBox(height: 8),
+						SizedBox(
+							height: 260,
+							child: Builder(
+								builder: (context) {
+									final Map<String, int> likesByItem = {};
+									for (final item in bestellingItems) {
+										final kos = item['kos_item'] as Map<String, dynamic>?;
+										if (kos == null) continue;
+										final name = (kos['kos_item_naam'] as String?) ?? 'Onbekend';
+										final liked = item['best_kos_is_liked'] == true;
+										if (liked) {
+											likesByItem[name] = (likesByItem[name] ?? 0) + 1;
+										}
+									}
+
+									final likesInTopOrder = topItems.map((t) => likesByItem[t.name] ?? 0).toList();
+									final maxLikes = likesInTopOrder.isEmpty ? 0 : likesInTopOrder.reduce((a, b) => a > b ? a : b);
+
+									if (topItems.isEmpty) {
+										return const Center(child: Text('Geen data beskikbaar'));
+									}
+
+									return BarChart(
+										BarChartData(
+											alignment: BarChartAlignment.spaceAround,
+											maxY: (maxLikes * 1.2).clamp(5, double.infinity).toDouble(),
+											gridData: FlGridData(
+												show: true,
+												drawVerticalLine: false,
+												horizontalInterval: () {
+													final m = maxLikes;
+													if (m <= 10) return 1.0;
+													if (m <= 20) return 2.0;
+													if (m <= 50) return 5.0;
+													if (m <= 100) return 10.0;
+													if (m <= 200) return 20.0;
+													return 50.0;
+												}(),
+											),
+											titlesData: FlTitlesData(
+												leftTitles: AxisTitles(
+													sideTitles: SideTitles(
+														showTitles: true,
+														reservedSize: 40,
+														interval: () {
+															final m = maxLikes;
+															if (m <= 10) return 1.0;
+															if (m <= 20) return 2.0;
+															if (m <= 50) return 5.0;
+															if (m <= 100) return 10.0;
+															if (m <= 200) return 20.0;
+															return 50.0;
+														}(),
+														getTitlesWidget: (value, meta) => Text(value.toInt().toString()),
+													),
+												),
+												bottomTitles: AxisTitles(
+													sideTitles: SideTitles(
+														showTitles: true,
+														reservedSize: 140,
+														getTitlesWidget: (value, meta) {
+															final index = value.toInt();
+															if (index >= 0 && index < topItems.length) {
+																return SideTitleWidget(
+																	axisSide: meta.axisSide,
+																	space: 16,
+																	child: Transform.translate(
+																		offset: const Offset(0, 36),
+																		child: Transform.rotate(
+																			angle: -1.57,
+																			child: Text(topItems[index].name, style: const TextStyle(fontSize: 10)),
+																		),
+																	),
+																);
+															}
+															return const Text('');
+														},
+													),
+												),
+												topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+												rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+											),
+											borderData: FlBorderData(show: true),
+											barGroups: likesInTopOrder.asMap().entries.map((e) => BarChartGroupData(
+												x: e.key,
+												barRods: [
+													BarChartRodData(
+														toY: e.value.toDouble(),
+														color: Colors.pinkAccent.withOpacity(0.8),
+														width: 10,
+														borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+													),
+												],
+											)).toList(),
+										),
+									);
+								},
+							),
 						),
 					],
 				),
@@ -1506,6 +1659,73 @@ class _VerslaePageState extends State<VerslaePage> {
 		return result;
 	}
 
+	Widget _buildNumericStatsSection(BuildContext context) {
+		if (_numericStats.isEmpty) {
+			return Card(
+				child: Padding(
+					padding: const EdgeInsets.all(16),
+					child: Column(
+						crossAxisAlignment: CrossAxisAlignment.start,
+						children: const [
+							Text('Numeriese Statistiek'),
+							SizedBox(height: 8),
+							Text('Geen numeriese data gevind nie'),
+						],
+					),
+				),
+			);
+		}
+		return Card(
+			child: Padding(
+				padding: const EdgeInsets.all(16),
+				child: Column(
+					crossAxisAlignment: CrossAxisAlignment.start,
+					children: [
+						Text('Numeriese Statistiek', style: Theme.of(context).textTheme.titleMedium),
+						const SizedBox(height: 12),
+						SingleChildScrollView(
+							scrollDirection: Axis.horizontal,
+							child: DataTableTheme(
+								data: const DataTableThemeData(
+									headingRowHeight: 32,
+									dataRowMinHeight: 26,
+									dataRowMaxHeight: 30,
+									columnSpacing: 16,
+								),
+								child: DataTable(
+									columns: const [
+										DataColumn(label: Text('Tabel', style: TextStyle(fontSize: 12))),
+										DataColumn(label: Text('Veld', style: TextStyle(fontSize: 12))),
+										DataColumn(label: Text('Aantal', style: TextStyle(fontSize: 12))),
+										DataColumn(label: Text('Som', style: TextStyle(fontSize: 12))),
+										DataColumn(label: Text('Gemiddeld', style: TextStyle(fontSize: 12))),
+										DataColumn(label: Text('Mediaan', style: TextStyle(fontSize: 12))),
+										DataColumn(label: Text('Modus', style: TextStyle(fontSize: 12))),
+										DataColumn(label: Text('Std Afwyking', style: TextStyle(fontSize: 12))),
+										DataColumn(label: Text('Min', style: TextStyle(fontSize: 12))),
+										DataColumn(label: Text('Maks', style: TextStyle(fontSize: 12))),
+									],
+									rows: _numericStats.map((s) => DataRow(cells: [
+										DataCell(Text(s.dataset, style: const TextStyle(fontSize: 12))),
+										DataCell(Text(s.field, style: const TextStyle(fontSize: 12))),
+										DataCell(Text(s.count.toString(), style: const TextStyle(fontSize: 12))),
+										DataCell(Text(s.sum.toStringAsFixed(2), style: const TextStyle(fontSize: 12))),
+										DataCell(Text(s.mean.toStringAsFixed(2), style: const TextStyle(fontSize: 12))),
+										DataCell(Text(s.median.toStringAsFixed(2), style: const TextStyle(fontSize: 12))),
+										DataCell(Text(s.mode.toStringAsFixed(2), style: const TextStyle(fontSize: 12))),
+										DataCell(Text(s.stdDev.toStringAsFixed(2), style: const TextStyle(fontSize: 12))),
+										DataCell(Text(s.min.toStringAsFixed(2), style: const TextStyle(fontSize: 12))),
+										DataCell(Text(s.max.toStringAsFixed(2), style: const TextStyle(fontSize: 12))),
+									])).toList(),
+								),
+							),
+						),
+					],
+				),
+			),
+		);
+	}
+
 	@override
 	void dispose() {
 		_terugNaamController.dispose();
@@ -1548,4 +1768,29 @@ class _LabeledCount {
 	final String label;
 	final int count;
 	_LabeledCount({required this.label, required this.count});
+}
+
+class _FieldStats {
+	final String dataset;
+	final String field;
+	final int count;
+	final double sum;
+	final double mean;
+	final double median;
+	final double mode;
+	final double stdDev;
+	final double min;
+	final double max;
+	_FieldStats({
+		required this.dataset,
+		required this.field,
+		required this.count,
+		required this.sum,
+		required this.mean,
+		required this.median,
+		required this.mode,
+		required this.stdDev,
+		required this.min,
+		required this.max,
+	});
 }

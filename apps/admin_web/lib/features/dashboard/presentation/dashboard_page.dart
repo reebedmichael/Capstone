@@ -1,445 +1,613 @@
+import 'package:capstone_admin/features/dashboard/Widgets/quick_actions.dart';
+import 'package:capstone_admin/features/dashboard/Widgets/dashboard_header.dart';
+import 'package:capstone_admin/features/dashboard/Widgets/kpi_cards.dart';
+import 'package:capstone_admin/features/dashboard/Widgets/sales_overview.dart';
+import 'package:capstone_admin/features/dashboard/Widgets/important_notifications.dart';
+import 'package:capstone_admin/features/dashboard/Widgets/todays_orders.dart';
+import 'package:capstone_admin/features/dashboard/Widgets/next_weeks_menu.dart';
+import 'package:capstone_admin/features/dashboard/Widgets/pending_user_approvals.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
-class DashboardPage extends StatelessWidget {
-  const DashboardPage({super.key});
+typedef NavigateCallback = void Function(String page);
+
+class DashboardPage extends StatefulWidget {
+  final NavigateCallback? onNavigate;
+
+  const DashboardPage({Key? key, this.onNavigate}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    // Dummy data to render the dashboard nicely
-    final List<Map<String, dynamic>> kennisgewings = <Map<String, dynamic>>[
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  String selectedLocation = 'all';
+
+  List<Map<String, dynamic>> todaysOrders = [
+    {
+      'id': '#12345',
+      'customer': 'John Doe',
+      'status': 'In Progress',
+      'time': '10:30 AM',
+      'items': 3,
+      'location': 'Downtown',
+    },
+    {
+      'id': '#12346',
+      'customer': 'Jane Smith',
+      'status': 'Ready',
+      'time': '11:15 AM',
+      'items': 2,
+      'location': 'Uptown',
+    },
+    {
+      'id': '#12347',
+      'customer': 'Mike Johnson',
+      'status': 'Pending',
+      'time': '12:00 PM',
+      'items': 1,
+      'location': 'Downtown',
+    },
+    {
+      'id': '#12348',
+      'customer': 'Sarah Wilson',
+      'status': 'Delivered',
+      'time': '09:45 AM',
+      'items': 4,
+      'location': 'Mall',
+    },
+    {
+      'id': '#12349',
+      'customer': 'Alex Brown',
+      'status': 'Pending',
+      'time': '12:30 PM',
+      'items': 2,
+      'location': 'Uptown',
+    },
+    {
+      'id': '#12350',
+      'customer': 'Emma Davis',
+      'status': 'In Progress',
+      'time': '01:00 PM',
+      'items': 3,
+      'location': 'Mall',
+    },
+    {
+      'id': '#12351',
+      'customer': 'Tom Wilson',
+      'status': 'Ready',
+      'time': '01:15 PM',
+      'items': 1,
+      'location': 'Downtown',
+    },
+    {
+      'id': '#12352',
+      'customer': 'Lisa Chen',
+      'status': 'Out for Delivery',
+      'time': '11:30 AM',
+      'items': 2,
+      'location': 'Uptown',
+    },
+    {
+      'id': '#12353',
+      'customer': 'David Park',
+      'status': 'Pending',
+      'time': '01:45 PM',
+      'items': 1,
+      'location': 'Mall',
+    },
+    {
+      'id': '#12354',
+      'customer': 'Rachel Green',
+      'status': 'Delivered',
+      'time': '10:15 AM',
+      'items': 3,
+      'location': 'Downtown',
+    },
+  ];
+
+  final List<String> locations = [
+    'All Locations',
+    'Downtown',
+    'Uptown',
+    'Mall',
+  ];
+
+  late final List<DateTime> nextWeekDates;
+  late List<Map<String, dynamic>> weeklyMenu;
+
+  List<Map<String, dynamic>> pendingUsers = [
+    {
+      'id': 'user_001',
+      'name': 'Michael Rodriguez',
+      'email': 'michael.rodriguez@email.com',
+      'phone': '+1 (555) 123-4567',
+      'registrationDate': '2024-10-04',
+      'accountType': 'Customer',
+      'location': 'Downtown',
+    },
+    {
+      'id': 'user_002',
+      'name': 'Jessica Thompson',
+      'email': 'jessica.thompson@email.com',
+      'phone': '+1 (555) 987-6543',
+      'registrationDate': '2024-10-04',
+      'accountType': 'Delivery Partner',
+      'location': 'Uptown',
+    },
+    {
+      'id': 'user_003',
+      'name': 'Ahmed Hassan',
+      'email': 'ahmed.hassan@email.com',
+      'phone': '+1 (555) 456-7890',
+      'registrationDate': '2024-10-03',
+      'accountType': 'Customer',
+      'location': 'Mall',
+    },
+    {
+      'id': 'user_004',
+      'name': 'Sofia Chen',
+      'email': 'sofia.chen@email.com',
+      'phone': '+1 (555) 321-0987',
+      'registrationDate': '2024-10-03',
+      'accountType': 'Restaurant Partner',
+      'location': 'Downtown',
+    },
+  ];
+
+  final List<Map<String, String>> recentActivity = [
+    {'action': 'Admin John updated the menu template', 'time': '5 mins ago'},
+    {
+      'action': 'New order #12349 received from Alex Brown',
+      'time': '12 mins ago',
+    },
+    {'action': 'Admin Sarah processed order #12340', 'time': '30 mins ago'},
+    {
+      'action': 'Menu item "Spicy Burger" marked as out of stock',
+      'time': '1 hour ago',
+    },
+  ];
+
+  List<Map<String, dynamic>> importantNotifications = [
+    {
+      'id': 'notif_001',
+      'type': 'critical',
+      'title': 'Payment System Issue',
+      'message':
+          'Credit card processing is experiencing delays. Some orders may be affected.',
+      'time': '2 mins ago',
+      'actionRequired': true,
+      'dismissed': false,
+    },
+    {
+      'id': 'notif_002',
+      'type': 'warning',
+      'title': 'Low Stock Alert',
+      'message':
+          'Chicken Breast inventory is running low at Downtown location (3 items remaining).',
+      'time': '15 mins ago',
+      'actionRequired': true,
+      'dismissed': false,
+    },
+    {
+      'id': 'notif_003',
+      'type': 'info',
+      'title': 'Delivery Partner Update',
+      'message':
+          'New delivery partner Sarah M. has joined the Uptown area team.',
+      'time': '1 hour ago',
+      'actionRequired': false,
+      'dismissed': false,
+    },
+    {
+      'id': 'notif_004',
+      'type': 'success',
+      'title': 'System Maintenance Complete',
+      'message':
+          'Scheduled database optimization completed successfully. Performance improved by 15%.',
+      'time': '2 hours ago',
+      'actionRequired': false,
+      'dismissed': false,
+    },
+    {
+      'id': 'notif_005',
+      'type': 'warning',
+      'title': 'Weather Alert',
+      'message':
+          'Heavy rain expected this evening. Consider adjusting delivery schedules.',
+      'time': '3 hours ago',
+      'actionRequired': true,
+      'dismissed': false,
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    nextWeekDates = getNextWeekDates();
+    weeklyMenu = [
       {
-        'id': 'k1',
-        'beskrywing': 'Nuwe bestelling wag vir afhaal',
-        'tipe': 'info',
-        'datum': DateTime.now(),
+        'day': 'Monday',
+        'date': nextWeekDates[0],
+        'items': ['Grilled Chicken Salad', 'Beef Burger', 'Vegetarian Pizza'],
+        'totalItems': 8,
+        'readyItems': 6,
       },
       {
-        'id': 'k2',
-        'beskrywing': 'Lae voorraad: Hoenderburgers',
-        'tipe': 'waarskuwing',
-        'datum': DateTime.now().subtract(const Duration(hours: 2)),
+        'day': 'Tuesday',
+        'date': nextWeekDates[1],
+        'items': ['Fish Tacos', 'Caesar Wrap', 'Mushroom Risotto'],
+        'totalItems': 7,
+        'readyItems': 7,
       },
       {
-        'id': 'k3',
-        'beskrywing': 'Verslag: Weeklikse verkope beskikbaar',
-        'tipe': 'info',
-        'datum': DateTime.now().subtract(const Duration(days: 1)),
+        'day': 'Wednesday',
+        'date': nextWeekDates[2],
+        'items': ['Steak Dinner', 'Chicken Noodle Soup', 'Garden Salad'],
+        'totalItems': 9,
+        'readyItems': 5,
+      },
+      {
+        'day': 'Thursday',
+        'date': nextWeekDates[3],
+        'items': ['Pasta Carbonara', 'BBQ Ribs', 'Quinoa Bowl'],
+        'totalItems': 6,
+        'readyItems': 6,
+      },
+      {
+        'day': 'Friday',
+        'date': nextWeekDates[4],
+        'items': ['Fish & Chips', 'Thai Curry', 'Mediterranean Wrap'],
+        'totalItems': 10,
+        'readyItems': 8,
+      },
+      {
+        'day': 'Saturday',
+        'date': nextWeekDates[5],
+        'items': ['Weekend Special Brunch', 'Grilled Salmon', 'Veggie Burger'],
+        'totalItems': 8,
+        'readyItems': 4,
+      },
+      {
+        'day': 'Sunday',
+        'date': nextWeekDates[6],
+        'items': ['Sunday Roast', 'Chicken Wings', 'Fresh Fruit Bowl'],
+        'totalItems': 7,
+        'readyItems': 7,
       },
     ];
-
-    final int aktieweBestellings = 8;
-    final double afgelopeWeekVerkope = 4250.00;
-    final int nuweGebruikers = 12;
-    final String gewildsteKos = 'Vetkoek';
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          // Stats grid
-          LayoutBuilder(
-            builder: (BuildContext context, BoxConstraints constraints) {
-              final int crossAxisCount = constraints.maxWidth > 1200
-                  ? 4
-                  : constraints.maxWidth > 800
-                  ? 2
-                  : 1;
-              return GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: crossAxisCount,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 3.6,
-                children: <Widget>[
-                  _StatCard(
-                    title: 'Aktiewe Bestellings',
-                    value: '$aktieweBestellings',
-                    icon: Icons.receipt_long,
-                    iconColor: Theme.of(context).colorScheme.primary,
-                  ),
-                  _StatCard(
-                    title: 'Afgelope Week Verkope',
-                    value: 'R${afgelopeWeekVerkope.toStringAsFixed(2)}',
-                    icon: Icons.payments_outlined,
-                    iconColor: Theme.of(context).colorScheme.secondary,
-                  ),
-                  _StatCard(
-                    title: 'Nuwe Gebruikers',
-                    value: '$nuweGebruikers',
-                    icon: Icons.group_outlined,
-                    iconColor: Theme.of(context).colorScheme.secondary,
-                  ),
-                  _StatCard(
-                    title: 'Gewildste Kos',
-                    value: gewildsteKos,
-                    icon: Icons.star_rate_rounded,
-                    iconColor: Theme.of(context).colorScheme.primary,
-                  ),
-                ],
-              );
-            },
-          ),
-
-          const SizedBox(height: 24),
-
-          // Notifications section (only shows if we have any)
-          if (kennisgewings.isNotEmpty)
-            _CardSection(
-              title: 'Belangrike Kennisgewings',
-              leadingIcon: Icons.warning_amber_rounded,
-              iconColor: Colors.orange,
-              actions: <Widget>[
-                TextButton(
-                  onPressed: () => context.go('/kennisgewings'),
-                  child: const Text('Bekyk Alle Kennisgewings'),
-                ),
-                TextButton(
-                  onPressed: () => context.go('/db-test'),
-                  child: const Text('DB Test'),
-                ),
-              ],
-              child: Column(
-                children: kennisgewings.take(3).map((Map<String, dynamic> k) {
-                  final Color dotColor = k['tipe'] == 'waarskuwing'
-                      ? Colors.orange
-                      : Colors.blue;
-                  return InkWell(
-                    onTap: () => context.go('/kennisgewings'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 10,
-                        horizontal: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: <Widget>[
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: dotColor,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Text(
-                                  k['beskrywing'] as String,
-                                  style: Theme.of(context).textTheme.titleSmall,
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _formatDate(k['datum'] as DateTime),
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(
-                            Icons.notifications_none,
-                            color: Colors.grey,
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-
-          const SizedBox(height: 24),
-
-          // Navigation grid
-          Text(
-            'Bestuur Stelsel',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 12),
-          LayoutBuilder(
-            builder: (BuildContext context, BoxConstraints constraints) {
-              final int crossAxisCount = constraints.maxWidth > 1200
-                  ? 3
-                  : constraints.maxWidth > 800
-                  ? 2
-                  : 1;
-              return GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: crossAxisCount,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 2.8,
-                children: <Widget>[
-                  _NavCard(
-                    title: 'Kositems Bestuur',
-                    description: 'Voeg by, wysig of verwyder kositems',
-                    icon: Icons.menu_book_outlined,
-                    onTap: () => context.go('/spyskaart'),
-                  ),
-                  _NavCard(
-                    title: 'Week Spyskaart',
-                    description:
-                        'Bestuur huidige en volgende week se spyskaarte',
-                    icon: Icons.calendar_month_outlined,
-                    onTap: () => context.go('/week_spyskaart'),
-                  ),
-                  _NavCard(
-                    title: 'Bestelling Bestuur',
-                    description: 'Hanteer alle bestellings en status',
-                    icon: Icons.receipt_long_outlined,
-                    onTap: () => context.go('/bestellings'),
-                  ),
-                  _NavCard(
-                    title: 'Gebruikers Bestuur',
-                    description: 'Keur admins goed en bestuur rolle',
-                    icon: Icons.verified_user_outlined,
-                    onTap: () => context.go('/gebruikers'),
-                  ),
-                  _NavCard(
-                    title: 'Verslae',
-                    description: 'Bekyk verkope en analise data',
-                    icon: Icons.bar_chart_outlined,
-                    onTap: () => context.go('/verslae'),
-                  ),
-                  _NavCard(
-                    title: 'Templates',
-                    description: 'Bestuur kositem en week templates',
-                    icon: Icons.article_outlined,
-                    onTap: () => context.go('/templates/kositem'),
-                  ),
-                ],
-              );
-            },
-          ),
-
-          const SizedBox(height: 24),
-
-          // Quick actions
-          _CardSection(
-            title: 'Vinnige Aksies',
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: <Widget>[
-                OutlinedButton.icon(
-                  onPressed: () => context.go('/spyskaart'),
-                  icon: const Icon(Icons.add_box_outlined),
-                  label: const Text('Voeg Nuwe Kos By'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => context.go('/week_spyskaart'),
-                  icon: const Icon(Icons.calendar_today_outlined),
-                  label: const Text('Bestuur Week Spyskaart'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => context.go('/bestellings'),
-                  icon: const Icon(Icons.receipt_long_outlined),
-                  label: const Text('Bekyk Bestellings'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => context.go('/gebruikers'),
-                  icon: const Icon(Icons.verified_user_outlined),
-                  label: const Text('Keur Admins Goed'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => context.go('/verslae'),
-                  icon: const Icon(Icons.bar_chart_outlined),
-                  label: const Text('Genereer Verslag'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => context.go('/db-test'),
-                  icon: const Icon(Icons.storage_rounded),
-                  label: const Text('DB Test'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
-  String _formatDate(DateTime d) {
-    const List<String> months = <String>[
+  List<DateTime> getNextWeekDates() {
+    final today = DateTime.now();
+    // compute next Monday
+    int weekday = today.weekday; // Monday=1 ... Sunday=7
+    int daysUntilNextMonday = ((8 - weekday) % 7);
+    if (daysUntilNextMonday == 0) daysUntilNextMonday = 7;
+    final nextMonday = today.add(Duration(days: daysUntilNextMonday));
+    final List<DateTime> weekDays = [];
+    for (int i = 0; i < 7; i++) {
+      weekDays.add(nextMonday.add(Duration(days: i)));
+    }
+    return weekDays;
+  }
+
+  Color getStatusColor(String status) {
+    switch (status) {
+      case 'Pending':
+        return Colors.amber;
+      case 'In Progress':
+        return Colors.blue;
+      case 'Ready':
+        return Colors.purple;
+      case 'Out for Delivery':
+        return Colors.orange;
+      case 'Delivered':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String? getNextStatus(String currentStatus) {
+    switch (currentStatus) {
+      case 'Pending':
+        return 'In Progress';
+      case 'In Progress':
+        return 'Ready';
+      case 'Ready':
+        return 'Out for Delivery';
+      case 'Out for Delivery':
+        return 'Delivered';
+      case 'Delivered':
+        return null;
+      default:
+        return null;
+    }
+  }
+
+  void updateOrdersByStatus(String currentStatus) {
+    final nextStatus = getNextStatus(currentStatus);
+    if (nextStatus == null) return;
+    setState(() {
+      todaysOrders = todaysOrders.map((order) {
+        if (order['status'] == currentStatus &&
+            (selectedLocation == 'all' ||
+                order['location'] == selectedLocation)) {
+          final updated = Map<String, dynamic>.from(order);
+          updated['status'] = nextStatus;
+          return updated;
+        }
+        return order;
+      }).toList();
+    });
+  }
+
+  List<Map<String, dynamic>> getFilteredOrders() {
+    if (selectedLocation == 'all') return todaysOrders;
+    return todaysOrders
+        .where((o) => o['location'] == selectedLocation)
+        .toList();
+  }
+
+  List<Map<String, dynamic>> getStatusGroups() {
+    final filtered = getFilteredOrders();
+    final Map<String, int> summary = {};
+    for (var order in filtered) {
+      final s = order['status'] as String;
+      summary[s] = (summary[s] ?? 0) + 1;
+    }
+    final groups = [
+      {
+        'status': 'Pending',
+        'count': summary['Pending'] ?? 0,
+        'color': getStatusColor('Pending'),
+      },
+      {
+        'status': 'In Progress',
+        'count': summary['In Progress'] ?? 0,
+        'color': getStatusColor('In Progress'),
+      },
+      {
+        'status': 'Ready',
+        'count': summary['Ready'] ?? 0,
+        'color': getStatusColor('Ready'),
+      },
+      {
+        'status': 'Out for Delivery',
+        'count': summary['Out for Delivery'] ?? 0,
+        'color': getStatusColor('Out for Delivery'),
+      },
+      {
+        'status': 'Delivered',
+        'count': summary['Delivered'] ?? 0,
+        'color': getStatusColor('Delivered'),
+      },
+    ];
+    return groups.where((g) => (g['count'] as int) > 0).toList();
+  }
+
+  void approveUser(String userId) {
+    setState(() {
+      pendingUsers = pendingUsers.where((u) => u['id'] != userId).toList();
+    });
+    // API call would go here
+  }
+
+  void rejectUser(String userId) {
+    setState(() {
+      pendingUsers = pendingUsers.where((u) => u['id'] != userId).toList();
+    });
+    // API call would go here
+  }
+
+  TextStyle accountTypeTextStyle(String type) {
+    switch (type) {
+      case 'Customer':
+        return TextStyle(color: Colors.blue[800]);
+      case 'Delivery Partner':
+        return TextStyle(color: Colors.green[800]);
+      case 'Restaurant Partner':
+        return TextStyle(color: Colors.purple[800]);
+      default:
+        return TextStyle(color: Colors.grey[800]);
+    }
+  }
+
+  Icon getNotificationIcon(String type) {
+    switch (type) {
+      case 'critical':
+        return const Icon(Icons.error, color: Colors.red);
+      case 'warning':
+        return const Icon(Icons.warning, color: Colors.amber);
+      case 'info':
+        return const Icon(Icons.info, color: Colors.blue);
+      case 'success':
+        return const Icon(Icons.check_circle, color: Colors.green);
+      default:
+        return const Icon(Icons.notifications, color: Colors.grey);
+    }
+  }
+
+  BoxDecoration getNotificationDecoration(String type) {
+    switch (type) {
+      case 'critical':
+        return BoxDecoration(
+          color: Colors.red.shade50,
+          border: Border(left: BorderSide(color: Colors.red, width: 4)),
+          borderRadius: BorderRadius.circular(8),
+        );
+      case 'warning':
+        return BoxDecoration(
+          color: Colors.amber.shade50,
+          border: Border(left: BorderSide(color: Colors.amber, width: 4)),
+          borderRadius: BorderRadius.circular(8),
+        );
+      case 'info':
+        return BoxDecoration(
+          color: Colors.blue.shade50,
+          border: Border(left: BorderSide(color: Colors.blue, width: 4)),
+          borderRadius: BorderRadius.circular(8),
+        );
+      case 'success':
+        return BoxDecoration(
+          color: Colors.green.shade50,
+          border: Border(left: BorderSide(color: Colors.green, width: 4)),
+          borderRadius: BorderRadius.circular(8),
+        );
+      default:
+        return BoxDecoration(
+          color: Colors.grey.shade50,
+          border: Border(left: BorderSide(color: Colors.grey, width: 4)),
+          borderRadius: BorderRadius.circular(8),
+        );
+    }
+  }
+
+  void dismissNotification(String id) {
+    setState(() {
+      importantNotifications = importantNotifications.map((notif) {
+        if (notif['id'] == id) {
+          final copy = Map<String, dynamic>.from(notif);
+          copy['dismissed'] = true;
+          return copy;
+        }
+        return notif;
+      }).toList();
+    });
+  }
+
+  List<Map<String, dynamic>> getActiveNotifications() {
+    return importantNotifications
+        .where((n) => n['dismissed'] == false)
+        .toList();
+  }
+
+  String formatShortDate(DateTime d) {
+    // e.g., Oct 21
+    const months = [
       'Jan',
       'Feb',
-      'Mrt',
+      'Mar',
       'Apr',
-      'Mei',
+      'May',
       'Jun',
       'Jul',
       'Aug',
       'Sep',
-      'Okt',
+      'Oct',
       'Nov',
-      'Des',
+      'Dec',
     ];
-    final String day = d.day.toString().padLeft(2, '0');
-    final String hm =
-        '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-    return '$day ${months[d.month - 1]} $hm';
+    return '${months[d.month - 1]} ${d.day}';
   }
-}
-
-class _StatCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color iconColor;
-  const _StatCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.iconColor,
-  });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: <Widget>[
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: iconColor),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(title, style: Theme.of(context).textTheme.titleSmall),
-                  const SizedBox(height: 6),
-                  Text(
-                    value,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.headlineSmall?.copyWith(color: iconColor),
-                  ),
-                ],
-              ),
-            ),
-          ],
+    final mediaWidth = MediaQuery.of(context).size.width;
+    final isLarge = mediaWidth >= 1200;
+    final isMedium = mediaWidth >= 800 && mediaWidth < 1200;
+
+    return Column(
+      children: [
+        // Dashboard Header
+        DashboardHeader(
+          ingetekendGebruikerNaam: 'Admin User', // TODO: Get from auth service
+          ongeleeseKennisgewings: importantNotifications
+              .where((n) => n['dismissed'] == false)
+              .length,
+          onNavigeerNaKennisgewings: () {
+            // TODO: Navigate to notifications page
+          },
+          onUitteken: () {
+            // TODO: Handle sign out
+          },
         ),
-      ),
-    );
-  }
-}
 
-class _CardSection extends StatelessWidget {
-  final String title;
-  final IconData? leadingIcon;
-  final Color? iconColor;
-  final Widget child;
-  final List<Widget>? actions;
-  const _CardSection({
-    required this.title,
-    required this.child,
-    this.leadingIcon,
-    this.iconColor,
-    this.actions,
-  });
+        // Main Dashboard Content
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                // KPI Cards
+                KpiCards(mediaWidth: mediaWidth),
 
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                if (leadingIcon != null) ...<Widget>[
-                  Icon(leadingIcon, color: iconColor),
-                  const SizedBox(width: 8),
-                ],
-                Expanded(
-                  child: Text(
-                    title,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                if (actions != null) ...actions!,
-              ],
-            ),
-            const SizedBox(height: 12),
-            child,
-          ],
-        ),
-      ),
-    );
-  }
-}
+                const SizedBox(height: 16),
 
-class _NavCard extends StatelessWidget {
-  final String title;
-  final String description;
-  final IconData icon;
-  final VoidCallback onTap;
-  const _NavCard({
-    required this.title,
-    required this.description,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primary.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: Theme.of(context).colorScheme.primary),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
+                // Charts & Important Notifications
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(title, style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 6),
-                    Text(
-                      description,
-                      style: Theme.of(context).textTheme.bodyMedium,
+                  children: [
+                    // Sales chart (left, large)
+                    Expanded(flex: 2, child: SalesOverview()),
+                    const SizedBox(width: 16),
+                    // Important Notifications (right, small)
+                    Expanded(
+                      flex: 1,
+                      child: ImportantNotifications(
+                        importantNotifications: importantNotifications,
+                        onDismissNotification: dismissNotification,
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 16),
+
+                // Today's Orders & Weekly Menu
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Today's Orders (left)
+                    Expanded(
+                      child: TodaysOrders(
+                        todaysOrders: todaysOrders,
+                        selectedLocation: selectedLocation,
+                        locations: locations,
+                        onLocationChanged: (location) {
+                          setState(() {
+                            selectedLocation = location;
+                          });
+                        },
+                        onUpdateOrdersByStatus: updateOrdersByStatus,
+                        onNavigateToOrders: widget.onNavigate ?? (page) {},
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    // Weekly Menu (right)
+                    Expanded(
+                      child: NextWeeksMenu(
+                        weeklyMenu: weeklyMenu,
+                        nextWeekDates: nextWeekDates,
+                        onNavigateToMenu: widget.onNavigate ?? (page) {},
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // Pending User Approvals
+                PendingUserApprovals(
+                  pendingUsers: pendingUsers,
+                  onApproveUser: approveUser,
+                  onRejectUser: rejectUser,
+                  onNavigateToUsers: widget.onNavigate ?? (page) {},
+                ),
+
+                const SizedBox(height: 16),
+
+                // Quick Actions
+                QuickActions(
+                  isLarge: isLarge,
+                  isMedium: isMedium,
+                  widget: widget,
+                ),
+              ],
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
