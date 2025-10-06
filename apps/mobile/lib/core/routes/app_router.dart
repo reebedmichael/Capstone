@@ -10,7 +10,6 @@ import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/help/presentation/pages/help_page.dart';
-import '../../features/qr/presentation/pages/qr_page.dart';
 import '../../features/feedback/presentation/pages/feedback_page.dart';
 import '../../features/cart/presentation/pages/cart_page.dart';
 import '../../features/food/presentation/pages/food_detail_page.dart';
@@ -55,7 +54,6 @@ class AppRouter {
         builder: (context, state) => const NotificationsPage(),
       ),
       GoRoute(path: '/help', builder: (context, state) => const HelpPage()),
-      GoRoute(path: '/qr', builder: (context, state) => const QrPage()),
       GoRoute(
         path: '/feedback',
         builder: (context, state) => FeedbackPage(

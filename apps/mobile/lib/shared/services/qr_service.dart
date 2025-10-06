@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/qr_payload.dart';
+import '../state/order_refresh_notifier.dart';
 
 /// Service for handling QR code validation and status updates
 class QrService {
@@ -11,26 +12,34 @@ class QrService {
   /// Returns a map with success status and message
   Future<Map<String, dynamic>> processScannedQr(String qrString) async {
     try {
+      print('🔍 Processing QR code: $qrString');
+      
       // Parse the QR code
       final payload = QrPayload.fromQrString(qrString);
+      print('🔍 Parsed payload: bestKosId=${payload.bestKosId}, bestId=${payload.bestId}');
 
       // Validate signature
       if (!payload.isValidSignature()) {
+        print('❌ Invalid signature');
         return {
           'success': false,
           'message': 'Ongeldige QR kode - kan nie geverifieer word nie',
         };
       }
+      print('✅ Signature valid');
 
       // Check expiration
       if (payload.isExpired()) {
+        print('❌ QR code expired');
         return {
           'success': false,
           'message': 'QR kode het verval. Vra die gebruiker om dit te verfris.',
         };
       }
+      print('✅ QR code not expired');
 
       // Verify the item exists in database
+      print('🔍 Looking for item in database: ${payload.bestKosId}');
       final itemData = await _supabase
           .from('bestelling_kos_item')
           .select('best_kos_id, best_id, kos_item_id, kos_item:kos_item_id(kos_item_naam)')
@@ -38,11 +47,13 @@ class QrService {
           .maybeSingle();
 
       if (itemData == null) {
+        print('❌ Item not found in database');
         return {
           'success': false,
           'message': 'Item nie gevind in databasis nie',
         };
       }
+      print('✅ Item found in database: ${itemData['kos_item']?['kos_item_naam']}');
 
       // Check if item has already been collected
       final existingStatuses = await _supabase
@@ -66,37 +77,64 @@ class QrService {
         }
       }
 
-      // Get the "Ontvang" status ID
-      final receivedStatusData = await _supabase
+      // Get the "Afgehandel" status ID
+      print('🔍 Looking for "Afgehandel" status...');
+      final completedStatusData = await _supabase
           .from('kos_item_statusse')
           .select('kos_stat_id')
-          .eq('kos_stat_naam', 'Ontvang')
+          .eq('kos_stat_naam', 'Afgehandel')
           .maybeSingle();
 
-      if (receivedStatusData == null) {
-        // If "Ontvang" status doesn't exist, create it
+      if (completedStatusData == null) {
+        print('🔍 Creating "Afgehandel" status...');
+        // If "Afgehandel" status doesn't exist, create it
         final newStatus = await _supabase
             .from('kos_item_statusse')
-            .insert({'kos_stat_naam': 'Ontvang'})
+            .insert({'kos_stat_naam': 'Afgehandel'})
             .select('kos_stat_id')
             .single();
         
         await _insertStatusRecord(payload.bestKosId, newStatus['kos_stat_id'] as String);
+        print('✅ Created new "Afgehandel" status and inserted record');
       } else {
-        await _insertStatusRecord(payload.bestKosId, receivedStatusData['kos_stat_id'] as String);
+        await _insertStatusRecord(payload.bestKosId, completedStatusData['kos_stat_id'] as String);
+        print('✅ Updated item status to "Afgehandel"');
       }
 
       // Get item name for success message
       final kosItemMap = itemData['kos_item'] as Map<String, dynamic>?;
       final itemName = kosItemMap?['kos_item_naam'] as String? ?? 'Item';
 
+      // Get the user ID from the order to refresh their data
+      final bestId = itemData['best_id'] as String?;
+      if (bestId != null) {
+        try {
+          final bestellingData = await _supabase
+              .from('bestelling')
+              .select('gebr_id')
+              .eq('best_id', bestId)
+              .maybeSingle();
+          
+          if (bestellingData != null) {
+            final userId = bestellingData['gebr_id'] as String?;
+            if (userId != null) {
+              await refreshUserData(userId);
+            }
+          }
+        } catch (e) {
+          print('🔄 Error refreshing user data after scan: $e');
+        }
+      }
+
+      print('✅ QR processing completed successfully for: $itemName');
       return {
         'success': true,
-        'message': 'Item suksesvol afgehaal: $itemName',
+        'message': 'Bestelling afgehandel: $itemName',
         'itemName': itemName,
         'bestKosId': payload.bestKosId,
       };
     } catch (e) {
+      print('❌ Error processing QR code: $e');
       return {
         'success': false,
         'message': 'Fout met verwerking van QR kode: $e',
@@ -159,6 +197,40 @@ class QrService {
     } catch (e) {
       print('🔍 Error checking admin status: $e');
       return false;
+    }
+  }
+
+  /// Refresh user data after successful QR scan
+  Future<void> refreshUserData(String userId) async {
+    try {
+      // Send a notification to the user's device
+      await _sendOrderUpdateNotification(userId);
+      
+      // Trigger global refresh
+      OrderRefreshNotifier().triggerRefresh();
+      
+      print('🔄 User data refreshed for: $userId');
+    } catch (e) {
+      print('🔄 Error refreshing user data: $e');
+    }
+  }
+
+  /// Send a notification to the user about order status change
+  Future<void> _sendOrderUpdateNotification(String userId) async {
+    try {
+      // Create a notification record in the database
+      await _supabase.from('kennisgewings').insert({
+        'gebr_id': userId,
+        'kennisgewing_titel': 'Bestelling Afgehandel',
+        'kennisgewing_beskrywing': 'Jou bestelling is suksesvol afgehandel!',
+        'kennisgewing_tipe': 'bestelling',
+        'is_gelees': false,
+        'kennisgewing_datum': DateTime.now().toIso8601String(),
+      });
+      
+      print('📱 Notification sent to user: $userId');
+    } catch (e) {
+      print('📱 Error sending notification: $e');
     }
   }
 }

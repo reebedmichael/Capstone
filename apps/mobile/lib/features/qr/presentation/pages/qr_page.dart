@@ -87,7 +87,16 @@ class _QrPageState extends State<QrPage> {
   Widget build(BuildContext context) {
     if (widget.order == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('QR Kode')),
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text('QR Kode'),
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          foregroundColor: Theme.of(context).colorScheme.onSurface,
+          elevation: 1,
+        ),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -118,10 +127,13 @@ class _QrPageState extends State<QrPage> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(FeatherIcons.arrowLeft),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text('QR Kodes vir Afhaal'),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
+        elevation: 1,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),

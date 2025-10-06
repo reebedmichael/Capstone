@@ -8,6 +8,7 @@ import '../../../../locator.dart';
 import '../../../../shared/constants/spacing.dart';
 import '../../../app/presentation/widgets/app_bottom_nav.dart';
 import '../../../../shared/state/cart_badge.dart';
+import '../../../../shared/state/order_refresh_notifier.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -49,6 +50,7 @@ class _HomePageState extends State<HomePage> {
   
   // Timer for periodic cart cleanup
   Timer? _cartCleanupTimer;
+  StreamSubscription? _globalRefreshSubscription;
   
   static const Duration _cacheTimeout = Duration(minutes: 5); // Cache for 5 minutes
   
@@ -136,6 +138,8 @@ void initState() {
   _loadDietTypes();
   _fetchMenu();
   _startCartCleanupTimer();
+  _setupUserDataListener();
+  _setupGlobalRefreshListener();
   Supabase.instance.client.auth.onAuthStateChange.listen((_) {
     _loadGebrNaam();
     _loadMandjieCount();
@@ -145,7 +149,34 @@ void initState() {
 @override
 void dispose() {
   _cartCleanupTimer?.cancel();
+  _globalRefreshSubscription?.cancel();
   super.dispose();
+}
+
+void _setupUserDataListener() {
+  final user = Supabase.instance.client.auth.currentUser;
+  if (user == null) return;
+
+  // Listen for changes to user data (like laaste_aktief_datum updates)
+  Supabase.instance.client
+      .from('gebruikers')
+      .stream(primaryKey: ['gebr_id'])
+      .eq('gebr_id', user.id)
+      .listen((data) {
+    // When user data changes, refresh user info
+    debugPrint('User data changed, refreshing...');
+    _loadGebrNaam();
+    _loadMandjieCount();
+  });
+}
+
+void _setupGlobalRefreshListener() {
+  // Listen for global refresh events
+  _globalRefreshSubscription = OrderRefreshNotifier().refreshStream.listen((_) {
+    debugPrint('Global refresh triggered, updating user data...');
+    _loadGebrNaam();
+    _loadMandjieCount();
+  });
 }
 
 void _startCartCleanupTimer() {
@@ -211,22 +242,30 @@ Future<void> _checkAndCleanExpiredCartItems() async {
       if (user == null) return;
 
       final items = await sl<MandjieRepository>().kryMandjie(user.id);
-      setState(() => mandjieCount = items.length);
+      if (mounted) {
+        setState(() => mandjieCount = items.length);
+      }
     } catch (e) {
       debugPrint('Kon nie mandjie count kry nie: $e');
-      setState(() => mandjieCount = 0);
+      if (mounted) {
+        setState(() => mandjieCount = 0);
+      }
     }
   }
 
   Future<void> _loadGebrNaam() async {
-    setState(() => gebrNaamLoading = true);
+    if (mounted) {
+      setState(() => gebrNaamLoading = true);
+    }
 
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
-      setState(() {
-        gebrNaam = null;
-        gebrNaamLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          gebrNaam = null;
+          gebrNaamLoading = false;
+        });
+      }
       return;
     }
 
@@ -238,15 +277,23 @@ Future<void> _checkAndCleanExpiredCartItems() async {
           .maybeSingle();
 
     if (row != null) {
-      setState(() => gebrNaam = (row['gebr_naam'] ?? '').toString());
+      if (mounted) {
+        setState(() => gebrNaam = (row['gebr_naam'] ?? '').toString());
+      }
     } else {
-      setState(() => gebrNaam = null);
+      if (mounted) {
+        setState(() => gebrNaam = null);
+      }
     }
   } catch (e) {
     debugPrint('Kon gebr_naam nie laai nie: $e');
-    setState(() => gebrNaam = null);
+    if (mounted) {
+      setState(() => gebrNaam = null);
+    }
   } finally {
-    setState(() => gebrNaamLoading = false);
+    if (mounted) {
+      setState(() => gebrNaamLoading = false);
+    }
   }
 }
 
