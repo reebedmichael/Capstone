@@ -16,12 +16,19 @@ class _VerslaePageState extends State<VerslaePage> {
 	bool isLoading = true;
 	String? errorMessage;
 	bool isExporting = false;
+	bool _isPrimaryAdmin = false;
 	int selectedSalesDays = 7;
+	int _topItemsLimit = 10;
 	
 	// UI State (Terugvoer add form)
 	final TextEditingController _terugNaamController = TextEditingController();
 	final TextEditingController _terugBeskrywingController = TextEditingController();
 	bool isSavingTerugvoer = false;
+
+	// UI State (Terugvoer inline edit rows)
+	final Map<String, String> _editNaamById = {};
+	final Map<String, String> _editBeskById = {};
+	final Set<String> _savingRowIds = <String>{};
 	
 	// Data
 	List<Map<String, dynamic>> bestellings = [];
@@ -48,6 +55,9 @@ class _VerslaePageState extends State<VerslaePage> {
 	List<_LabeledCount> orderCountsByKampus = const [];
 	List<_FieldStats> _numericStats = const [];
 
+	// UI state for Kos Items vs Terugvoer aggregation mode
+	String _terugvoerAggMode = 'Per Kos Item'; // or 'Per Terugvoer'
+
 	// Constants
 	static const List<String> _exportTables = <String>[
 		'admin_tipes',
@@ -72,6 +82,28 @@ class _VerslaePageState extends State<VerslaePage> {
 	void initState() {
 		super.initState();
 		_loadData();
+		_checkIsPrimaryAdmin();
+	}
+
+	Future<void> _checkIsPrimaryAdmin() async {
+		try {
+			final user = Supabase.instance.client.auth.currentUser;
+			if (user == null) return;
+			final profile = await Supabase.instance.client
+				.from('gebruikers')
+				.select('''
+					is_aktief,
+					admin_tipe:admin_tipe_id(admin_tipe_naam)
+				''')
+				.eq('gebr_id', user.id)
+				.maybeSingle();
+			final String? adminTypeName = profile?['admin_tipe']?['admin_tipe_naam'] as String?;
+			setState(() {
+				_isPrimaryAdmin = (adminTypeName == 'Primary');
+			});
+		} catch (e) {
+			// ignore errors, keep default false
+		}
 	}
 
 	Future<List<Map<String, dynamic>>> _selectAll(
@@ -205,18 +237,22 @@ class _VerslaePageState extends State<VerslaePage> {
 	}
 
 	Future<List<Map<String, dynamic>>> _loadTerugvoerTipes() async {
-		return _selectAll('terugvoer');
+		// Only load active terugvoer types if the schema supports terug_is_aktief
+		try {
+			final rows = await Supabase.instance.client
+				.from('terugvoer')
+				.select('*')
+				.eq('terug_is_aktief', true);
+			return List<Map<String, dynamic>>.from(rows);
+		} catch (_) {
+			// Fallback for older schemas without terug_is_aktief
+			return _selectAll('terugvoer');
+		}
 	}
 
 	void _calculateKPIs() {
-		// Filter data based on selected date range
-		final cutoffDate = DateTime.now().subtract(Duration(days: selectedSalesDays));
-		
-		// Filter bestelling_kos_item records by date (this is where the actual order items are)
-		final filteredBestellingItems = bestellingItems.where((item) {
-			final itemDate = DateTime.tryParse(item['best_datum'] as String? ?? '');
-			return itemDate != null && itemDate.isAfter(cutoffDate);
-		}).toList();
+		final cutoffDate = _cutoffDate();
+		final filteredBestellingItems = _filteredBestellingItems(cutoffDate);
 		
 		// Calculate total sales from filtered items
 		totalSales = filteredBestellingItems.fold(0.0, (sum, item) {
@@ -226,11 +262,7 @@ class _VerslaePageState extends State<VerslaePage> {
 			return sum + (itemPrice * quantity);
 		});
 		
-		// Filter bestellings by creation date (best_geskep_datum) to count orders
-		final filteredBestellings = bestellings.where((order) {
-			final orderDate = DateTime.tryParse(order['best_geskep_datum'] as String? ?? '');
-			return orderDate != null && orderDate.isAfter(cutoffDate);
-		}).toList();
+		final filteredBestellings = _filteredBestellings(cutoffDate);
 		
 		// Total orders (filtered by order creation date)
 		totalOrders = filteredBestellings.length;
@@ -241,8 +273,71 @@ class _VerslaePageState extends State<VerslaePage> {
 		// Average order value
 		avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0.0;
 		
-		// Total users (always show total, not filtered by date)
-		totalUsers = gebruikers.length;
+		// Users filtered by created date
+		totalUsers = _filteredGebruikers(cutoffDate).length;
+	}
+
+	DateTime _cutoffDate() {
+		// -1 means "Alle tyd" (no cutoff)
+		if (selectedSalesDays == -1) {
+			return _earliestDataDate();
+		}
+		return DateTime.now().subtract(Duration(days: selectedSalesDays));
+	}
+
+	DateTime _earliestDataDate() {
+		DateTime? earliest;
+
+		DateTime? minDate(DateTime? a, DateTime? b) {
+			if (a == null) return b;
+			if (b == null) return a;
+			return a.isBefore(b) ? a : b;
+		}
+
+		DateTime? parse(String? s) => s == null ? null : DateTime.tryParse(s);
+
+		for (final o in bestellings) {
+			earliest = minDate(earliest, parse(o['best_geskep_datum'] as String?));
+		}
+		for (final i in bestellingItems) {
+			earliest = minDate(earliest, parse(i['best_datum'] as String?));
+		}
+		for (final g in gebruikers) {
+			earliest = minDate(earliest, parse(g['gebr_geskep_datum'] as String?));
+		}
+		for (final bt in bestellingTerugvoer) {
+			earliest = minDate(earliest, parse(bt['geskep_datum'] as String?));
+		}
+
+		return earliest ?? DateTime.fromMillisecondsSinceEpoch(0);
+	}
+
+	List<Map<String, dynamic>> _filteredBestellings(DateTime cutoff) {
+		return bestellings.where((order) {
+			final orderDate = DateTime.tryParse(order['best_geskep_datum'] as String? ?? '');
+			return orderDate != null && orderDate.isAfter(cutoff);
+		}).toList();
+	}
+
+	List<Map<String, dynamic>> _filteredBestellingItems(DateTime cutoff) {
+		return bestellingItems.where((item) {
+			final itemDate = DateTime.tryParse(item['best_datum'] as String? ?? '');
+			return itemDate != null && itemDate.isAfter(cutoff);
+		}).toList();
+	}
+
+	List<Map<String, dynamic>> _filteredGebruikers(DateTime cutoff) {
+		return gebruikers.where((g) {
+			final d = DateTime.tryParse(g['gebr_geskep_datum'] as String? ?? '');
+			return d != null && d.isAfter(cutoff);
+		}).toList();
+	}
+
+	List<Map<String, dynamic>> _filteredBestellingTerugvoer(DateTime cutoff) {
+		return bestellingTerugvoer.where((bt) {
+			final d = DateTime.tryParse(bt['geskep_datum'] as String? ?? '');
+			return d != null && d.isAfter(cutoff);
+		}).toList();
 	}
 
 	Future<void> _exportAllTablesToCsv() async {
@@ -286,12 +381,17 @@ class _VerslaePageState extends State<VerslaePage> {
 			isSavingTerugvoer = true;
 		});
 		try {
+			Map<String, dynamic> payload = {
+				'terug_naam': naam,
+				'terug_beskrywing': beskrywing,
+			};
+			// Try set active flag if present in schema
+			try {
+				payload['terug_is_aktief'] = true;
+			} catch (_) {}
 			final inserted = await Supabase.instance.client
 				.from('terugvoer')
-				.insert({
-					'terug_naam': naam,
-					'terug_beskrywing': beskrywing,
-				})
+				.insert(payload)
 				.select()
 				.single();
 			// Optimistically update local list
@@ -318,6 +418,63 @@ class _VerslaePageState extends State<VerslaePage> {
 					isSavingTerugvoer = false;
 				});
 			}
+		}
+	}
+
+
+	Future<void> _saveTerugRow(String terugId) async {
+		if (_savingRowIds.contains(terugId)) return;
+		final current = terugvoerTipes.firstWhere((e) => e['terug_id'] == terugId, orElse: () => const {});
+		final newNaam = _editNaamById[terugId] ?? current['terug_naam'];
+		final newBesk = _editBeskById[terugId] ?? current['terug_beskrywing'];
+		final Map<String, dynamic> updates = {};
+		if (newNaam != null && newNaam != current['terug_naam']) updates['terug_naam'] = newNaam;
+		if (newBesk != null && newBesk != current['terug_beskrywing']) updates['terug_beskrywing'] = newBesk;
+		if (updates.isEmpty) return;
+		setState(() { _savingRowIds.add(terugId); });
+		try {
+			await Supabase.instance.client
+				.from('terugvoer')
+				.update(updates)
+				.eq('terug_id', terugId);
+			final list = await _loadTerugvoerTipes();
+			setState(() {
+				terugvoerTipes = list;
+				_editNaamById.remove(terugId);
+				_editBeskById.remove(terugId);
+			});
+			ScaffoldMessenger.of(context).showSnackBar(
+				const SnackBar(content: Text('Veranderinge gestoor')),
+			);
+		} catch (e) {
+			ScaffoldMessenger.of(context).showSnackBar(
+				SnackBar(content: Text('Kon nie veranderinge stoor nie: $e')),
+			);
+		} finally {
+			if (mounted) {
+				setState(() { _savingRowIds.remove(terugId); });
+			}
+		}
+	}
+
+	Future<void> _deactivateTerugvoer(String terugId) async {
+		try {
+			await Supabase.instance.client
+				.from('terugvoer')
+				.update({'terug_is_aktief': false})
+				.eq('terug_id', terugId);
+			// Refresh list to only show active ones
+			final list = await _loadTerugvoerTipes();
+			setState(() {
+				terugvoerTipes = list;
+			});
+			ScaffoldMessenger.of(context).showSnackBar(
+				const SnackBar(content: Text('Terugvoer gedeaktiveer')),
+			);
+		} catch (e) {
+			ScaffoldMessenger.of(context).showSnackBar(
+				SnackBar(content: Text('Kon nie deaktiveer nie: $e')),
+			);
 		}
 	}
 
@@ -360,9 +517,14 @@ class _VerslaePageState extends State<VerslaePage> {
 	}
 
 	void _computeAggregations() {
-		// Users by gebruiker tipe
+		final cutoff = _cutoffDate();
+		final filteredUsers = _filteredGebruikers(cutoff);
+		final filteredOrders = _filteredBestellings(cutoff);
+		final filteredItems = _filteredBestellingItems(cutoff);
+
+		// Users by gebruiker tipe (filtered)
 		final Map<String, int> gebruikersByTipeId = {};
-		for (final g in gebruikers) {
+		for (final g in filteredUsers) {
 			final id = g['gebr_tipe_id'] as String?;
 			if (id != null) {
 				gebruikersByTipeId[id] = (gebruikersByTipeId[id] ?? 0) + 1;
@@ -378,9 +540,9 @@ class _VerslaePageState extends State<VerslaePage> {
 		}).toList()
 			..sort((a, b) => b.count.compareTo(a.count));
 
-		// Users by admin tipe
+		// Users by admin tipe (filtered)
 		final Map<String, int> gebruikersByAdminTipeId = {};
-		for (final g in gebruikers) {
+		for (final g in filteredUsers) {
 			final id = g['admin_tipe_id'] as String?;
 			if (id != null) {
 				gebruikersByAdminTipeId[id] = (gebruikersByAdminTipeId[id] ?? 0) + 1;
@@ -396,9 +558,9 @@ class _VerslaePageState extends State<VerslaePage> {
 		}).toList()
 			..sort((a, b) => b.count.compareTo(a.count));
 
-		// Orders by campus
+		// Orders by campus (filtered)
 		final Map<String, int> ordersByKampusId = {};
-		for (final b in bestellings) {
+		for (final b in filteredOrders) {
 			final id = b['kampus_id'] as String?;
 			if (id != null) {
 				ordersByKampusId[id] = (ordersByKampusId[id] ?? 0) + 1;
@@ -426,7 +588,7 @@ class _VerslaePageState extends State<VerslaePage> {
 			(feedbackByBestKosId[bestKosId] ??= <Map<String, dynamic>>[]).add(bt);
 		}
 		
-		for (final item in bestellingItems) {
+		for (final item in filteredItems) {
 			final kos = item['kos_item'] as Map<String, dynamic>?;
 			if (kos == null) continue;
 			final itemName = (kos['kos_item_naam'] as String?) ?? 'Onbekend';
@@ -571,56 +733,55 @@ class _VerslaePageState extends State<VerslaePage> {
 
 		final kpis = _getKPIs(context);
 
-		return SingleChildScrollView(
-			padding: const EdgeInsets.all(24),
-			child: Column(
-				crossAxisAlignment: CrossAxisAlignment.start,
-				children: <Widget>[
-					// Header with refresh button
-					Row(
-						mainAxisAlignment: MainAxisAlignment.spaceBetween,
-						children: [
-							Text('Verslae Dashboard', style: Theme.of(context).textTheme.headlineMedium),
-							Row(children: [
-								TextButton.icon(
-									onPressed: isExporting ? null : _exportAllTablesToCsv,
-									icon: isExporting
-										? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-										: const Icon(Icons.download_outlined),
-									label: const Text('Exporteer CSVs'),
-								),
-								const SizedBox(width: 8),
-								IconButton(
-									onPressed: _loadData,
-									icon: const Icon(Icons.refresh),
-									tooltip: 'Verfris Data',
-								),
-							]),
-						],
-					),
-					const SizedBox(height: 24),
-
-					// Date Range Selector
-					Row(
-						mainAxisAlignment: MainAxisAlignment.spaceBetween,
-						children: [
-							Text('Tydperk', style: Theme.of(context).textTheme.titleMedium),
-							DropdownButton<int>(
-								value: selectedSalesDays,
-								items: const [7, 14, 30]
-									.map((d) => DropdownMenuItem<int>(value: d, child: Text('Laaste ' + d.toString() + ' dae')))
-									.toList(),
-								onChanged: (v) {
-									if (v == null) return;
-									setState(() {
-										selectedSalesDays = v;
-										_calculateKPIs(); // Recalculate KPIs with new date range
-									});
-								},
+		return Scaffold(
+			appBar: AppBar(
+				title: const Text('Verslae Dashboard'),
+				toolbarHeight: 64,
+				actions: [
+					Row(children: [
+						Text('Tydperk', style: Theme.of(context).textTheme.titleSmall),
+						const SizedBox(width: 8),
+						DropdownButton<int>(
+							value: selectedSalesDays,
+						items: const [-1, 7, 14, 30]
+							.map((d) => DropdownMenuItem<int>(
+								value: d,
+								child: Text(d == -1 ? 'Alle tyd' : 'Laaste ' + d.toString() + ' dae'),
+							))
+								.toList(),
+							onChanged: (v) {
+								if (v == null) return;
+								setState(() {
+									selectedSalesDays = v;
+									_calculateKPIs();
+									_computeAggregations();
+								});
+							},
+						),
+						const SizedBox(width: 16),
+						if (_isPrimaryAdmin)
+							TextButton.icon(
+								onPressed: isExporting ? null : _exportAllTablesToCsv,
+								icon: isExporting
+									? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+									: const Icon(Icons.download_outlined),
+								label: const Text('Exporteer CSVs'),
 							),
-						],
-					),
-					const SizedBox(height: 16),
+						const SizedBox(width: 8),
+						IconButton(
+							onPressed: _loadData,
+							icon: const Icon(Icons.refresh),
+							tooltip: 'Verfris Data',
+						),
+						const SizedBox(width: 8),
+					])
+				],
+			),
+			body: SingleChildScrollView(
+				padding: const EdgeInsets.all(24),
+				child: Column(
+					crossAxisAlignment: CrossAxisAlignment.start,
+					children: <Widget>[
 
 					// KPI Cards (responsive, no overflow)
 					LayoutBuilder(builder: (context, constraints) {
@@ -676,9 +837,7 @@ class _VerslaePageState extends State<VerslaePage> {
 					// Users by types
 					_buildUsersByTypeCharts(context),
 					const SizedBox(height: 24),
-					// Numerical statistics across datasets
-					_buildNumericStatsSection(context),
-					const SizedBox(height: 24),
+					// Numerical statistics removed
 					
 					// Orders per campus
 					_buildOrdersByCampusChart(context),
@@ -686,6 +845,7 @@ class _VerslaePageState extends State<VerslaePage> {
 					// Terugvoer: view and add
 					_buildTerugvoerSection(context),
 				],
+				),
 			),
 		);
 	}
@@ -719,7 +879,12 @@ class _VerslaePageState extends State<VerslaePage> {
 				child: Column(
 					crossAxisAlignment: CrossAxisAlignment.start,
 						children: <Widget>[
-							Text('Verkope – Laaste ' + selectedSalesDays.toString() + ' dae', style: Theme.of(context).textTheme.titleMedium),
+						Text(
+							selectedSalesDays == -1
+								? 'Verkope – Alle tyd'
+								: 'Verkope – Laaste ' + selectedSalesDays.toString() + ' dae',
+							style: Theme.of(context).textTheme.titleMedium,
+						),
 					const SizedBox(height: 12),
 					Container(
 							height: 300,
@@ -838,7 +1003,8 @@ class _VerslaePageState extends State<VerslaePage> {
 	}
 
 	Widget _buildTopItemsChart(BuildContext context) {
-		final topItems = topItemCountsWithFeedback.isNotEmpty ? topItemCountsWithFeedback : _getTopItems();
+		final allTopItems = topItemCountsWithFeedback.isNotEmpty ? topItemCountsWithFeedback : _getTopItems();
+		final topItems = allTopItems.take(_topItemsLimit).toList();
 		
 		return Card(
 			child: Padding(
@@ -846,7 +1012,28 @@ class _VerslaePageState extends State<VerslaePage> {
 				child: Column(
 					crossAxisAlignment: CrossAxisAlignment.start,
 					children: <Widget>[
-						Text('Top Verkoper Items', style: Theme.of(context).textTheme.titleMedium),
+						Row(
+							mainAxisAlignment: MainAxisAlignment.spaceBetween,
+							children: [
+								Text('Top Verkoper Items', style: Theme.of(context).textTheme.titleMedium),
+								Row(children: [
+									Text('Top', style: Theme.of(context).textTheme.titleSmall),
+									const SizedBox(width: 8),
+									DropdownButton<int>(
+										value: _topItemsLimit,
+										items: const [5, 10, 15, 20]
+											.map((n) => DropdownMenuItem<int>(value: n, child: Text('Top ' + n.toString())))
+											.toList(),
+										onChanged: (v) {
+											if (v == null) return;
+											setState(() {
+												_topItemsLimit = v;
+											});
+										},
+									),
+								])
+							],
+						),
 						const SizedBox(height: 12),
 						Container(
 							height: 360,
@@ -870,7 +1057,29 @@ class _VerslaePageState extends State<VerslaePage> {
 													},
 												),
 											),
-											bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+										bottomTitles: AxisTitles(
+											sideTitles: SideTitles(
+												showTitles: true,
+												reservedSize: 140,
+												getTitlesWidget: (value, meta) {
+													final index = value.toInt();
+													if (index >= 0 && index < topItems.length) {
+														return SideTitleWidget(
+															axisSide: meta.axisSide,
+															space: 16,
+															child: Transform.translate(
+																offset: const Offset(0, 36),
+																child: Transform.rotate(
+																	angle: -1.57,
+																	child: Text(topItems[index].name, style: const TextStyle(fontSize: 10)),
+																),
+															),
+														);
+													}
+													return const Text('');
+												},
+											),
+										),
 											topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
 											rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
 										),
@@ -1132,20 +1341,71 @@ class _VerslaePageState extends State<VerslaePage> {
 							],
 						),
 						const SizedBox(height: 12),
-						SingleChildScrollView(
-							scrollDirection: Axis.horizontal,
-							child: DataTable(
-								columns: const [
-									DataColumn(label: Text('Naam')),
-									DataColumn(label: Text('Beskrywing')),
-								],
-								rows: (terugvoerTipes..sort((a, b) => (a['terug_naam'] ?? '').toString().compareTo((b['terug_naam'] ?? '').toString())))
-									.map((tv) => DataRow(cells: [
-										DataCell(Text(tv['terug_naam']?.toString() ?? '')),
-										DataCell(Text(tv['terug_beskrywing']?.toString() ?? '')),
+						LayoutBuilder(
+							builder: (context, constraints) {
+								final double total = constraints.maxWidth;
+								const double actionsWidth = 200.0;
+								const double spacing = 12.0;
+								final double usable = (total - actionsWidth - spacing).clamp(200.0, double.infinity);
+								final double nameWidth = (usable * 0.35).clamp(160.0, 360.0);
+								final double descWidth = (usable * 0.65).clamp(240.0, 800.0);
+								return DataTable(
+									columnSpacing: spacing,
+									dataRowMinHeight: 96,
+									dataRowMaxHeight: 180,
+									columns: const [
+										DataColumn(label: Text('Naam')),
+										DataColumn(label: Text('Beskrywing')),
+										DataColumn(label: Text('Aksies')),
+									],
+									rows: (terugvoerTipes..sort((a, b) => (a['terug_naam'] ?? '').toString().compareTo((b['terug_naam'] ?? '').toString())))
+										.map((tv) => DataRow(cells: [
+											DataCell(
+												SizedBox(
+													width: nameWidth,
+													child: TextFormField(
+														initialValue: _editNaamById[tv['terug_id']] ?? (tv['terug_naam']?.toString() ?? ''),
+														decoration: const InputDecoration(border: OutlineInputBorder()),
+														onChanged: (v) { setState(() { _editNaamById[tv['terug_id'] as String] = v; }); },
+													),
+												),
+											),
+											DataCell(
+												SizedBox(
+													width: descWidth,
+													child: TextFormField(
+														initialValue: _editBeskById[tv['terug_id']] ?? (tv['terug_beskrywing']?.toString() ?? ''),
+														minLines: 4,
+														maxLines: 8,
+														decoration: const InputDecoration(border: OutlineInputBorder()),
+														onChanged: (v) { setState(() { _editBeskById[tv['terug_id'] as String] = v; }); },
+													),
+												),
+											),
+											DataCell(SizedBox(
+												width: actionsWidth,
+												child: Row(
+													children: [
+														TextButton.icon(
+															onPressed: _savingRowIds.contains(tv['terug_id']) ? null : () => _saveTerugRow(tv['terug_id'] as String),
+															icon: _savingRowIds.contains(tv['terug_id'])
+																? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+																: const Icon(Icons.save_outlined),
+															label: const Text('Stoor'),
+														),
+														const SizedBox(width: 8),
+														IconButton(
+															icon: const Icon(Icons.delete_outline),
+															onPressed: () => _deactivateTerugvoer(tv['terug_id'] as String),
+															tooltip: 'Deaktiveer',
+														),
+													],
+												),
+											)),
 									]))
-									.toList(),
-							),
+										.toList(),
+								);
+							},
 						),
 						const SizedBox(height: 16),
 						Divider(color: Colors.grey.shade300),
@@ -1243,39 +1503,50 @@ class _VerslaePageState extends State<VerslaePage> {
 	}
 
 	// Data processing methods
-	List<_SalesData> _getSalesData(int numDays) {
-		final now = DateTime.now();
-		final salesData = <_SalesData>[];
-		for (int i = numDays - 1; i >= 0; i--) {
-			final date = now.subtract(Duration(days: i));
-			final label = '${date.day}/${date.month}';
-			double daySales = 0.0;
-			int dayCount = 0;
-			for (final order in bestellings) {
-				final orderDate = DateTime.tryParse(order['best_geskep_datum'] ?? '');
-				if (orderDate != null &&
-					orderDate.year == date.year &&
-					orderDate.month == date.month &&
-					orderDate.day == date.day) {
-					daySales += (order['best_volledige_prys'] as num? ?? 0.0).toDouble();
-				}
-			}
-			// Count items sold for that day using bestellingItems linked to bestelling
-			for (final item in bestellingItems) {
-				final Map<String, dynamic>? best = item['bestelling'] as Map<String, dynamic>?;
-				final String? bestDateStr = best != null ? best['best_geskep_datum'] as String? : null;
-				final orderDate = bestDateStr != null ? DateTime.tryParse(bestDateStr) : null;
-				if (orderDate != null &&
-					orderDate.year == date.year &&
-					orderDate.month == date.month &&
-					orderDate.day == date.day) {
-					dayCount += (item['item_hoev'] as int? ?? 1);
-				}
-			}
-			salesData.add(_SalesData(day: label, amount: daySales, count: dayCount));
-		}
-		return salesData;
+List<_SalesData> _getSalesData(int numDays) {
+	final now = DateTime.now();
+	final salesData = <_SalesData>[];
+
+	DateTime startDate;
+	int daysToShow;
+	if (numDays == -1) {
+		// From earliest date to now
+		startDate = _earliestDataDate();
+		daysToShow = now.difference(startDate).inDays + 1;
+	} else {
+		startDate = now.subtract(Duration(days: numDays - 1));
+		daysToShow = numDays;
 	}
+
+	for (int i = 0; i < daysToShow; i++) {
+		final date = DateTime(startDate.year, startDate.month, startDate.day).add(Duration(days: i));
+		final label = '${date.day}/${date.month}';
+		double daySales = 0.0;
+		int dayCount = 0;
+		for (final order in bestellings) {
+			final orderDate = DateTime.tryParse(order['best_geskep_datum'] ?? '');
+			if (orderDate != null &&
+				orderDate.year == date.year &&
+				orderDate.month == date.month &&
+				orderDate.day == date.day) {
+				daySales += (order['best_volledige_prys'] as num? ?? 0.0).toDouble();
+			}
+		}
+		for (final item in bestellingItems) {
+			final Map<String, dynamic>? best = item['bestelling'] as Map<String, dynamic>?;
+			final String? bestDateStr = best != null ? best['best_geskep_datum'] as String? : null;
+			final orderDate = bestDateStr != null ? DateTime.tryParse(bestDateStr) : null;
+			if (orderDate != null &&
+				orderDate.year == date.year &&
+				orderDate.month == date.month &&
+				orderDate.day == date.day) {
+				dayCount += (item['item_hoev'] as int? ?? 1);
+			}
+		}
+		salesData.add(_SalesData(day: label, amount: daySales, count: dayCount));
+	}
+	return salesData;
+}
 
 	LineChartData _getCostChartData(BuildContext context, List<_SalesData> data) {
 		final maxAmount = data.fold<double>(0.0, (m, e) => e.amount > m ? e.amount : m);
@@ -1284,7 +1555,7 @@ class _VerslaePageState extends State<VerslaePage> {
 			gridData: const FlGridData(show: true), // Show grid for cost chart
 			titlesData: FlTitlesData(
 				leftTitles: AxisTitles(
-					axisNameWidget: const Text('Totale Koste (R)'),
+					axisNameWidget: const Text('Totale Verkope (R)'),
 					axisNameSize: 24,
 					sideTitles: SideTitles(
 						showTitles: true,
@@ -1321,12 +1592,12 @@ class _VerslaePageState extends State<VerslaePage> {
 				LineChartBarData(
 					spots: data.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value.amount)).toList(),
 					isCurved: false,
-					color: Theme.of(context).primaryColor,
+					color: Colors.green,
 					barWidth: 3,
 					dotData: FlDotData(show: true),
 					belowBarData: BarAreaData(
 						show: true,
-						color: Theme.of(context).primaryColor.withOpacity(0.1),
+						color: Colors.green.withOpacity(0.1),
 					),
 				),
 			],
@@ -1415,9 +1686,10 @@ class _VerslaePageState extends State<VerslaePage> {
 
 	List<_StatusData> _getOrderStatusData() {
 		final statusCounts = <String, int>{};
-		
-		// Count statuses from bestelling items
-		for (final item in bestellingItems) {
+		final cutoff = _cutoffDate();
+		final filteredItems = _filteredBestellingItems(cutoff);
+		// Count statuses from filtered bestelling items
+		for (final item in filteredItems) {
 			String status = 'Wag vir afhaal'; // Default status
 			
 			// Check if item has status information
@@ -1447,9 +1719,10 @@ class _VerslaePageState extends State<VerslaePage> {
 
 	List<_TopItem> _getTopItems() {
 		final itemCounts = <String, int>{};
-		
-		// Count quantities for each item
-		for (final item in bestellingItems) {
+		final cutoff = _cutoffDate();
+		final filteredItems = _filteredBestellingItems(cutoff);
+		// Count quantities for each item in period
+		for (final item in filteredItems) {
 			if (item['kos_item'] != null) {
 				final kosItem = item['kos_item'] as Map<String, dynamic>;
 				final itemName = kosItem['kos_item_naam'] ?? 'Unknown Item';
@@ -1468,10 +1741,7 @@ class _VerslaePageState extends State<VerslaePage> {
 		}).toList();
 	}
 
-	String _getDayName(int weekday) {
-		const days = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Sa', 'So'];
-		return days[weekday - 1];
-	}
+    // Removed unused _getDayName helper
 
 	Widget _buildKosItemTerugvoerChart(BuildContext context) {
 		final data = _computeKosItemTerugvoerData();
@@ -1527,11 +1797,33 @@ class _VerslaePageState extends State<VerslaePage> {
 				child: Column(
 					crossAxisAlignment: CrossAxisAlignment.start,
 					children: [
-						Text('Kos Items vs Terugvoer', style: Theme.of(context).textTheme.titleMedium),
+						Row(
+							mainAxisAlignment: MainAxisAlignment.spaceBetween,
+							children: [
+								Text('Kos Items vs Terugvoer', style: Theme.of(context).textTheme.titleMedium),
+								Row(children: [
+									Text('Aggregasie', style: Theme.of(context).textTheme.titleSmall),
+									const SizedBox(width: 8),
+									DropdownButton<String>(
+										value: _terugvoerAggMode,
+										items: const ['Per Kos Item', 'Per Terugvoer']
+											.map((m) => DropdownMenuItem<String>(value: m, child: Text(m)))
+											.toList(),
+										onChanged: (v) {
+											if (v == null) return;
+											setState(() {
+												_terugvoerAggMode = v;
+											});
+										},
+									),
+								])
+							],
+						),
 						const SizedBox(height: 12),
 						SizedBox(
 							height: 420,
-							child: BarChart(
+							child: _terugvoerAggMode == 'Per Kos Item' 
+								? BarChart(
 								BarChartData(
 									alignment: BarChartAlignment.spaceBetween,
 									maxY: maxY,
@@ -1583,7 +1875,7 @@ class _VerslaePageState extends State<VerslaePage> {
 										rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
 									),
 									borderData: FlBorderData(show: true),
-									barGroups: topItems.asMap().entries.map((entry) {
+								barGroups: topItems.asMap().entries.map((entry) {
 										final x = entry.key;
 										final map = entry.value.value;
 										double running = 0.0;
@@ -1610,7 +1902,8 @@ class _VerslaePageState extends State<VerslaePage> {
 										);
 									}).toList(),
 								),
-							),
+						)
+						: _buildPerTerugvoerBar(context, data),
 						),
 						const SizedBox(height: 12),
 						Wrap(
@@ -1635,14 +1928,19 @@ class _VerslaePageState extends State<VerslaePage> {
 	}
 
 	Map<String, Map<String, int>> _computeKosItemTerugvoerData() {
-		// Map: kos_item_name -> (terug_naam -> count)
+		// Map: kos_item_name -> (terug_naam -> count) for selected period
 		final Map<String, Map<String, int>> result = {};
-		
-		// Now feedback is directly linked to bestelling_kos_item through bestelling_kos_item_terugvoer
-		for (final bt in bestellingTerugvoer) {
+		final cutoff = _cutoffDate();
+		final filteredBT = _filteredBestellingTerugvoer(cutoff);
+		// Feedback linked to bestelling_kos_item
+		for (final bt in filteredBT) {
 			final bestKosItem = bt['bestelling_kos_item'] as Map<String, dynamic>?;
 			if (bestKosItem == null) continue;
-			
+			// Additionally ensure the best_kos item's best_datum is inside the period if present
+			final String? bestDatumStr = bestKosItem['best_datum'] as String?;
+			final DateTime? bestDatum = bestDatumStr != null ? DateTime.tryParse(bestDatumStr) : null;
+			if (bestDatum != null && !bestDatum.isAfter(cutoff)) continue;
+
 			final kos = bestKosItem['kos_item'] as Map<String, dynamic>?;
 			if (kos == null) continue;
 			
@@ -1659,71 +1957,104 @@ class _VerslaePageState extends State<VerslaePage> {
 		return result;
 	}
 
-	Widget _buildNumericStatsSection(BuildContext context) {
-		if (_numericStats.isEmpty) {
-			return Card(
-				child: Padding(
-					padding: const EdgeInsets.all(16),
-					child: Column(
-						crossAxisAlignment: CrossAxisAlignment.start,
-						children: const [
-							Text('Numeriese Statistiek'),
-							SizedBox(height: 8),
-							Text('Geen numeriese data gevind nie'),
-						],
+	// Build aggregated per terugvoer type (sum over all items)
+	Widget _buildPerTerugvoerBar(BuildContext context, Map<String, Map<String, int>> perItemData) {
+		// Flatten per-item map into totals per terugvoer label
+		final Map<String, int> totals = {};
+		perItemData.forEach((_, tvMap) {
+			for (final entry in tvMap.entries) {
+				totals[entry.key] = (totals[entry.key] ?? 0) + entry.value;
+			}
+		});
+		final labels = totals.keys.toList()..sort();
+		final values = labels.map((l) => totals[l] ?? 0).toList();
+		final maxVal = values.isEmpty ? 0 : values.reduce((a, b) => a > b ? a : b);
+		final maxY = (maxVal * 1.2).clamp(5, double.infinity).toDouble();
+		final colors = [
+			Colors.blue,
+			Colors.orange,
+			Colors.green,
+			Colors.purple,
+			Colors.red,
+			Colors.teal,
+			Colors.indigo,
+			Colors.brown,
+		];
+
+		return BarChart(
+			BarChartData(
+				alignment: BarChartAlignment.spaceBetween,
+				maxY: maxY,
+				minY: 0,
+				gridData: FlGridData(
+					show: true,
+					drawVerticalLine: false,
+					horizontalInterval: maxY > 10 ? (maxY / 5).ceilToDouble() : 1,
+					getDrawingHorizontalLine: (value) {
+						return FlLine(
+							color: Colors.grey.withOpacity(0.3),
+							strokeWidth: 1,
+						);
+					},
+				),
+				titlesData: FlTitlesData(
+					leftTitles: AxisTitles(
+						sideTitles: SideTitles(
+							showTitles: true,
+							reservedSize: 40,
+							interval: maxY > 10 ? (maxY / 5).ceilToDouble() : 1,
+							getTitlesWidget: (value, meta) => Text(value.toInt().toString()),
+						),
+					),
+					bottomTitles: AxisTitles(
+						sideTitles: SideTitles(
+							showTitles: true,
+							getTitlesWidget: (value, meta) {
+								final index = value.toInt();
+								if (index >= 0 && index < labels.length) {
+									return SideTitleWidget(
+										axisSide: meta.axisSide,
+										space: 16,
+										child: Transform.translate(
+											offset: const Offset(0, 36),
+											child: Transform.rotate(
+												angle: -1.57,
+												child: Text(labels[index], style: const TextStyle(fontSize: 10)),
+											),
+										),
+									);
+								}
+								return const Text('');
+							},
+						reservedSize: 100,
 					),
 				),
-			);
-		}
-		return Card(
-			child: Padding(
-				padding: const EdgeInsets.all(16),
-				child: Column(
-					crossAxisAlignment: CrossAxisAlignment.start,
-					children: [
-						Text('Numeriese Statistiek', style: Theme.of(context).textTheme.titleMedium),
-						const SizedBox(height: 12),
-						SingleChildScrollView(
-							scrollDirection: Axis.horizontal,
-							child: DataTableTheme(
-								data: const DataTableThemeData(
-									headingRowHeight: 32,
-									dataRowMinHeight: 26,
-									dataRowMaxHeight: 30,
-									columnSpacing: 16,
-								),
-								child: DataTable(
-									columns: const [
-										DataColumn(label: Text('Tabel', style: TextStyle(fontSize: 12))),
-										DataColumn(label: Text('Veld', style: TextStyle(fontSize: 12))),
-										DataColumn(label: Text('Aantal', style: TextStyle(fontSize: 12))),
-										DataColumn(label: Text('Som', style: TextStyle(fontSize: 12))),
-										DataColumn(label: Text('Gemiddeld', style: TextStyle(fontSize: 12))),
-										DataColumn(label: Text('Mediaan', style: TextStyle(fontSize: 12))),
-										DataColumn(label: Text('Modus', style: TextStyle(fontSize: 12))),
-										DataColumn(label: Text('Std Afwyking', style: TextStyle(fontSize: 12))),
-										DataColumn(label: Text('Min', style: TextStyle(fontSize: 12))),
-										DataColumn(label: Text('Maks', style: TextStyle(fontSize: 12))),
-									],
-									rows: _numericStats.map((s) => DataRow(cells: [
-										DataCell(Text(s.dataset, style: const TextStyle(fontSize: 12))),
-										DataCell(Text(s.field, style: const TextStyle(fontSize: 12))),
-										DataCell(Text(s.count.toString(), style: const TextStyle(fontSize: 12))),
-										DataCell(Text(s.sum.toStringAsFixed(2), style: const TextStyle(fontSize: 12))),
-										DataCell(Text(s.mean.toStringAsFixed(2), style: const TextStyle(fontSize: 12))),
-										DataCell(Text(s.median.toStringAsFixed(2), style: const TextStyle(fontSize: 12))),
-										DataCell(Text(s.mode.toStringAsFixed(2), style: const TextStyle(fontSize: 12))),
-										DataCell(Text(s.stdDev.toStringAsFixed(2), style: const TextStyle(fontSize: 12))),
-										DataCell(Text(s.min.toStringAsFixed(2), style: const TextStyle(fontSize: 12))),
-										DataCell(Text(s.max.toStringAsFixed(2), style: const TextStyle(fontSize: 12))),
-									])).toList(),
-								),
-							),
-						),
-					],
+					topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+					rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
 				),
+				borderData: FlBorderData(show: true),
+				barGroups: labels.asMap().entries.map((entry) {
+						final x = entry.key;
+						final label = entry.value;
+						final value = (totals[label] ?? 0).toDouble();
+						return BarChartGroupData(
+							x: x,
+							barRods: [
+								BarChartRodData(
+									toY: value,
+									width: 22,
+									borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+									color: colors[x % colors.length],
+								),
+							],
+						);
+					}).toList(),
 			),
 		);
+	}
+
+	Widget _buildNumericStatsSection(BuildContext context) {
+		return const SizedBox.shrink();
 	}
 
 	@override

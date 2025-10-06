@@ -31,6 +31,7 @@ CREATE TABLE public.bestelling_kos_item (
   kos_item_id uuid,
   item_hoev integer DEFAULT 0,
   best_datum timestamp without time zone DEFAULT now(),
+  best_kos_is_liked boolean DEFAULT false,
   CONSTRAINT bestelling_kos_item_pkey PRIMARY KEY (best_kos_id),
   CONSTRAINT bestelling_kos_item_best_id_fkey FOREIGN KEY (best_id) REFERENCES public.bestelling(best_id),
   CONSTRAINT bestelling_kos_item_kos_item_id_fkey FOREIGN KEY (kos_item_id) REFERENCES public.kos_item(kos_item_id)
@@ -82,8 +83,8 @@ CREATE TABLE public.gebruikers (
   gebr_epos text DEFAULT ''::text,
   gebr_naam text DEFAULT ''::text,
   gebr_van text DEFAULT ''::text,
-  beursie_balans double precision,
-  is_aktief boolean,
+  beursie_balans double precision DEFAULT '0'::double precision,
+  is_aktief boolean DEFAULT true,
   gebr_tipe_id uuid,
   admin_tipe_id uuid,
   kampus_id uuid,
