@@ -287,11 +287,80 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
 
     debugPrint('FOOD DETAIL RAW ITEM: $item'); // handig vir debugging
 
+    // Check if this item is past cutoff and set the field
+    final weekDagNaam = item['week_dag_naam']?.toString() ?? '';
+    final isPastCutoff = _checkIfDayPastCutoff(weekDagNaam);
+    item['is_past_cutoff'] = isPastCutoff;
+    debugPrint('FOOD DETAIL: Item $weekDagNaam is past cutoff: $isPastCutoff');
+
     _initialized = true;
   }
 
   void updateQuantity(int newQty) {
     if (newQty >= 1 && newQty <= 10) setState(() => quantity = newQty);
+  }
+
+  // Helper methods for week logic (same as home page)
+  DateTime _getCurrentWeekStart() {
+    final now = DateTime.now();
+    final weekday = now.weekday;
+    final daysToSubtract = weekday - 1; // Monday is 1, so subtract (weekday - 1) days
+    return DateTime(now.year, now.month, now.day - daysToSubtract);
+  }
+  
+  DateTime _getNextWeekStart() {
+    return _getCurrentWeekStart().add(const Duration(days: 7));
+  }
+  
+  bool _shouldUseNextWeekMenu() {
+    final now = DateTime.now();
+    final weekday = now.weekday;
+    final hour = now.hour;
+    
+    // Use next week menu if:
+    // 1. It's Saturday (6) and after 17:00, OR
+    // 2. It's Sunday (7) or later (past the weekend transition)
+    final isSaturdayAfter17 = weekday == 6 && hour >= 17;
+    final isPastWeekend = weekday == 7; // Sunday
+    return isSaturdayAfter17 || isPastWeekend;
+  }
+
+  bool _checkIfDayPastCutoff(String dayName) {
+    if (dayName.isEmpty) return false;
+    
+    final now = DateTime.now();
+    
+    // Map day names to weekday numbers (Monday = 1, Sunday = 7)
+    final dayMap = {
+      'maandag': 1, 'dinsdag': 2, 'woensdag': 3, 'donderdag': 4,
+      'vrydag': 5, 'saterdag': 6, 'sondag': 7
+    };
+    
+    final dayNumber = dayMap[dayName.toLowerCase()];
+    if (dayNumber == null) return false;
+    
+    // Use the same week logic as home page
+    final shouldUseNextWeek = _shouldUseNextWeekMenu();
+    final weekStart = shouldUseNextWeek ? _getNextWeekStart() : _getCurrentWeekStart();
+    
+    // Calculate the date for this day in the current week
+    final dayDate = weekStart.add(Duration(days: dayNumber - 1));
+    
+    // For each day, check if it's past 17:00 of the day BEFORE the menu item's day
+    final dayBeforeMenuDate = dayDate.subtract(const Duration(days: 1));
+    final cutoffDateTime = DateTime(dayBeforeMenuDate.year, dayBeforeMenuDate.month, dayBeforeMenuDate.day, 17, 0);
+    
+    // Debug logging
+    debugPrint('Food Detail Cutoff check for $dayName:');
+    debugPrint('  Current time: $now');
+    debugPrint('  Should use next week: $shouldUseNextWeek');
+    debugPrint('  Week start: $weekStart');
+    debugPrint('  Day date: $dayDate');
+    debugPrint('  Day before: $dayBeforeMenuDate');
+    debugPrint('  Cutoff time: $cutoffDateTime');
+    debugPrint('  Is past cutoff: ${now.isAfter(cutoffDateTime)}');
+    
+    return now.isAfter(cutoffDateTime);
   }
 
   // ---------- DATABASE-READY: add to mandjie ----------
@@ -300,6 +369,20 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Hierdie item is tans nie beskikbaar nie.'),
+        ),
+      );
+      return;
+    }
+
+    // Check if this item is past cutoff (real-time check)
+    final weekDagNaam = item['week_dag_naam']?.toString() ?? '';
+    debugPrint('Food Detail: Checking cutoff for $weekDagNaam');
+    final isPastCutoff = _checkIfDayPastCutoff(weekDagNaam);
+    debugPrint('Food Detail: Is past cutoff: $isPastCutoff');
+    if (isPastCutoff) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bestelling vir hierdie dag is gesluit (na 17:00 vorige dag).'),
         ),
       );
       return;
@@ -595,38 +678,25 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                           ),
                         const SizedBox(height: 12),
 
-                        // Static time/portion row
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.access_time,
-                              size: 16,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '15-20 min',
-                              style: TextStyle(
+                        // Day availability
+                        if (_day.isNotEmpty)
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                size: 16,
                                 color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                fontSize: 12,
                               ),
-                            ),
-                            const SizedBox(width: 16),
-                            Icon(
-                              Icons.group_outlined,
-                              size: 16,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '1 porsie',
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                fontSize: 12,
+                              const SizedBox(width: 4),
+                              Text(
+                                'Beskikbaar op $_day',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  fontSize: 12,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
                         const SizedBox(height: 16),
 
                         // Allergens
@@ -673,14 +743,6 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                                   .map((ing) => _buildPill(ing))
                                   .toList(),
                             ),
-                          )
-                        else
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            child: Text(
-                              'Geen bestanddele beskikbaar nie.',
-                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                            ),
                           ),
 
                         const SizedBox(height: 24),
@@ -689,14 +751,10 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: available
-                                ? Theme.of(context).colorScheme.tertiaryContainer
-                                : Theme.of(context).colorScheme.errorContainer,
+                            color: Theme.of(context).colorScheme.surface,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: available
-                                  ? Theme.of(context).colorScheme.tertiaryContainer
-                                  : Theme.of(context).colorScheme.errorContainer,
+                              color: Theme.of(context).colorScheme.outline,
                             ),
                           ),
                           child: Row(
@@ -706,23 +764,27 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    available ? 'Beskikbaar' : 'Uitverkoop',
+                                    (available && item['is_past_cutoff'] != true) 
+                                        ? 'Beskikbaar' 
+                                        : (item['is_past_cutoff'] == true ? 'Nie meer beskikbaar' : 'Uitverkoop'),
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      color: available
-                                          ? Theme.of(context).colorScheme.tertiary
+                                      color: (available && item['is_past_cutoff'] != true)
+                                          ? Theme.of(context).colorScheme.primary
                                           : Theme.of(context).colorScheme.error,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    available
+                                    (available && item['is_past_cutoff'] != true)
                                         ? 'Gereed vir bestelling'
-                                        : 'Tans nie beskikbaar nie',
+                                        : (item['is_past_cutoff'] == true 
+                                            ? 'Bestelling gesluit na 17:00 vorige dag'
+                                            : 'Tans nie beskikbaar nie'),
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: available
-                                          ? Theme.of(context).colorScheme.tertiary
+                                      color: (available && item['is_past_cutoff'] != true)
+                                          ? Theme.of(context).colorScheme.onSurfaceVariant
                                           : Theme.of(context).colorScheme.error,
                                     ),
                                   ),
@@ -732,7 +794,9 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                                 width: 12,
                                 height: 12,
                                 decoration: BoxDecoration(
-                                  color: available ? Theme.of(context).colorScheme.tertiary : Theme.of(context).colorScheme.error,
+                                  color: (available && item['is_past_cutoff'] != true) 
+                                      ? Theme.of(context).colorScheme.primary 
+                                      : Theme.of(context).colorScheme.error,
                                   shape: BoxShape.circle,
                                 ),
                               ),
@@ -829,7 +893,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                   const Spacer(),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: available ? handleAddToCart : null,
+                      onPressed: (available && item['is_past_cutoff'] != true) ? handleAddToCart : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).colorScheme.primary,
                         foregroundColor: Theme.of(context).colorScheme.onPrimary,

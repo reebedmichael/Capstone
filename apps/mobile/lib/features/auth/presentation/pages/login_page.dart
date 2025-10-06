@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../shared/constants/strings_af.dart';
 import '../../../../shared/constants/spacing.dart';
 import '../../../../shared/widgets/spys_primary_button.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 
 import '../../../../shared/providers/auth_form_providers.dart';
@@ -275,7 +274,7 @@ class LoginPage extends ConsumerWidget
                         child: Text(
                           'Registreer Hier',
                           style: AppTypography.labelLarge.copyWith(
-                            color: AppColors.primary,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
                       ),

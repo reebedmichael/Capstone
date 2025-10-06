@@ -6,7 +6,9 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:spys_api_client/spys_api_client.dart';
 import '../../../../shared/services/qr_service.dart';
+import '../../../../shared/services/auth_service.dart';
 import '../../../../shared/providers/theme_provider.dart';
+import '../../../../shared/widgets/simple_otp_dialog.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -125,12 +127,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ListTile(
                 leading: const Icon(Icons.vpn_key),
                 title: const Text("Verander Wagwoord"),
-                onTap: () {
-                  Fluttertoast.showToast(
-                    gravity: ToastGravity.TOP,
-                    msg: 'Wagwoord verander e-pos gestuur!',
-                  );
-                },
+                onTap: () => _handlePasswordReset(context),
               ),
             ],
           ),
@@ -148,15 +145,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   trailing: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.purple.shade100,
+                      color: Theme.of(context).colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
+                    child: Text(
                       "Admin",
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: Colors.purple,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
                     ),
                   ),
@@ -231,7 +228,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
           // Danger Zone
           Card(
-            color: Theme.of(context).colorScheme.errorContainer,
+            color: Colors.white,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -245,6 +242,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   ),
                   subtitle: Text(
                     "Hierdie aksies kan nie ongedaan gemaak word nie. Wees versigtig.",
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
                   ),
                 ),
                 ListTile(
@@ -390,6 +388,54 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         backgroundColor: Theme.of(context).colorScheme.error,
       );
     }
+  }
+
+  Future<void> _handlePasswordReset(BuildContext context) async {
+    final currentUser = Supabase.instance.client.auth.currentUser;
+
+    if (currentUser?.email == null) {
+      _showToast("Geen e-pos adres gevind vir huidige gebruiker", Colors.red);
+      return;
+    }
+
+    try {
+      _showToast("Stuur herstel e-pos...", Colors.blue);
+
+      final authService = AuthService();
+      await authService.resetPassword(email: currentUser!.email!);
+
+      _showToast("Herstel e-pos gestuur!", Colors.green);
+
+      // Show OTP dialog after email is sent
+      showDialog(
+        context: context,
+        builder: (context) => SimpleOtpDialog(
+          email: currentUser.email!,
+          onSuccess: () async {
+            Navigator.of(context).pop();
+            _showToast("Navigeer na wagwoord herstel bladsy...", Colors.blue);
+            await Future.delayed(const Duration(milliseconds: 500));
+            if (mounted) {
+              context.go('/password-reset');
+            }
+          },
+          onCancel: () {
+            Navigator.of(context).pop();
+          },
+        ),
+      );
+      
+    } catch (e) {
+      _showToast("Fout met stuur van herstel e-pos: ${e.toString()}", Colors.red);
+    }
+  }
+
+  void _showToast(String message, Color color) {
+    Fluttertoast.showToast(
+      msg: message,
+      backgroundColor: color,
+      toastLength: Toast.LENGTH_SHORT,
+    );
   }
 
   Widget _buildCard({

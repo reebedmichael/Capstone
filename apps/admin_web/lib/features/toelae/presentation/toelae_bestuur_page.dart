@@ -25,6 +25,7 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
   
   String _searchQuery = '';
   bool _showLowAllowance = false;
+  String _selectedUserType = 'alle'; // 'alle', 'studente', 'admin', 'laag'
 
   @override
   void initState() {
@@ -51,7 +52,7 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
       // Load users with balance (beursie_balans = allowance + wallet)
       final gebruikersData = await sb
           .from('gebruikers')
-          .select('gebr_id, gebr_naam, gebr_van, gebr_epos, beursie_balans, gebr_tipe:gebr_tipe_id(gebr_tipe_naam)')
+          .select('gebr_id, gebr_naam, gebr_van, gebr_epos, beursie_balans, gebr_tipe:gebr_tipe_id(gebr_tipe_naam), admin_tipes:admin_tipe_id(admin_tipe_naam)')
           .eq('is_aktief', true)
           .order('gebr_naam');
 
@@ -64,6 +65,11 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
         _toelaeTransaksies = transaksies;
         _loading = false;
       });
+      
+      // Debug: Print first user to see the data structure
+      if (gebruikersData.isNotEmpty) {
+        print('🔍 First user data: ${gebruikersData.first}');
+      }
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -85,7 +91,42 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
       }).toList();
     }
 
-    // Apply low balance filter
+    // Apply user type filter
+    if (_selectedUserType != 'alle') {
+      filtered = filtered.where((g) {
+        final adminTipe = g['admin_tipes']?['admin_tipe_naam']?.toString().toLowerCase() ?? '';
+        final gebrTipe = g['gebr_tipe']?.toString().toLowerCase() ?? '';
+        
+        // Debug print for admin filter
+        if (_selectedUserType == 'admin') {
+          print('🔍 User: ${g['gebr_naam']}, AdminTipe: $adminTipe, GebrTipe: $gebrTipe');
+        }
+        
+        switch (_selectedUserType) {
+          case 'studente':
+            return gebrTipe.contains('student') || gebrTipe.contains('studente');
+          case 'admin':
+            // Check if user has any admin type (not "None" or "Pending")
+            final isAdmin = adminTipe.isNotEmpty && 
+                   adminTipe != 'none' && 
+                   adminTipe != 'pending' &&
+                   (adminTipe.contains('primary') || 
+                    adminTipe.contains('secondary') || 
+                    adminTipe.contains('tertiary'));
+            if (_selectedUserType == 'admin') {
+              print('🔍 Is admin: $isAdmin for ${g['gebr_naam']}');
+            }
+            return isAdmin;
+          case 'laag':
+            final balans = (g['beursie_balans'] as num?)?.toDouble() ?? 0.0;
+            return balans < 50.0;
+          default:
+            return true;
+        }
+      }).toList();
+    }
+
+    // Apply low balance filter (separate from user type filter)
     if (_showLowAllowance) {
       filtered = filtered.where((g) {
         final balans = (g['beursie_balans'] as num?)?.toDouble() ?? 0.0;
@@ -247,37 +288,91 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
 
                     const SizedBox(height: 16),
 
-                    // User selector
-                    DropdownButtonFormField<Map<String, dynamic>>(
-                      value: _selectedGebruiker,
-                      decoration: const InputDecoration(
-                        labelText: 'Gebruiker',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.person),
-                      ),
-                      items: _filteredGebruikers.map((g) {
-                        final naam = '${g['gebr_naam'] ?? ''} ${g['gebr_van'] ?? ''}'.trim();
-                        final epos = g['gebr_epos'] ?? '';
-                        final balans = (g['beursie_balans'] as num?)?.toDouble() ?? 0.0;
-                        return DropdownMenuItem(
-                          value: g,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(naam.isEmpty ? 'Geen naam' : naam),
-                              Text(
-                                '$epos - Balans: R${balans.toStringAsFixed(2)}',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ],
+                    // Selected user display
+                    if (_selectedGebruiker != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
                           ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() => _selectedGebruiker = value);
-                      },
-                    ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.person,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${_selectedGebruiker!['gebr_naam'] ?? ''} ${_selectedGebruiker!['gebr_van'] ?? ''}'.trim(),
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${_selectedGebruiker!['gebr_epos'] ?? ''}',
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                  Text(
+                                    'Balans: R${((_selectedGebruiker!['beursie_balans'] as num?)?.toDouble() ?? 0.0).toStringAsFixed(2)}',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                setState(() => _selectedGebruiker = null);
+                              },
+                              icon: const Icon(Icons.close),
+                              tooltip: 'Verwyder gebruiker',
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ] else ...[
+                      // User selection prompt
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.person_add,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Kies \'n gebruiker uit die lys hieronder',
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
 
                     const SizedBox(height: 16),
 
@@ -362,16 +457,73 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
                             setState(() => _showLowAllowance = selected);
                           },
                         ),
+                        const SizedBox(width: 8),
+                        FilterChip(
+                          label: const Text('Alle'),
+                          selected: !_showLowAllowance && _searchQuery.isEmpty && _selectedUserType == 'alle',
+                          onSelected: (selected) {
+                            if (selected) {
+                              setState(() {
+                                _showLowAllowance = false;
+                                _searchQuery = '';
+                                _selectedUserType = 'alle';
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // User type filters
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        FilterChip(
+                          label: const Text('Studente'),
+                          selected: _selectedUserType == 'studente',
+                          onSelected: (selected) {
+                            setState(() {
+                              _selectedUserType = selected ? 'studente' : 'alle';
+                            });
+                          },
+                        ),
+                        FilterChip(
+                          label: const Text('Admins'),
+                          selected: _selectedUserType == 'admin',
+                          onSelected: (selected) {
+                            setState(() {
+                              _selectedUserType = selected ? 'admin' : 'alle';
+                            });
+                          },
+                        ),
+                        FilterChip(
+                          label: const Text('Lae Balans'),
+                          selected: _selectedUserType == 'laag',
+                          onSelected: (selected) {
+                            setState(() {
+                              _selectedUserType = selected ? 'laag' : 'alle';
+                            });
+                          },
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
 
                     // Search bar
                     TextField(
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Soek gebruikers',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.search),
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.search),
+                        hintText: 'Soek volgens naam of epos...',
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  setState(() => _searchQuery = '');
+                                },
+                              )
+                            : null,
                       ),
                       onChanged: (value) {
                         setState(() => _searchQuery = value);
@@ -380,72 +532,98 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
 
                     const SizedBox(height: 16),
 
+                    // Results count
+                    if (_searchQuery.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          '${_filteredGebruikers.length} van ${_gebruikers.length} gebruikers gevind',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+
                     if (_filteredGebruikers.isEmpty)
-                      const Center(
+                      Center(
                         child: Padding(
-                          padding: EdgeInsets.all(32),
-                          child: Text('Geen gebruikers gevind nie'),
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.search_off,
+                                size: 48,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                _searchQuery.isNotEmpty 
+                                    ? 'Geen gebruikers gevind vir "$_searchQuery"'
+                                    : 'Geen gebruikers gevind nie',
+                                style: Theme.of(context).textTheme.bodyLarge,
+                              ),
+                              if (_searchQuery.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                TextButton(
+                                  onPressed: () {
+                                    setState(() => _searchQuery = '');
+                                  },
+                                  child: const Text('Maak soek skoon'),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                       )
                     else
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _filteredGebruikers.length,
-                        itemBuilder: (context, index) {
-                          final g = _filteredGebruikers[index];
-                          final naam = '${g['gebr_naam'] ?? ''} ${g['gebr_van'] ?? ''}'.trim();
-                          final epos = g['gebr_epos'] ?? '';
-                          final balans = (g['beursie_balans'] as num?)?.toDouble() ?? 0.0;
-                          final tipe = g['gebr_tipe']?['gebr_tipe_naam'] ?? '';
+                      SizedBox(
+                        height: 400, // Fixed height to prevent overflow
+                        child: ListView.builder(
+                          itemCount: _filteredGebruikers.length,
+                          itemBuilder: (context, index) {
+                            final g = _filteredGebruikers[index];
+                            final naam = '${g['gebr_naam'] ?? ''} ${g['gebr_van'] ?? ''}'.trim();
+                            final epos = g['gebr_epos'] ?? '';
+                            final balans = (g['beursie_balans'] as num?)?.toDouble() ?? 0.0;
+                            final tipe = g['gebr_tipe']?['gebr_tipe_naam'] ?? '';
 
-                          return ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: balans < 50
-                                  ? Colors.orange
-                                  : Colors.green,
-                              child: Text(
-                                (naam.isNotEmpty ? naam[0] : 'U').toUpperCase(),
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ),
-                            title: Text(naam.isEmpty ? 'Geen naam' : naam),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(epos),
-                                if (tipe.isNotEmpty) Text('Tipe: $tipe'),
-                              ],
-                            ),
-                            trailing: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: balans < 50
-                                    ? Colors.orange.shade100
-                                    : Colors.green.shade100,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                'R${balans.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: balans < 50 ? Colors.orange : Colors.green,
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: balans < 50
+                                    ? Colors.orange
+                                    : Colors.green,
+                                child: Text(
+                                  (naam.isNotEmpty ? naam[0] : 'U').toUpperCase(),
+                                  style: const TextStyle(color: Colors.white),
                                 ),
                               ),
-                            ),
+                              title: Text(naam.isEmpty ? 'Geen naam' : naam),
+                              subtitle: Text(epos),
+                              trailing: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: balans < 50
+                                      ? Colors.orange.shade100
+                                      : Colors.green.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  'R${balans.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: balans < 50 ? Colors.orange : Colors.green,
+                                  ),
+                                ),
+                              ),
                             onTap: () {
                               setState(() => _selectedGebruiker = g);
-                              // Scroll to top to show form
-                              Scrollable.ensureVisible(
-                                context,
-                                duration: const Duration(milliseconds: 300),
-                              );
                             },
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
                   ],
                 ),

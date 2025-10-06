@@ -47,5 +47,11 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>We need camera access to scan QR codes for food pickup</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_dartobservatory._tcp</string>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>This app needs access to local network for development and debugging purposes</string>
 </dict>
 </plist>

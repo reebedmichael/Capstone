@@ -133,24 +133,40 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
   }
 
   Future<void> _loadSpyskaarte() async {
-    // fetch or create the current and next spyskaart rows based on week start dates
-    final huidigStart = _weekStartFor('huidige');
-    final volgendeStart = _weekStartFor('volgende');
+    final now = DateTime.now();
+    
+    // Determine if we should use next week as current week
+    // This happens if:
+    // 1. It's Saturday 17:00 or later, OR
+    // 2. It's Sunday or later (past the weekend transition)
+    final isSaturdayAfter17 = now.weekday == 6 && now.hour >= 17;
+    final isPastWeekend = now.weekday == 7; // Sunday
+    final shouldUseNextWeek = isSaturdayAfter17 || isPastWeekend;
+    
+    // Calculate the actual week starts
+    final currentWeekStart = _weekStartFor('huidige');
+    final nextWeekStart = _weekStartFor('volgende');
+    
+    // Determine which week to show as "current" and which as "next"
+    final actualCurrentWeekStart = shouldUseNextWeek ? nextWeekStart : currentWeekStart;
+    final actualNextWeekStart = shouldUseNextWeek 
+        ? nextWeekStart.add(const Duration(days: 7)) 
+        : nextWeekStart;
 
-    final huidigRaw = await weekRepo.getOrCreateSpyskaartForDate(huidigStart);
-    final volgendeRaw = await weekRepo.getOrCreateSpyskaartForDate(
-      volgendeStart,
-    );
+    // Fetch or create the spyskaart data
+    final currentRaw = await weekRepo.getOrCreateSpyskaartForDate(actualCurrentWeekStart);
+    final nextRaw = await weekRepo.getOrCreateSpyskaartForDate(actualNextWeekStart);
 
-    // map raw -> WeekSpyskaart used by your UI
+    // Map to WeekSpyskaart objects
     final huidige = _mapRawToWeekSpyskaart(
-      huidigRaw,
-      weekStart: huidigStart,
+      currentRaw,
+      weekStart: actualCurrentWeekStart,
       status: 'aktief',
     );
+    
     final volgende = _mapRawToWeekSpyskaart(
-      volgendeRaw,
-      weekStart: volgendeStart,
+      nextRaw,
+      weekStart: actualNextWeekStart,
       status: 'konsep',
     );
 

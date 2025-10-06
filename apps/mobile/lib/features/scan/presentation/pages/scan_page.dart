@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../shared/services/qr_service.dart';
-import '../../../../core/theme/app_colors.dart';
 
 class ScanPage extends StatefulWidget {
   const ScanPage({super.key});
@@ -107,8 +107,8 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
         // Show success dialog
         _showResultDialog(
           success: true,
-          title: 'Suksesvol Afgehaal',
-          message: result['message'] as String? ?? 'Item suksesvol afgehaal',
+          title: 'Bestelling Afgehandel',
+          message: result['message'] as String? ?? 'Bestelling suksesvol afgehandel',
           icon: FeatherIcons.checkCircle,
           iconColor: Theme.of(context).colorScheme.tertiary,
         );
@@ -187,7 +187,14 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
     if (!_hasPermission) {
       return Scaffold(
         appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.go('/settings'),
+          ),
           title: const Text('Skandeer QR Kode'),
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          foregroundColor: Theme.of(context).colorScheme.onSurface,
+          elevation: 1,
         ),
         body: Center(
           child: Padding(
@@ -228,7 +235,14 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/settings'),
+        ),
         title: const Text('Skandeer QR Kode'),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
+        elevation: 1,
         actions: [
           IconButton(
             icon: Icon(_scannerController.torchEnabled
@@ -281,7 +295,7 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
                 height: 280,
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: AppColors.primary,
+                    color: Theme.of(context).colorScheme.primary,
                     width: 3,
                   ),
                   borderRadius: BorderRadius.circular(16),
@@ -393,8 +407,8 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
         height: 40,
         decoration: BoxDecoration(
           border: Border(
-            top: BorderSide(color: AppColors.primary, width: 5),
-            left: BorderSide(color: AppColors.primary, width: 5),
+            top: BorderSide(color: Theme.of(context).colorScheme.primary, width: 5),
+            left: BorderSide(color: Theme.of(context).colorScheme.primary, width: 5),
           ),
         ),
       ),

@@ -9,7 +9,9 @@ import 'package:capstone_mobile/core/theme/app_typography.dart';
 import 'package:spys_api_client/spys_api_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../locator.dart';
+import '../../../../shared/state/order_refresh_notifier.dart';
 import 'dart:math' as math;
+import 'dart:async';
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});
@@ -25,6 +27,8 @@ class _OrdersPageState extends State<OrdersPage>
   bool isLoading = true;
 
   List<Map<String, dynamic>> orders = [];
+  StreamSubscription? _orderStatusSubscription;
+  StreamSubscription? _globalRefreshSubscription;
 
   @override
   void initState() {
@@ -34,6 +38,57 @@ class _OrdersPageState extends State<OrdersPage>
       if (!_tabController.indexIsChanging) setState(() {});
     });
     _loadOrders();
+    _setupOrderStatusListener();
+    _setupGlobalRefreshListener();
+  }
+
+  @override
+  void dispose() {
+    _orderStatusSubscription?.cancel();
+    _globalRefreshSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _setupOrderStatusListener() {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    // Listen for changes to the user's orders
+    _orderStatusSubscription = Supabase.instance.client
+        .from('bestelling')
+        .stream(primaryKey: ['best_id'])
+        .eq('gebr_id', user.id)
+        .listen((data) {
+      // When orders change, refresh the orders
+      debugPrint('Orders changed, refreshing...');
+      _loadOrders();
+      
+      // Show notification to user
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: 'Jou bestellings is opdateer!',
+          backgroundColor: Theme.of(context).colorScheme.primary,
+        );
+      }
+    });
+
+    // Note: Removed problematic stream listener for notifications
+    // The global refresh notifier will handle updates instead
+  }
+
+  void _setupGlobalRefreshListener() {
+    // Listen for global refresh events
+    _globalRefreshSubscription = OrderRefreshNotifier().refreshStream.listen((_) {
+      debugPrint('Global refresh triggered, reloading orders...');
+      _loadOrders();
+      
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: 'Bestelling opdateer!',
+          backgroundColor: Colors.green,
+        );
+      }
+    });
   }
 
   String formatDate(DateTime date) {

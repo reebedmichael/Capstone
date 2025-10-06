@@ -7,25 +7,52 @@ import 'shared/providers/theme_provider.dart';
 import 'bootstrap.dart';
 import 'locator.dart';
 import 'shared/services/notification_service.dart';
+import 'core/services/timezone_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    // Skip dotenv loading for now since .env files are not available
-    // await dotenv.load(fileName: kReleaseMode ? '.env.prod' : '.env.dev');
+    print('Starting app initialization...');
+    
+    // Initialize Supabase with error handling
+    try {
+      await bootstrapSupabase();
+      print('Supabase initialized');
+    } catch (e) {
+      print('Supabase initialization failed: $e');
+      // Continue without Supabase for now
+    }
 
-    await bootstrapSupabase();
+    try {
+      setupLocator();
+      print('Locator setup complete');
+    } catch (e) {
+      print('Locator setup failed: $e');
+    }
 
-    setupLocator();
+    try {
+      // Initialize timezone service
+      TimezoneService.initialize();
+      print('Timezone service initialized');
+    } catch (e) {
+      print('Timezone service failed: $e');
+    }
 
-    // Initialiseer notifikasie service
-    await NotificationService().initialize();
+    try {
+      // Initialiseer notifikasie service
+      await NotificationService().initialize();
+      print('Notification service initialized');
+    } catch (e) {
+      print('Notification service failed: $e');
+    }
 
+    print('All services initialized, starting app...');
     runApp(const MyApp());
   } catch (e) {
     print('Error initializing app: $e');
-    runApp(const ErrorApp());
+    print('Stack trace: ${StackTrace.current}');
+    runApp(ErrorApp(error: e.toString()));
   }
 }
 
@@ -53,33 +80,50 @@ class MyApp extends StatelessWidget {
 }
 
 class ErrorApp extends StatelessWidget {
-  const ErrorApp({super.key});
+  final String error;
+  const ErrorApp({super.key, required this.error});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              const Text(
-                'App Initialization Error',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const Text('Check console for details'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  // Restart app
-                  main();
-                },
-                child: const Text('Retry'),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                const Text(
+                  'App Initialization Error',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text('Check console for details'),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    error,
+                    style: const TextStyle(fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    // Restart app
+                    main();
+                  },
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
