@@ -29,6 +29,11 @@ class _OrdersPageState extends State<OrdersPage>
   List<Map<String, dynamic>> orders = [];
   StreamSubscription? _orderStatusSubscription;
   StreamSubscription? _globalRefreshSubscription;
+  Map<String, String> _kosItemIdToWeekDag = {};
+  Map<String, DateTime> _kosItemIdToCutoff = {};
+  Map<String, DateTime> _kosItemDayToCutoff = {}; // key: "<kos_item_id>|<dayLower>"
+  Map<String, String> _kosItemDayToWeekDag = {}; // key: "<kos_item_id>|<dayLower>" -> 'Maandag' etc
+  String? _currentSpyskaartNaam;
 
   @override
   void initState() {
@@ -38,6 +43,7 @@ class _OrdersPageState extends State<OrdersPage>
       if (!_tabController.indexIsChanging) setState(() {});
     });
     _loadOrders();
+    _loadCurrentWeekSpyskaartWeekdays();
     _setupOrderStatusListener();
     _setupGlobalRefreshListener();
   }
@@ -47,6 +53,67 @@ class _OrdersPageState extends State<OrdersPage>
     _orderStatusSubscription?.cancel();
     _globalRefreshSubscription?.cancel();
     super.dispose();
+  }
+
+  DateTime _getCurrentWeekStart() {
+    final now = DateTime.now();
+    final weekday = now.weekday; // Monday = 1
+    final daysToSubtract = weekday - 1;
+    return DateTime(now.year, now.month, now.day - daysToSubtract);
+  }
+
+  Future<void> _loadCurrentWeekSpyskaartWeekdays() async {
+    try {
+      final weekStart = _getCurrentWeekStart();
+      final spyskaartRepo = sl<SpyskaartRepository>();
+      final spyskaart = await spyskaartRepo.getAktieweSpyskaart(weekStart);
+      final Map<String, String> map = {};
+      final Map<String, DateTime> cutoffMap = {};
+      final Map<String, DateTime> cutoffByItemDay = {};
+      final Map<String, String> weekDagByItemDay = {};
+      final List<dynamic> items = (spyskaart?['spyskaart_kos_item'] as List? ?? []);
+      for (final dynamic raw in items) {
+        final Map<String, dynamic> row = Map<String, dynamic>.from(raw as Map);
+        final Map<String, dynamic> kos = Map<String, dynamic>.from(row['kos_item'] ?? {});
+        final String? kosItemId = kos['kos_item_id']?.toString();
+        String? dayName = (row['week_dag_naam'] as String?);
+        if (dayName == null || dayName.isEmpty) {
+          final Map<String, dynamic>? weekDagMap = row['week_dag'] as Map<String, dynamic>?;
+          dayName = weekDagMap != null ? weekDagMap['week_dag_naam'] as String? : null;
+        }
+        if (kosItemId != null && (dayName != null && dayName.isNotEmpty)) {
+          map[kosItemId] = dayName;
+        }
+
+        // Capture cutoff from the same spyskaart_kos_item record
+        if (kosItemId != null) {
+          final String? iso = row['spyskaart_kos_afsny_datum'] as String?;
+          final DateTime? dt = iso != null ? DateTime.tryParse(iso) : null;
+          if (dt != null) {
+            if (!cutoffMap.containsKey(kosItemId) || dt.isBefore(cutoffMap[kosItemId]!)) {
+              cutoffMap[kosItemId] = dt;
+            }
+            // Also capture per day mapping for precise correlation
+            final String? dayLower = dayName?.toLowerCase();
+            if (dayLower != null && dayLower.isNotEmpty) {
+              cutoffByItemDay['$kosItemId|$dayLower'] = dt;
+              weekDagByItemDay['$kosItemId|$dayLower'] = dayName!;
+            }
+          }
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _kosItemIdToWeekDag = map;
+          _kosItemIdToCutoff = cutoffMap;
+          _kosItemDayToCutoff = cutoffByItemDay;
+          _kosItemDayToWeekDag = weekDagByItemDay;
+          _currentSpyskaartNaam = (spyskaart?['spyskaart_naam'] as String?)?.toString();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading spyskaart weekdays: $e');
+    }
   }
 
   void _setupOrderStatusListener() {
@@ -63,13 +130,6 @@ class _OrdersPageState extends State<OrdersPage>
       debugPrint('Orders changed, refreshing...');
       _loadOrders();
       
-      // Show notification to user
-      if (mounted) {
-        Fluttertoast.showToast(
-          msg: 'Jou bestellings is opdateer!',
-          backgroundColor: Theme.of(context).colorScheme.primary,
-        );
-      }
     });
 
     // Note: Removed problematic stream listener for notifications
@@ -318,7 +378,7 @@ class _OrdersPageState extends State<OrdersPage>
       // 2) Load item details to compute refund and find parent order id
       final itemRow = await sb
           .from('bestelling_kos_item')
-          .select('best_id, item_hoev, kos_item:kos_item_id(kos_item_koste)')
+          .select('best_id, best_datum, item_hoev, kos_item_id, kos_item:kos_item_id(kos_item_koste)')
           .eq('best_kos_id', bestKosId)
           .maybeSingle();
 
@@ -332,6 +392,34 @@ class _OrdersPageState extends State<OrdersPage>
           Map<String, dynamic>.from(itemRow['kos_item'] ?? {});
       final num unitPrice = (kosItemMap['kos_item_koste'] as num?) ?? 0;
       final double cancelAmount = (unitPrice * qty).toDouble();
+
+      // 2b) Enforce cutoff: read from current week's linked spyskaart_kos_item
+      try {
+        final String? kosItemIdStr = itemRow['kos_item_id']?.toString();
+        // Derive the precise day key using best_datum if available
+        String? itemDayLowerKey;
+        final String? bestDatumStr3 = itemRow['best_datum'] as String?;
+        final DateTime? bestDatum3 = bestDatumStr3 != null ? DateTime.tryParse(bestDatumStr3) : null;
+        if (bestDatum3 != null) {
+          const daysL = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrydag', 'saterdag', 'sondag'];
+          itemDayLowerKey = daysL[bestDatum3.weekday - 1];
+        }
+        if (kosItemIdStr != null) {
+          // Ensure mapping is loaded
+          if (_kosItemDayToCutoff.isEmpty && _kosItemIdToCutoff.isEmpty) {
+            await _loadCurrentWeekSpyskaartWeekdays();
+          }
+          DateTime? cutoff;
+          if (itemDayLowerKey != null) {
+            cutoff = _kosItemDayToCutoff['$kosItemIdStr|$itemDayLowerKey'];
+          }
+          cutoff ??= _kosItemIdToCutoff[kosItemIdStr];
+          if (cutoff != null && DateTime.now().isAfter(cutoff)) {
+            Fluttertoast.showToast(msg: 'Kansellasie na afsny tyd is nie toegelaat nie');
+            return false;
+          }
+        }
+      } catch (_) {}
 
       // 3) Insert status row with updated timestamp
       await sb.from('best_kos_item_statusse').insert({
@@ -355,6 +443,16 @@ class _OrdersPageState extends State<OrdersPage>
           .from('bestelling')
           .update({'best_volledige_prys': newTotal})
           .eq('best_id', bestId);
+
+      // 5) Refund the item's value to the user's wallet
+      final String? userId = sb.auth.currentUser?.id;
+      if (userId != null && cancelAmount > 0) {
+        final refunded = await sl<BeursieRepository>()
+            .laaiBeursieOp(userId, cancelAmount, 'kansellasie');
+        if (!refunded) {
+          debugPrint('Kon nie beursie terugbetaling verwerk nie');
+        }
+      }
 
       await _loadOrders();
       Fluttertoast.showToast(msg: 'Item gekanselleer');
@@ -577,15 +675,25 @@ class _OrdersPageState extends State<OrdersPage>
       final bool isCompletedItem = lastStatus == 'Afgehandel' || lastStatus == 'Gekanselleer';
       if ((_tabController.index == 0 && !isCompletedItem) || (_tabController.index == 1 && isCompletedItem)) {
         anyVisible = true;
-        // Track earliest cutoff among all items (based on kos_item -> spyskaart_kos_item)
+        // Track earliest cutoff among all items using current week's spyskaart
         final kosItem = item['kos_item'] as Map<String, dynamic>? ?? {};
-        final List skItems = (kosItem['spyskaart_kos_item'] as List? ?? []);
-        for (final sk in skItems) {
-          final String? iso = (sk['spyskaart_kos_afsny_datum'] as String?);
-          if (iso == null) continue;
-          final dt = DateTime.tryParse(iso);
-          if (dt == null) continue;
-          if (cutoffForTab == null || dt.isBefore(cutoffForTab)) cutoffForTab = dt;
+        final String? kosItemIdStr = kosItem['kos_item_id']?.toString();
+        final DateTime? mappedCutoff =
+            kosItemIdStr != null ? _kosItemIdToCutoff[kosItemIdStr] : null;
+        if (mappedCutoff != null) {
+          if (cutoffForTab == null || mappedCutoff.isBefore(cutoffForTab)) {
+            cutoffForTab = mappedCutoff;
+          }
+        } else {
+          // Fallback to any attached spyskaart_kos_item on the item
+          final List skItems = (kosItem['spyskaart_kos_item'] as List? ?? []);
+          for (final sk in skItems) {
+            final String? iso = (sk['spyskaart_kos_afsny_datum'] as String?);
+            if (iso == null) continue;
+            final dt = DateTime.tryParse(iso);
+            if (dt == null) continue;
+            if (cutoffForTab == null || dt.isBefore(cutoffForTab)) cutoffForTab = dt;
+          }
         }
         break;
       }
@@ -664,18 +772,28 @@ class _OrdersPageState extends State<OrdersPage>
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            if (cutoffForTab != null)
+            if (_currentSpyskaartNaam != null && _currentSpyskaartNaam!.isNotEmpty) ...[
+              const SizedBox(height: 6),
               Row(
                 children: [
-                  const Icon(FeatherIcons.calendar, size: 14),
+                  const Icon(FeatherIcons.bookOpen, size: 14),
                   const SizedBox(width: 6),
-                  Text(
-                    'Afsny: ${formatDate(cutoffForTab)}',
-                    style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                  Flexible(
+                    child: Text(
+                      _currentSpyskaartNaam!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
                   ),
                 ],
               ),
+            ],
+            const SizedBox(height: 8),
             const SizedBox(height: 12),
             // Items
             Column(
@@ -698,34 +816,71 @@ class _OrdersPageState extends State<OrdersPage>
                 }
                 final bool isCompletedItem = lastStatus == 'Afgehandel' || lastStatus == 'Gekanselleer';
 
-                // Determine week day via kos_item -> spyskaart_kos_item -> week_dag if available, fallback to best_datum
+                // Determine week day per bestelling_kos_item via current week's spyskaart
                 String? weekDagNaam;
-                final List skItemsForThis = (food['spyskaart_kos_item'] as List? ?? []);
-                for (final sk in skItemsForThis) {
-                  final Map<String, dynamic>? weekDagMap = sk['week_dag'] as Map<String, dynamic>?;
-                  if (weekDagMap != null) {
-                    weekDagNaam = weekDagMap['week_dag_naam'] as String?;
-                    if (weekDagNaam != null && weekDagNaam!.isNotEmpty) break;
+                final String? kosItemIdStr = (food['kos_item_id'] ?? food['id'])?.toString();
+                String? dayLowerForWeek;
+                final String? bestDatumStr = item['best_datum'] as String?;
+                final DateTime? bestDatum = bestDatumStr != null ? DateTime.tryParse(bestDatumStr) : null;
+                if (bestDatum != null) {
+                  const daysLower = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrydag', 'saterdag', 'sondag'];
+                  dayLowerForWeek = daysLower[bestDatum.weekday - 1];
+                }
+                if (kosItemIdStr != null && dayLowerForWeek != null) {
+                  weekDagNaam = _kosItemDayToWeekDag['$kosItemIdStr|$dayLowerForWeek']
+                      ?? _kosItemIdToWeekDag[kosItemIdStr];
+                }
+                // Fallbacks
+                if (weekDagNaam == null) {
+                  final List skItemsForThis = (food['spyskaart_kos_item'] as List? ?? []);
+                  for (final sk in skItemsForThis) {
+                    final String? directWeekDagNaam = (sk['week_dag_naam'] as String?);
+                    if (directWeekDagNaam != null && directWeekDagNaam.isNotEmpty) {
+                      weekDagNaam = directWeekDagNaam;
+                      break;
+                    }
+                    final Map<String, dynamic>? weekDagMap = sk['week_dag'] as Map<String, dynamic>?;
+                    final String? nestedWeekDagNaam = weekDagMap != null
+                        ? weekDagMap['week_dag_naam'] as String?
+                        : null;
+                    if (nestedWeekDagNaam != null && nestedWeekDagNaam.isNotEmpty) {
+                      weekDagNaam = nestedWeekDagNaam;
+                      break;
+                    }
                   }
                 }
-                if (weekDagNaam == null) {
-                  final String? bestDatumStr = item['best_datum'] as String?;
-                  final DateTime? bestDatum = bestDatumStr != null ? DateTime.tryParse(bestDatumStr) : null;
-                  if (bestDatum != null) {
-                    const days = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrydag', 'Saterdag', 'Sondag'];
-                    weekDagNaam = days[bestDatum.weekday - 1];
-                  }
+                if (weekDagNaam == null && bestDatum != null) {
+                  const days = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrydag', 'Saterdag', 'Sondag'];
+                  weekDagNaam = days[bestDatum.weekday - 1];
                 }
 
-                // Compute cutoff date for this specific item via kos_item -> spyskaart_kos_item
+                // Compute cutoff date for this specific item from current week's spyskaart (per item, per day)
                 DateTime? itemCutoff;
-                final List skItemsForCutoff = (food['spyskaart_kos_item'] as List? ?? []);
-                for (final sk in skItemsForCutoff) {
-                  final String? iso = (sk['spyskaart_kos_afsny_datum'] as String?);
-                  if (iso == null) continue;
-                  final dt = DateTime.tryParse(iso);
-                  if (dt == null) continue;
-                  if (itemCutoff == null || dt.isBefore(itemCutoff)) itemCutoff = dt;
+                final String? itemKosIdStr = (food['kos_item_id'] ?? food['id'])?.toString();
+                String? itemDayLowerKey;
+                // Align the day used for cutoff lookup with the item's own date when present
+                final String? bestDatumStr2 = item['best_datum'] as String?;
+                final DateTime? bestDatum2 = bestDatumStr2 != null ? DateTime.tryParse(bestDatumStr2) : null;
+                if (bestDatum2 != null) {
+                  const daysL = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrydag', 'saterdag', 'sondag'];
+                  itemDayLowerKey = daysL[bestDatum2.weekday - 1];
+                } else if (itemKosIdStr != null && _kosItemIdToWeekDag.containsKey(itemKosIdStr)) {
+                  itemDayLowerKey = _kosItemIdToWeekDag[itemKosIdStr]!.toLowerCase();
+                }
+                if (itemKosIdStr != null && itemDayLowerKey != null) {
+                  itemCutoff = _kosItemDayToCutoff['$itemKosIdStr|$itemDayLowerKey'];
+                }
+                itemCutoff ??= (itemKosIdStr != null ? _kosItemIdToCutoff[itemKosIdStr] : null);
+                if (itemCutoff == null) {
+                  // Fallback: read attached spyskaart_kos_item data
+                  final List skItemsForCutoff = (food['spyskaart_kos_item'] as List? ?? []);
+                  for (final sk in skItemsForCutoff) {
+                    final String? iso = (sk['spyskaart_kos_afsny_datum'] as String?);
+                    if (iso == null) continue;
+                    final dt = DateTime.tryParse(iso);
+                    if (dt == null) continue;
+                    if (itemCutoff == null || dt.isBefore(itemCutoff)) itemCutoff = dt;
+                  }
                 }
 
                 // Hide/show items according to current tab
@@ -786,6 +941,23 @@ class _OrdersPageState extends State<OrdersPage>
                                       fontSize: 10,
                                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                                     ),
+                                  ),
+                                ],
+                                if (itemCutoff != null) ...[
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      const Icon(FeatherIcons.calendar, size: 10),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Afsny: ${formatDate(itemCutoff)}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                                 const SizedBox(height: 2),
