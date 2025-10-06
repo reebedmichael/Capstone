@@ -26,6 +26,22 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   bool isLoadingDiets = true;
   List<Map<String, dynamic>> _allDiets = const [];
   Set<String> _selectedDietIds = <String>{};
+  
+  Future<T> _retryWithBackoff<T>(Future<T> Function() action,
+      {int maxAttempts = 3, Duration initialDelay = const Duration(milliseconds: 400)}) async {
+    int attempt = 0;
+    Duration delay = initialDelay;
+    while (true) {
+      attempt++;
+      try {
+        return await action();
+      } catch (e) {
+        if (attempt >= maxAttempts) rethrow;
+        await Future.delayed(delay);
+        delay *= 2;
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -72,35 +88,40 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   Future<void> _loadDietData(String userId) async {
+    setState(() {
+      isLoadingDiets = true;
+    });
+    List<Map<String, dynamic>> allDietsLocal = const [];
+    Set<String> selectedLocal = <String>{};
     try {
-      setState(() {
-        isLoadingDiets = true;
-      });
-      // Laai alle dieet keuses
-      final all = await Supabase.instance.client
-          .from('dieet_vereiste')
-          .select('dieet_id, dieet_naam')
-          .order('dieet_naam');
-      // Laai gebruiker se huidige keuses
-      final rows = await Supabase.instance.client
-          .from('gebruiker_dieet_vereistes')
-          .select('dieet_id')
-          .eq('gebr_id', userId);
+      final client = Supabase.instance.client;
+      // Run both reads in parallel with timeout + retry (helps flaky mobile networks)
+      final results = await Future.wait([
+        _retryWithBackoff(() => client
+            .from('dieet_vereiste')
+            .select('dieet_id, dieet_naam')
+            .order('dieet_naam')
+            .timeout(const Duration(seconds: 12))),
+        _retryWithBackoff(() => client
+            .from('gebruiker_dieet_vereistes')
+            .select('dieet_id')
+            .eq('gebr_id', userId)
+            .timeout(const Duration(seconds: 12))),
+      ]);
 
-      final selected = rows
-          .map<String>((e) => e['dieet_id'].toString())
-          .toSet();
-
-      setState(() {
-        _allDiets = List<Map<String, dynamic>>.from(all);
-        _selectedDietIds = selected;
-        isLoadingDiets = false;
-      });
+      final all = List<Map<String, dynamic>>.from(results[0] as List);
+      final rows = List<Map<String, dynamic>>.from(results[1] as List);
+      allDietsLocal = all;
+      selectedLocal = rows.map<String>((e) => e['dieet_id'].toString()).toSet();
     } catch (e) {
       debugPrint('Kon nie dieet data laai nie: $e');
+      allDietsLocal = const [];
+      selectedLocal = <String>{};
+    } finally {
+      if (!mounted) return;
       setState(() {
-        _allDiets = const [];
-        _selectedDietIds = <String>{};
+        _allDiets = allDietsLocal;
+        _selectedDietIds = selectedLocal;
         isLoadingDiets = false;
       });
     }
