@@ -171,39 +171,37 @@ class _DashboardPageState extends State<DashboardPage> {
     {
       'id': 'notif_001',
       'type': 'critical',
-      'title': 'Payment System Issue',
+      'title': 'Betaal stelsel probleem',
       'message':
-          'Credit card processing is experiencing delays. Some orders may be affected.',
-      'time': '2 mins ago',
+          'Betaal stelsel ondervind probleme. Sommige bestellings mag beïnvloed word.',
+      'time': '2 mins terug',
       'actionRequired': true,
       'dismissed': false,
     },
     {
       'id': 'notif_002',
       'type': 'warning',
-      'title': 'Low Stock Alert',
-      'message':
-          'Chicken Breast inventory is running low at Downtown location (3 items remaining).',
-      'time': '15 mins ago',
+      'title': 'Lae Voorraad Waarskuwing',
+      'message': 'Spys se voorraad is laag by Leriba.',
+      'time': '15 mins terug',
       'actionRequired': true,
       'dismissed': false,
     },
     {
       'id': 'notif_003',
       'type': 'info',
-      'title': 'Delivery Partner Update',
-      'message':
-          'New delivery partner Sarah M. has joined the Uptown area team.',
-      'time': '1 hour ago',
+      'title': 'Aflewering opdateering',
+      'message': 'Sarah M. is by Leriba se aflewering span bygevoeg.',
+      'time': '1 hour terug',
       'actionRequired': false,
       'dismissed': false,
     },
     {
       'id': 'notif_004',
       'type': 'success',
-      'title': 'System Maintenance Complete',
+      'title': 'Systeem onderhoud voltooi',
       'message':
-          'Scheduled database optimization completed successfully. Performance improved by 15%.',
+          'Beplande databasis optimisering voltooi. Prestasie verbeter deur 15%.',
       'time': '2 hours ago',
       'actionRequired': false,
       'dismissed': false,
@@ -211,10 +209,10 @@ class _DashboardPageState extends State<DashboardPage> {
     {
       'id': 'notif_005',
       'type': 'warning',
-      'title': 'Weather Alert',
+      'title': 'Weer waarskuwing',
       'message':
-          'Heavy rain expected this evening. Consider adjusting delivery schedules.',
-      'time': '3 hours ago',
+          'Hoë reen is verwag vir die vandag. Pas aflewering tydlyne aan.',
+      'time': '3 hours terug',
       'actionRequired': true,
       'dismissed': false,
     },
@@ -511,7 +509,6 @@ class _DashboardPageState extends State<DashboardPage> {
       children: [
         // Dashboard Header
         DashboardHeader(
-          ingetekendGebruikerNaam: 'Admin User', // TODO: Get from auth service
           ongeleeseKennisgewings: importantNotifications
               .where((n) => n['dismissed'] == false)
               .length,
@@ -577,8 +574,6 @@ class _DashboardPageState extends State<DashboardPage> {
                     // Weekly Menu (right)
                     Expanded(
                       child: NextWeeksMenu(
-                        weeklyMenu: weeklyMenu,
-                        nextWeekDates: nextWeekDates,
                         onNavigateToMenu: widget.onNavigate ?? (page) {},
                       ),
                     ),

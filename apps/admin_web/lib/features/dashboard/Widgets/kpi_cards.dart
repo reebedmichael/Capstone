@@ -213,7 +213,7 @@ class _KpiCardsState extends State<KpiCards> {
       children: [
         _buildKpiCard(
           title: 'Totale verkope vandag',
-          icon: Icons.attach_money,
+          icon: Icons.money_sharp,
           value: _formatCurrency(todayEarnings),
           subtitle: Row(
             mainAxisSize: MainAxisSize.min,
@@ -278,11 +278,11 @@ class _KpiCardsState extends State<KpiCards> {
           valueIsLarge: false,
         ),
         _buildKpiCard(
-          title: 'Kos items nog nie afgehandel nie',
+          title: 'Kos Items',
           icon: Icons.schedule,
           value: uncompletedOrders.toString(),
           subtitle: const Text(
-            'Items wag vir afhandeling',
+            'Items nog nie afgehandel nie',
             style: TextStyle(fontSize: 12),
           ),
           width: _kpiWidth(widget.mediaWidth),

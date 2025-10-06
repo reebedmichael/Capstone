@@ -1,17 +1,162 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:spys_api_client/spys_api_client.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class NextWeeksMenu extends StatelessWidget {
-  final List<Map<String, dynamic>> weeklyMenu;
-  final List<DateTime> nextWeekDates;
+class NextWeeksMenu extends StatefulWidget {
   final Function(String) onNavigateToMenu;
 
-  const NextWeeksMenu({
-    Key? key,
-    required this.weeklyMenu,
-    required this.nextWeekDates,
-    required this.onNavigateToMenu,
-  }) : super(key: key);
+  const NextWeeksMenu({Key? key, required this.onNavigateToMenu})
+    : super(key: key);
+
+  @override
+  State<NextWeeksMenu> createState() => _NextWeeksMenuState();
+}
+
+class _NextWeeksMenuState extends State<NextWeeksMenu> {
+  late final AdminSpyskaartRepository _repo;
+  List<Map<String, dynamic>>? _weeklyMenu;
+  List<DateTime>? _nextWeekDates;
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    final supabaseClient = Supabase.instance.client;
+    _repo = AdminSpyskaartRepository(SupabaseDb(supabaseClient));
+    _loadNextWeeksMenu();
+  }
+
+  Future<void> _loadNextWeeksMenu() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      // Calculate next week's Monday (start of next week)
+      final now = DateTime.now();
+      // Calculate days until next Monday
+      // Monday = 1, Tuesday = 2, ..., Sunday = 7
+      // We want the Monday of next week, not this week
+      int daysUntilNextMonday;
+      if (now.weekday == 1) {
+        // Today is Monday, so next Monday is 7 days away
+        daysUntilNextMonday = 7;
+      } else {
+        // Calculate days until next Monday
+        daysUntilNextMonday = (8 - now.weekday) % 7;
+        if (daysUntilNextMonday == 0) {
+          // Today is Sunday, next Monday is tomorrow
+          daysUntilNextMonday = 1;
+        }
+      }
+      final nextWeekStart = now.add(Duration(days: daysUntilNextMonday));
+
+      // Get next week dates
+      _nextWeekDates = List.generate(
+        7,
+        (index) => nextWeekStart.add(Duration(days: index)),
+      );
+
+      // Get or create spyskaart for next week
+      final spyskaartData = await _repo.getOrCreateSpyskaartForDate(
+        nextWeekStart,
+      );
+
+      // Process the data into the expected format
+      _weeklyMenu = _processSpyskaartData(spyskaartData);
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> _processSpyskaartData(
+    Map<String, dynamic> spyskaartData,
+  ) {
+    final List<Map<String, dynamic>> weeklyMenu = [];
+    final List<Map<String, dynamic>> spyskaartItems =
+        List<Map<String, dynamic>>.from(
+          spyskaartData['spyskaart_kos_item'] ?? [],
+        );
+
+    // Group items by day
+    final Map<String, List<Map<String, dynamic>>> itemsByDay = {};
+    for (final item in spyskaartItems) {
+      final weekDag = item['week_dag'] as Map<String, dynamic>?;
+      if (weekDag != null) {
+        final dagNaam = weekDag['week_dag_naam'] as String?;
+        if (dagNaam != null) {
+          itemsByDay.putIfAbsent(dagNaam.toLowerCase(), () => []);
+          itemsByDay[dagNaam.toLowerCase()]!.add(item);
+        }
+      }
+    }
+
+    // Create menu for each day of the week
+    const dayNames = [
+      'maandag',
+      'dinsdag',
+      'woensdag',
+      'donderdag',
+      'vrydag',
+      'saterdag',
+      'sondag',
+    ];
+    const dayNamesEn = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+
+    for (int i = 0; i < 7; i++) {
+      final dayName = dayNames[i];
+      final dayNameEn = dayNamesEn[i];
+      final dayItems = itemsByDay[dayName] ?? [];
+
+      // Extract food item names
+      final List<String> itemNames = [];
+      int readyItems = 0;
+
+      for (final item in dayItems) {
+        final kosItem = item['kos_item'] as Map<String, dynamic>?;
+        if (kosItem != null) {
+          final itemName = kosItem['kos_item_naam'] as String?;
+          if (itemName != null) {
+            itemNames.add(itemName);
+
+            // Check if item is ready (has cutoff date set)
+            final cutoffDate = item['spyskaart_kos_afsny_datum'];
+            if (cutoffDate != null) {
+              readyItems++;
+            }
+          }
+        }
+      }
+
+      weeklyMenu.add({
+        'day': dayNameEn,
+        'date': _nextWeekDates![i],
+        'items': itemNames,
+        'totalItems': itemNames.length,
+        'readyItems': readyItems,
+      });
+    }
+
+    return weeklyMenu;
+  }
 
   String formatShortDate(DateTime d) {
     // e.g., Oct 21
@@ -51,147 +196,241 @@ class NextWeeksMenu extends StatelessWidget {
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        '${formatShortDate(nextWeekDates[0])} - ${formatShortDate(nextWeekDates[6])}',
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 12,
+                      if (_nextWeekDates != null)
+                        Text(
+                          '${formatShortDate(_nextWeekDates![0])} - ${formatShortDate(_nextWeekDates![6])}',
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
                         ),
-                      ),
                       const SizedBox(height: 6),
-                      Text(
-                        'Sperdatum: ${formatShortDate(nextWeekDates[6])} ${nextWeekDates[6].year}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
+                      if (_nextWeekDates != null)
+                        Text(
+                          'Sperdatum: ${formatShortDate(_nextWeekDates![6])} ${_nextWeekDates![6].year}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.red,
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
-                ElevatedButton(
-                  onPressed: () => context.go('/week_spyskaart'),
-
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
-                  child: Text('Meer'),
+                Row(
+                  children: [
+                    if (_isLoading)
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () => context.go('/week_spyskaart'),
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                      child: Text('Meer'),
+                    ),
+                  ],
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 320),
-              child: ListView.separated(
-                itemCount: weeklyMenu.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (context, i) {
-                  final dayMenu = weeklyMenu[i];
-                  final ready = dayMenu['readyItems'] as int;
-                  final total = dayMenu['totalItems'] as int;
-                  Color dotColor;
-                  if (ready == total) {
-                    dotColor = Colors.green;
-                  } else if (ready > total / 2) {
-                    dotColor = Colors.amber;
-                  } else {
-                    dotColor = Colors.red;
-                  }
-                  final items = List<String>.from(dayMenu['items']);
-                  return Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  dayMenu['day'],
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  formatShortDate(dayMenu['date']),
-                                  style: const TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: ready == total
-                                        ? Colors.grey.shade200
-                                        : Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    '$ready/$total',
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  width: 10,
-                                  height: 10,
-                                  decoration: BoxDecoration(
-                                    color: dotColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+            // Content area
+            if (_isLoading)
+              Container(
+                height: 320,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.grey.shade100,
+                ),
+                child: const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Laai volgende week se spyskaart...'),
+                    ],
+                  ),
+                ),
+              )
+            else if (_errorMessage != null)
+              Container(
+                height: 320,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.red.shade50,
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error, color: Colors.red, size: 48),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Kon nie spyskaart laai nie',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
                         ),
-                        const SizedBox(height: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            for (
-                              int j = 0;
-                              j < (items.length > 2 ? 2 : items.length);
-                              j++
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _errorMessage!,
+                        style: TextStyle(color: Colors.red.shade700),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: _loadNextWeeksMenu,
+                        icon: Icon(Icons.refresh),
+                        label: Text('Probeer weer'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else if (_weeklyMenu == null || _weeklyMenu!.isEmpty)
+              Container(
+                height: 350,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.grey.shade100,
+                ),
+                child: const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.restaurant_menu, size: 48, color: Colors.grey),
+                      SizedBox(height: 8),
+                      Text(
+                        'Geen spyskaart vir volgende week nie',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Klik "Meer" om een te skep',
+                        style: TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 320),
+                child: ListView.separated(
+                  itemCount: _weeklyMenu!.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, i) {
+                    final dayMenu = _weeklyMenu![i];
+                    final total = dayMenu['totalItems'] as int;
+
+                    final items = List<String>.from(dayMenu['items']);
+                    return Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    dayMenu['day'],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    formatShortDate(dayMenu['date']),
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade200,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '$total',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          if (items.isEmpty)
+                            Text(
+                              'Nog geen items vir hierdie dag nie!',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.red,
+                                fontStyle: FontStyle.italic,
+                              ),
                             )
-                              Text(
-                                '• ${items[j]}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            if (items.length > 2)
-                              Text(
-                                '• +${items.length - 2} more items',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                          else
+                            Wrap(
+                              spacing: 8.0, // Horizontal spacing between items
+                              runSpacing: 4.0, // Vertical spacing between lines
+                              children: [
+                                for (int j = 0; j < items.length; j++)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.deepOrange.shade50,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: Colors.deepOrange.shade200,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      items[j],
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.black,
+
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
-            ),
           ],
         ),
       ),
