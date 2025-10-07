@@ -7,6 +7,7 @@ import 'package:capstone_admin/features/dashboard/Widgets/todays_orders.dart';
 import 'package:capstone_admin/features/dashboard/Widgets/next_weeks_menu.dart';
 import 'package:capstone_admin/features/dashboard/Widgets/pending_user_approvals.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 typedef NavigateCallback = void Function(String page);
 
@@ -21,6 +22,7 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   String selectedLocation = 'all';
+  int _unreadNotificationCount = 0;
 
   List<Map<String, dynamic>> todaysOrders = [
     {
@@ -164,57 +166,6 @@ class _DashboardPageState extends State<DashboardPage> {
     {
       'action': 'Menu item "Spicy Burger" marked as out of stock',
       'time': '1 hour ago',
-    },
-  ];
-
-  List<Map<String, dynamic>> importantNotifications = [
-    {
-      'id': 'notif_001',
-      'type': 'critical',
-      'title': 'Betaal stelsel probleem',
-      'message':
-          'Betaal stelsel ondervind probleme. Sommige bestellings mag beïnvloed word.',
-      'time': '2 mins terug',
-      'actionRequired': true,
-      'dismissed': false,
-    },
-    {
-      'id': 'notif_002',
-      'type': 'warning',
-      'title': 'Lae Voorraad Waarskuwing',
-      'message': 'Spys se voorraad is laag by Leriba.',
-      'time': '15 mins terug',
-      'actionRequired': true,
-      'dismissed': false,
-    },
-    {
-      'id': 'notif_003',
-      'type': 'info',
-      'title': 'Aflewering opdateering',
-      'message': 'Sarah M. is by Leriba se aflewering span bygevoeg.',
-      'time': '1 hour terug',
-      'actionRequired': false,
-      'dismissed': false,
-    },
-    {
-      'id': 'notif_004',
-      'type': 'success',
-      'title': 'Systeem onderhoud voltooi',
-      'message':
-          'Beplande databasis optimisering voltooi. Prestasie verbeter deur 15%.',
-      'time': '2 hours ago',
-      'actionRequired': false,
-      'dismissed': false,
-    },
-    {
-      'id': 'notif_005',
-      'type': 'warning',
-      'title': 'Weer waarskuwing',
-      'message':
-          'Hoë reen is verwag vir die vandag. Pas aflewering tydlyne aan.',
-      'time': '3 hours terug',
-      'actionRequired': true,
-      'dismissed': false,
     },
   ];
 
@@ -461,25 +412,6 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  void dismissNotification(String id) {
-    setState(() {
-      importantNotifications = importantNotifications.map((notif) {
-        if (notif['id'] == id) {
-          final copy = Map<String, dynamic>.from(notif);
-          copy['dismissed'] = true;
-          return copy;
-        }
-        return notif;
-      }).toList();
-    });
-  }
-
-  List<Map<String, dynamic>> getActiveNotifications() {
-    return importantNotifications
-        .where((n) => n['dismissed'] == false)
-        .toList();
-  }
-
   String formatShortDate(DateTime d) {
     // e.g., Oct 21
     const months = [
@@ -509,14 +441,10 @@ class _DashboardPageState extends State<DashboardPage> {
       children: [
         // Dashboard Header
         DashboardHeader(
-          ongeleeseKennisgewings: importantNotifications
-              .where((n) => n['dismissed'] == false)
-              .length,
-          onNavigeerNaKennisgewings: () {
-            // TODO: Navigate to notifications page
-          },
+          ongeleeseKennisgewings: _unreadNotificationCount,
+          onNavigeerNaKennisgewings: () => context.go('/kennisgewings'),
           onUitteken: () {
-            // TODO: Handle sign out
+            // No longer needed - handled internally by DashboardHeader
           },
         ),
 
@@ -542,8 +470,11 @@ class _DashboardPageState extends State<DashboardPage> {
                     Expanded(
                       flex: 1,
                       child: ImportantNotifications(
-                        importantNotifications: importantNotifications,
-                        onDismissNotification: dismissNotification,
+                        onNotificationCountChanged: (count) {
+                          setState(() {
+                            _unreadNotificationCount = count;
+                          });
+                        },
                       ),
                     ),
                   ],

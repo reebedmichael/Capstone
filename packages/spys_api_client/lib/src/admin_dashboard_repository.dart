@@ -150,51 +150,108 @@ class AdminDashboardRepository {
     };
   }
 
-  // Fetch total sales for every day in current week (Mon-Sun)
-  Future<List<Map<String, dynamic>>> fetchWeeklySales() async {
+  // Fetch total amount of items for each day in current week (Mon-Sun)
+  Future<List<Map<String, dynamic>>> fetchWeeklyItemCount() async {
     final now = DateTime.now();
-    final weekday = now.weekday; // 1 (Mon) - 7 (Sun)
-    final startOfWeek = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).subtract(Duration(days: weekday - 1)); // Maandag
 
-    final startStr = startOfWeek.toIso8601String();
-    final endStr = now.toIso8601String();
+    // Start of week (Monday)
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final monday = DateTime(
+      startOfWeek.year,
+      startOfWeek.month,
+      startOfWeek.day,
+    );
 
+    // End of week (Sunday, 23:59:59)
+    final sunday = monday.add(const Duration(days: 6));
+    final mondayStr = monday.toIso8601String();
+    final sundayStr = DateTime(
+      sunday.year,
+      sunday.month,
+      sunday.day,
+      23,
+      59,
+      59,
+    ).toIso8601String();
+
+    // Directly query bestelling_kos_item by best_datum
     final res = await _sb
-        .from('bestelling')
-        .select('best_volledige_prys, best_geskep_datum')
-        .gte('best_geskep_datum', startStr)
-        .lte('best_geskep_datum', endStr);
+        .from('bestelling_kos_item')
+        .select('item_hoev, best_datum')
+        .gte('best_datum', mondayStr)
+        .lte('best_datum', sundayStr);
 
-    // Initialize map for each day of the week (Mon-Sun)
-    final salesMap = <DateTime, double>{
-      for (int i = 0; i < 7; i++) startOfWeek.add(Duration(days: i)): 0.0,
-    };
+    // Aggregate counts per day
+    final Map<String, int> counts = {};
+    for (final row in res) {
+      final bestDatumStr = row['best_datum'] as String;
+      final bestDatum = DateTime.parse(bestDatumStr);
+      final dayKey = DateTime(
+        bestDatum.year,
+        bestDatum.month,
+        bestDatum.day,
+      ).toIso8601String();
 
-    for (var row in res as List) {
-      final date = DateTime.parse(row['best_geskep_datum'] as String);
-      final dayKey = DateTime(date.year, date.month, date.day); // normalise
-      if (salesMap.containsKey(dayKey)) {
-        salesMap[dayKey] =
-            (salesMap[dayKey] ?? 0) +
-            (row['best_volledige_prys'] as num).toDouble();
-      }
+      final qty = row['item_hoev'] as int? ?? 0;
+      counts[dayKey] = (counts[dayKey] ?? 0) + qty;
     }
 
-    // Convert to list of maps sorted by date
-    final salesList =
-        salesMap.entries.map((e) {
-          return {
-            'date': e.key.toIso8601String().split('T').first,
-            'totalSales': e.value,
-          };
-        }).toList()..sort(
-          (a, b) => (a['date'] as String).compareTo(b['date'] as String),
+    // Ensure all days Mon–Sun are present
+    final List<Map<String, dynamic>> result = [];
+    for (int i = 0; i < 7; i++) {
+      final d = monday.add(Duration(days: i));
+      final key = DateTime(d.year, d.month, d.day).toIso8601String();
+      result.add({'date': key, 'totalItems': counts[key] ?? 0});
+    }
+
+    return result;
+  }
+
+  //Fetch unread notifications for userid(UUID)
+  //from 'kennisgewings' get * wher gebr_id==userid and kennis_gelees==false and get kennis_tipe_naam from kennisgewings_tipes where kennis_tipe_id
+  Future<List<Map<String, dynamic>>> fetchUnreadNotifications(
+    String userId,
+  ) async {
+    try {
+      final res = await _sb
+          .from('kennisgewings')
+          .select('*, kennis_tipe:kennis_tipe_id(kennis_tipe_naam)')
+          .eq('gebr_id', userId)
+          .eq('kennis_gelees', false)
+          .order('kennis_geskep_datum', ascending: false);
+
+      // Flatten the nested JSON structure
+      return (res as List).map((e) {
+        final notification = Map<String, dynamic>.from(
+          e as Map<String, dynamic>,
         );
 
-    return salesList;
+        // Extract kennis_tipe_naam from nested structure
+        final kennisTipe = notification['kennis_tipe'] as Map<String, dynamic>?;
+        if (kennisTipe != null) {
+          notification['kennis_tipe_naam'] = kennisTipe['kennis_tipe_naam'];
+        }
+
+        // Remove the nested kennis_tipe object to avoid confusion
+        notification.remove('kennis_tipe');
+
+        return notification;
+      }).toList();
+    } catch (e, st) {
+      print('Fout in fetchUnreadNotifications: $e\n$st');
+      return [];
+    }
+  }
+
+  //Mark notification as read by kennis_id
+  Future<void> markNotificationAsRead(String kennisId) async {
+    try {
+      await _sb
+          .from('kennisgewings')
+          .update({'kennis_gelees': true})
+          .eq('kennis_id', kennisId);
+    } catch (e, st) {
+      print('Fout in markNotificationAsRead: $e\n$st');
+    }
   }
 }

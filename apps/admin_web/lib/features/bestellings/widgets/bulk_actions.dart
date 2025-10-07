@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../types/order.dart';
-import '../../utils/status_utils.dart';
-import '../../constants/order_constants.dart';
+import '../../../shared/types/order.dart';
+import '../../../shared/utils/status_utils.dart';
+import '../../../shared/constants/order_constants.dart';
+import 'status_update_confirmation.dart';
 
 typedef BulkUpdateCallback =
     Future<void> Function(List<String> orderIds, OrderStatus status);
@@ -37,6 +38,7 @@ class _StatusOption {
 class _BulkActionsState extends State<BulkActions> {
   final Set<String> _selectedOrders = {};
   OrderStatus? _bulkStatus;
+  bool _isUpdating = false;
 
   /// Helper to map OrderStatus enum to a human-readable label.
   String _getStatusLabel(OrderStatus status) {
@@ -72,15 +74,51 @@ class _BulkActionsState extends State<BulkActions> {
   /// Handles the bulk update action, calling the callback and resetting state.
   Future<void> _handleBulkUpdate() async {
     if (_selectedOrders.isNotEmpty && _bulkStatus != null) {
-      try {
-        await widget.onBulkUpdate(_selectedOrders.toList(), _bulkStatus!);
-        setState(() {
-          _selectedOrders.clear();
-          _bulkStatus = null;
-        });
-      } catch (e) {
-        // Error handling is done in the parent widget
-        rethrow;
+      // Get the orders that will be updated
+      final ordersToUpdate = widget.orders
+          .where((order) => _selectedOrders.contains(order.id))
+          .toList();
+
+      if (ordersToUpdate.isEmpty) return;
+
+      // Show confirmation dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: true,
+          builder: (context) => StatusUpdateConfirmationDialog(
+            isOpen: true,
+            onClose: () => Navigator.of(context).pop(),
+            onConfirm: () async {
+              setState(() {
+                _isUpdating = true;
+              });
+
+              try {
+                await widget.onBulkUpdate(
+                  _selectedOrders.toList(),
+                  _bulkStatus!,
+                );
+                setState(() {
+                  _selectedOrders.clear();
+                  _bulkStatus = null;
+                });
+              } finally {
+                if (mounted) {
+                  setState(() {
+                    _isUpdating = false;
+                  });
+                }
+              }
+            },
+            orders: ordersToUpdate,
+            currentStatus: ordersToUpdate
+                .first
+                .status, // Assuming all have same current status
+            newStatus: _bulkStatus!,
+            isBulkUpdate: true,
+          ),
+        );
       }
     }
   }
@@ -162,16 +200,22 @@ class _BulkActionsState extends State<BulkActions> {
             // Conditional "Update" Button or "No eligible orders" message
             if (currentBulkStatus != null)
               if (_selectedOrders.isNotEmpty)
-                ElevatedButton(
-                  onPressed: () async => await _handleBulkUpdate(),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: Text(
-                    '${OrderConstants.getUiString('updateCount')} ${_selectedOrders.length}',
-                  ),
-                )
+                _isUpdating
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : ElevatedButton(
+                        onPressed: () async => await _handleBulkUpdate(),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          '${OrderConstants.getUiString('updateCount')} ${_selectedOrders.length}',
+                        ),
+                      )
               else
                 Expanded(
                   child: Text(

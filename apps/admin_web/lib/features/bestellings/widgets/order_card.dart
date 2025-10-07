@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../types/order.dart';
-import '../../utils/status_utils.dart';
-import '../../constants/order_constants.dart';
-import '../common_widgets.dart';
+import '../../../shared/types/order.dart';
+import '../../../shared/utils/status_utils.dart';
+import '../../../shared/constants/order_constants.dart';
+import '../../../shared/widgets/common_widgets.dart';
 import 'cancel_confirmation.dart';
 import 'status_badge.dart';
+import 'status_update_confirmation.dart';
 
 class OrderCard extends StatefulWidget {
   final Order order;
@@ -30,6 +31,8 @@ class OrderCard extends StatefulWidget {
 }
 
 class _OrderCardState extends State<OrderCard> {
+  bool _isUpdatingStatus = false;
+
   @override
   Widget build(BuildContext context) {
     final order = widget.order;
@@ -229,13 +232,22 @@ class _OrderCardState extends State<OrderCard> {
       children: [
         StatusBadge(status: widget.order.status),
         if (canProgressStatus && nextStatus != null)
-          ActionButton(
-            onPressed: () async =>
-                await widget.onUpdateStatus(widget.order.id, nextStatus),
-            icon: Icons.arrow_forward,
-            label: OrderConstants.getUiString('updateStatus'),
-            isOutlined: true,
-          ),
+          _isUpdatingStatus
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : ActionButton(
+                  onPressed: () => _showStatusUpdateDialog(
+                    context,
+                    widget.order,
+                    nextStatus,
+                  ),
+                  icon: Icons.arrow_forward,
+                  label: OrderConstants.getUiString('updateStatus'),
+                  isOutlined: true,
+                ),
       ],
     );
   }
@@ -257,7 +269,7 @@ class _OrderCardState extends State<OrderCard> {
           label: OrderConstants.getUiString('viewDetails'),
           isOutlined: true,
         ),
-        if (canCancel && cancellableItemsCount > 0)
+        if (canCancel && cancellableItemsCount > 0 && !widget.isPastOrder)
           ActionButton(
             onPressed: () => _showCancelDialog(
               context,
@@ -270,6 +282,40 @@ class _OrderCardState extends State<OrderCard> {
             isDestructive: true,
           ),
       ],
+    );
+  }
+
+  void _showStatusUpdateDialog(
+    BuildContext context,
+    Order order,
+    OrderStatus newStatus,
+  ) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => StatusUpdateConfirmationDialog(
+        isOpen: true,
+        onClose: () => Navigator.of(context).pop(),
+        onConfirm: () async {
+          setState(() {
+            _isUpdatingStatus = true;
+          });
+
+          try {
+            await widget.onUpdateStatus(order.id, newStatus);
+          } finally {
+            if (mounted) {
+              setState(() {
+                _isUpdatingStatus = false;
+              });
+            }
+          }
+        },
+        orders: [order],
+        currentStatus: order.status,
+        newStatus: newStatus,
+        isBulkUpdate: false,
+      ),
     );
   }
 

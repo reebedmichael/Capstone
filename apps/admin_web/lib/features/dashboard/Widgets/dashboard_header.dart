@@ -2,8 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:spys_api_client/spys_api_client.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../shared/providers/auth_providers.dart';
 
-class DashboardHeader extends StatefulWidget {
+class DashboardHeader extends ConsumerStatefulWidget {
   final int ongeleeseKennisgewings;
   final VoidCallback onNavigeerNaKennisgewings;
   final VoidCallback onUitteken;
@@ -16,10 +19,10 @@ class DashboardHeader extends StatefulWidget {
   });
 
   @override
-  State<DashboardHeader> createState() => _DashboardHeaderState();
+  ConsumerState<DashboardHeader> createState() => _DashboardHeaderState();
 }
 
-class _DashboardHeaderState extends State<DashboardHeader> {
+class _DashboardHeaderState extends ConsumerState<DashboardHeader> {
   late final GebruikersRepository _gebruikersRepo;
   String? _userName;
   String? _userSurname;
@@ -81,6 +84,25 @@ class _DashboardHeaderState extends State<DashboardHeader> {
       return "Welkom terug, $_userName";
     } else {
       return "Welkom terug, Admin";
+    }
+  }
+
+  void _handleLogout() async {
+    try {
+      final authService = ref.read(authServiceProvider);
+      await authService.signOut();
+      if (mounted) {
+        context.go('/teken_in');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fout met teken uit: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -177,7 +199,7 @@ class _DashboardHeaderState extends State<DashboardHeader> {
               ),
               const SizedBox(width: 12),
               OutlinedButton(
-                onPressed: widget.onUitteken,
+                onPressed: _handleLogout,
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,

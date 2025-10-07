@@ -56,6 +56,13 @@ class OrderConstants {
     'totalItems': 'totaal',
     'filtered': 'Gefiltreer',
     'clearFilter': 'Vee filter uit om alle items te wys',
+    'confirmStatusUpdate': 'Bevestig Status Opdatering',
+    'confirmBulkStatusUpdate': 'Bevestig Bulk Status Opdatering',
+    'statusUpdateIrreversible':
+        'Hierdie status opdatering kan nie ongedaan gemaak word nie.',
+    'currentStatus': 'Huidige Status',
+    'newStatus': 'Nuwe Status',
+    'cancel': 'Kanseleer',
   };
 
   // Helper methods

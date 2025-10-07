@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../constants/order_constants.dart';
+import '../../../shared/constants/order_constants.dart';
 
 class DayFilters extends StatelessWidget {
   final String selectedDay;

@@ -1,4 +1,4 @@
-import 'package:capstone_admin/shared/widgets/Bestellings/kampus_filter.dart';
+import 'package:capstone_admin/features/bestellings/widgets/kampus_filter.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:spys_api_client/spys_api_client.dart'
@@ -8,12 +8,12 @@ import '../../../shared/types/order.dart';
 import '../../../shared/utils/status_utils.dart';
 import '../../../shared/constants/order_constants.dart';
 import '../../../shared/widgets/common_widgets.dart';
-import '../../../shared/widgets/Bestellings/order_search.dart';
-import '../../../shared/widgets/Bestellings/day_filter_orders.dart';
-import '../../../shared/widgets/Bestellings/day_item_summary.dart';
-import '../../../shared/widgets/Bestellings/order_card.dart';
-import '../../../shared/widgets/Bestellings/order_details.dart';
-import '../../../shared/widgets/Bestellings/bulk_actions.dart';
+import '../widgets/order_search.dart';
+import '../widgets/day_filter_orders.dart';
+import '../widgets/day_item_summary.dart';
+import '../widgets/order_card.dart';
+import '../widgets/order_details.dart';
+import '../widgets/bulk_actions.dart';
 
 // Use shared constants
 
@@ -154,10 +154,16 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
   // Filtering logic: Splits orders by food item for the daily view.
   List<Order> get filteredOrders {
     List<Order> baseOrders;
-    // Geskiedenis (History) view: Show original orders that are fully completed.
+    // Geskiedenis (History) view: Show original orders that are fully completed or cancelled.
     if (selectedDay == "Geskiedenis") {
       baseOrders =
-          orders.where((order) => order.status == OrderStatus.done).toList()
+          orders
+              .where(
+                (order) =>
+                    order.status == OrderStatus.done ||
+                    order.status == OrderStatus.cancelled,
+              )
+              .toList()
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } else {
       final List<Order> splitOrders = [];

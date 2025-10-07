@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import '../../types/order.dart';
-import '../../constants/order_constants.dart';
+import '../../../shared/types/order.dart';
+import '../../../shared/constants/order_constants.dart';
 
 class DayItemsSummary extends StatelessWidget {
   final List<Order> orders;
