@@ -12,6 +12,7 @@ class AdminPermissions {
   static const String secondaryAdminId = 'ea9be0db-f762-45a6-8f78-84084ba4751d';
   static const String tierseriyAdminId = '6afec372-3294-49fd-a79f-fc244406ee57';
   static const String pendingAdminId = 'f5fde633-eea3-4d58-8509-fb80a74f68a6';
+  static const String noneAdminId = 'none-admin-id'; // Will be determined from database
   
   // User type IDs
   static const String eksternTypeId = '4b2cadfb-90ee-4f89-931d-2b1e7abbc284';
@@ -101,6 +102,8 @@ class AdminPermissions {
     final adminTipeId = user['admin_tipe_id'];
     
     // Show approve only for users where is_aktief = false AND admin_tipe_id = Pending
+    // Users with "None" admin type should NOT be considered pending, even if inactive
+    // Users with "None" admin type are already registered with default values
     return !isActive && adminTipeId == pendingAdminId;
   }
   

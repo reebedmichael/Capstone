@@ -1,4 +1,4 @@
-import 'dart:async';
+// import 'dart:async'; // Commented out - not needed since timer is disabled
 import 'package:flutter/material.dart';
 import 'package:flutter_feather_icons/flutter_feather_icons.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -13,8 +13,8 @@ class QrPage extends StatefulWidget {
 }
 
 class _QrPageState extends State<QrPage> {
-  Timer? _refreshTimer;
-  int _refreshCountdown = 10;
+  // Timer? _refreshTimer; // Commented out - not needed since QR codes are single-use
+  // int _refreshCountdown = 10; // Commented out - not needed since QR codes are single-use
   Map<String, QrPayload> _qrPayloads = {};
 
   @override
@@ -22,28 +22,44 @@ class _QrPageState extends State<QrPage> {
     super.initState();
     if (widget.order != null) {
       _generateQrPayloads();
-      _startRefreshTimer();
+      // _startRefreshTimer(); // Commented out - not needed since QR codes are single-use
     }
   }
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
+    // _refreshTimer?.cancel(); // Commented out - not needed since QR codes are single-use
     super.dispose();
   }
 
   void _generateQrPayloads() {
     final items = widget.order!['bestelling_kos_item'] as List? ?? [];
     final Map<String, QrPayload> payloads = {};
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
 
     for (final item in items) {
       final bestKosId = item['best_kos_id']?.toString();
       if (bestKosId != null) {
-        payloads[bestKosId] = QrPayload.create(
-          bestKosId: bestKosId,
-          bestId: widget.order!['best_id']?.toString() ?? '',
-          kosItemId: item['kos_item_id']?.toString() ?? '',
-        );
+        // Check if this item is due today
+        final bestDatumStr = item['best_datum'] as String?;
+        if (bestDatumStr != null) {
+          try {
+            final bestDatum = DateTime.parse(bestDatumStr);
+            final orderDate = DateTime(bestDatum.year, bestDatum.month, bestDatum.day);
+            
+            // Only generate QR code if the item is due today
+            if (orderDate.isAtSameMomentAs(todayDate)) {
+              payloads[bestKosId] = QrPayload.create(
+                bestKosId: bestKosId,
+                bestId: widget.order!['best_id']?.toString() ?? '',
+                kosItemId: item['kos_item_id']?.toString() ?? '',
+              );
+            }
+          } catch (e) {
+            print('Error parsing order date: $e');
+          }
+        }
       }
     }
 
@@ -52,19 +68,20 @@ class _QrPageState extends State<QrPage> {
     });
   }
 
-  void _startRefreshTimer() {
-    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
+  // Commented out - not needed since QR codes are single-use
+  // void _startRefreshTimer() {
+  //   _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+  //     if (!mounted) return;
 
-      setState(() {
-        _refreshCountdown--;
-        if (_refreshCountdown <= 0) {
-          _refreshCountdown = 10;
-          _generateQrPayloads();
-        }
-      });
-    });
-  }
+  //     setState(() {
+  //       _refreshCountdown--;
+  //       if (_refreshCountdown <= 0) {
+  //         _refreshCountdown = 10;
+  //         _generateQrPayloads();
+  //       }
+  //     });
+  //   });
+  // }
 
   String _getItemStatus(Map<String, dynamic> item) {
     final statuses = (item['best_kos_item_statusse'] as List? ?? []);
@@ -81,6 +98,45 @@ class _QrPageState extends State<QrPage> {
     return status != 'Afgehandel' &&
         status != 'Gekanselleer' &&
         status != 'Ontvang';
+  }
+
+  bool _isItemDueToday(Map<String, dynamic> item) {
+    final bestDatumStr = item['best_datum'] as String?;
+    if (bestDatumStr == null) return false;
+    
+    try {
+      final bestDatum = DateTime.parse(bestDatumStr);
+      final today = DateTime.now();
+      final orderDate = DateTime(bestDatum.year, bestDatum.month, bestDatum.day);
+      final todayDate = DateTime(today.year, today.month, today.day);
+      
+      return orderDate.isAtSameMomentAs(todayDate);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  String _getItemDueDate(Map<String, dynamic> item) {
+    final bestDatumStr = item['best_datum'] as String?;
+    if (bestDatumStr == null) return 'Onbekende datum';
+    
+    try {
+      final bestDatum = DateTime.parse(bestDatumStr);
+      final weekdays = [
+        'Sondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrydag', 'Saterdag'
+      ];
+      final months = [
+        'Januarie', 'Februarie', 'Maart', 'April', 'Mei', 'Junie',
+        'Julie', 'Augustus', 'September', 'Oktober', 'November', 'Desember'
+      ];
+      
+      final weekday = weekdays[bestDatum.weekday % 7];
+      final month = months[bestDatum.month - 1];
+      
+      return '$weekday ${bestDatum.day} $month ${bestDatum.year}';
+    } catch (e) {
+      return 'Onbekende datum';
+    }
   }
 
   @override
@@ -183,83 +239,84 @@ class _QrPageState extends State<QrPage> {
           ),
           const SizedBox(height: 16),
 
+          // Commented out - timer not needed since QR codes are single-use
           // Refresh info
-          Card(
-            color: Theme.of(context).colorScheme.primaryContainer,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        FeatherIcons.shield,
-                        size: 20,
-                        color: Colors.black87,
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Sekuriteit Timer',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'QR kodes verfris outomaties elke 10 sekondes vir sekuriteit. Dit voorkom dat ou kodes misbruik word.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.black54,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Icon(
-                        FeatherIcons.clock,
-                        size: 16,
-                        color: Colors.black87,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Volgende verfris in:',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.black87,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black87,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '${_refreshCountdown}s',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // Card(
+          //   color: Theme.of(context).colorScheme.primaryContainer,
+          //   child: Padding(
+          //     padding: const EdgeInsets.all(16),
+          //     child: Column(
+          //       crossAxisAlignment: CrossAxisAlignment.start,
+          //       children: [
+          //         Row(
+          //           children: [
+          //             Icon(
+          //               FeatherIcons.shield,
+          //               size: 20,
+          //               color: Colors.black87,
+          //             ),
+          //             const SizedBox(width: 10),
+          //             Text(
+          //               'Sekuriteit Timer',
+          //               style: TextStyle(
+          //                 fontSize: 16,
+          //                 fontWeight: FontWeight.bold,
+          //                 color: Colors.black87,
+          //               ),
+          //             ),
+          //           ],
+          //         ),
+          //         const SizedBox(height: 10),
+          //         Text(
+          //           'QR kodes verfris outomaties elke 10 sekondes vir sekuriteit. Dit voorkom dat ou kodes misbruik word.',
+          //           style: TextStyle(
+          //             fontSize: 13,
+          //             color: Colors.black54,
+          //             height: 1.4,
+          //           ),
+          //         ),
+          //         const SizedBox(height: 14),
+          //         Row(
+          //           children: [
+          //             Icon(
+          //               FeatherIcons.clock,
+          //               size: 16,
+          //               color: Colors.black87,
+          //             ),
+          //             const SizedBox(width: 8),
+          //             Text(
+          //               'Volgende verfris in:',
+          //               style: TextStyle(
+          //                 fontSize: 13,
+          //                 color: Colors.black87,
+          //                 fontWeight: FontWeight.w500,
+          //               ),
+          //             ),
+          //             const Spacer(),
+          //             Container(
+          //               padding: const EdgeInsets.symmetric(
+          //                 horizontal: 14,
+          //                 vertical: 8,
+          //               ),
+          //               decoration: BoxDecoration(
+          //                 color: Colors.black87,
+          //                 borderRadius: BorderRadius.circular(20),
+          //               ),
+          //               child: Text(
+          //                 '${_refreshCountdown}s',
+          //                 style: TextStyle(
+          //                   color: Colors.white,
+          //                   fontSize: 13,
+          //                   fontWeight: FontWeight.bold,
+          //                 ),
+          //               ),
+          //             ),
+          //           ],
+          //         ),
+          //       ],
+          //     ),
+          //   ),
+          // ),
           const SizedBox(height: 16),
 
           // Items with QR codes
@@ -353,9 +410,7 @@ class _QrPageState extends State<QrPage> {
                     const Divider(height: 24),
 
                     // QR Code or status message
-                    if (canShowQr &&
-                        bestKosId != null &&
-                        _qrPayloads.containsKey(bestKosId))
+                    if (canShowQr && bestKosId != null && _isItemDueToday(item) && _qrPayloads.containsKey(bestKosId))
                       Center(
                         child: Column(
                           children: [
@@ -391,6 +446,38 @@ class _QrPageState extends State<QrPage> {
                               ),
                             ),
                           ],
+                        ),
+                      )
+                    else if (canShowQr && bestKosId != null && !_isItemDueToday(item))
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            children: [
+                              Icon(
+                                FeatherIcons.clock,
+                                size: 48,
+                                color: Colors.orange.shade600,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'QR kode beskikbaar op',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _getItemDueDate(item),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       )
                     else
