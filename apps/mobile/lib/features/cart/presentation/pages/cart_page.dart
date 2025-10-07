@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -577,12 +578,71 @@ class _CartPageState extends State<CartPage> {
     throw Exception('Kon transaksie tipe nie kry of skep nie ($name).');
   }
 
+
+  /// Calculate the correct date for a food item based on its week_dag_naam
+  /// This uses the same logic as the home page to determine the current menu week
+  DateTime _calculateItemDate(String? weekDagNaam) {
+    if (weekDagNaam == null || weekDagNaam.isEmpty) {
+      // If no day specified, use current date
+      return DateTime.now();
+    }
+
+    // Get the current menu week start (Monday)
+    final now = DateTime.now();
+    final weekday = now.weekday;
+    final daysToSubtract = weekday - 1; // Monday is 1, so subtract (weekday - 1) days
+    final currentWeekStart = DateTime(now.year, now.month, now.day - daysToSubtract);
+    
+    // Check if we should use next week's menu (same logic as home page)
+    final hour = now.hour;
+    final isSaturdayAfter17 = weekday == 6 && hour >= 17;
+    final isPastWeekend = weekday == 7; // Sunday
+    final shouldUseNextWeek = isSaturdayAfter17 || isPastWeekend;
+    
+    // Use next week if needed
+    final weekStart = shouldUseNextWeek 
+        ? currentWeekStart.add(const Duration(days: 7))
+        : currentWeekStart;
+    
+    // Map day names to weekday numbers (Monday = 1, Sunday = 7)
+    final dayMap = {
+      'maandag': 1, 'dinsdag': 2, 'woensdag': 3, 'donderdag': 4,
+      'vrydag': 5, 'saterdag': 6, 'sondag': 7
+    };
+    
+    final dayNumber = dayMap[weekDagNaam.toLowerCase()];
+    if (dayNumber == null) {
+      // If day name not recognized, use current date
+      return DateTime.now();
+    }
+    
+    // Calculate the date for this day in the current menu week
+    return weekStart.add(Duration(days: dayNumber - 1));
+  }
+
   Future<bool> placeOrder(String pickup) async {
     // Prevent multiple simultaneous order submissions
     if (isPlacingOrder) {
       debugPrint('Order already being placed, ignoring duplicate request');
       return false;
     }
+
+    debugPrint('Starting order placement for pickup: $pickup');
+    
+    // Set loading state immediately
+    setState(() {
+      isPlacingOrder = true;
+    });
+
+    // Add a safety mechanism to reset the flag after 5 seconds if it gets stuck
+    Timer(const Duration(seconds: 5), () {
+      if (isPlacingOrder && mounted) {
+        debugPrint('WARNING: Order placement seems stuck, resetting loading state');
+        setState(() {
+          isPlacingOrder = false;
+        });
+      }
+    });
 
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
@@ -595,7 +655,6 @@ class _CartPageState extends State<CartPage> {
       return false;
     }
 
-    final sb = Supabase.instance.client;
     final double orderTotal = subtotal;
 
     // Load latest balance
@@ -606,8 +665,41 @@ class _CartPageState extends State<CartPage> {
     }
 
     try {
+      debugPrint('Starting order placement...');
+      
+      // Add timeout to prevent hanging
+      await Future.any([
+        _performOrderPlacement(pickup, orderTotal, user.id),
+        Future.delayed(const Duration(seconds: 30), () => throw TimeoutException('Order placement timed out after 30 seconds')),
+      ]);
+      
+      debugPrint('Order placement completed successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Fout tydens plaasBestelling: $e');
+      setState(() => isPlacingOrder = false); // Reset loading state on error
+      await _loadEverything(); // reload to reflect DB state
+      return false;
+    } finally {
+      // Ensure loading state is always reset
+      debugPrint('Resetting isPlacingOrder flag');
+      if (mounted) {
+        setState(() {
+          isPlacingOrder = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _performOrderPlacement(String pickup, double orderTotal, String userId) async {
+    try {
       // 1️⃣ Ensure transaksie_tipe 'uitbetaling'
-      final transTypeId = await _ensureTransTypeId('uitbetaling');
+      debugPrint('Getting transaction type ID...');
+      final transTypeId = await _ensureTransTypeId('uitbetaling').timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => throw TimeoutException('Transaction type lookup timed out'),
+      );
+      debugPrint('Transaction type ID: $transTypeId');
 
       // 2️⃣ Get kampus_id from pickup location name
       String? kampusId;
@@ -621,35 +713,51 @@ class _CartPageState extends State<CartPage> {
 
       // 3️⃣ Create bestelling with kampus_id
       final bestellingData = {
-        'gebr_id': user.id, 
+        'gebr_id': userId, 
         'best_volledige_prys': orderTotal,
         if (kampusId != null) 'kampus_id': kampusId,
       };
       
+      final sb = Supabase.instance.client;
+      debugPrint('Creating bestelling...');
       final bestellingInsert = await sb
           .from('bestelling')
           .insert(bestellingData)
           .select()
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => throw TimeoutException('Bestelling creation timed out'),
+          );
 
       if (bestellingInsert == null || bestellingInsert['best_id'] == null) {
         throw Exception('Kon nie bestelling skep nie.');
       }
       final String bestId = bestellingInsert['best_id'].toString();
 
-      // 4️⃣ Insert bestelling_kos_item rows
+      // 4️⃣ Insert bestelling_kos_item rows with correct dates
+      debugPrint('Creating bestelling_kos_item rows...');
       final List<Map<String, dynamic>> bkItems = cart.map((c) {
+        // Calculate the correct date for this food item based on its week_dag_naam
+        debugPrint('Calculating date for item: ${c.foodItem.name}, weekDag: ${c.weekDag}');
+        final correctDate = _calculateItemDate(c.weekDag);
+        debugPrint('Calculated date: $correctDate');
         return {
           'best_id': bestId,
           'kos_item_id': c.foodItem.id,
           'item_hoev': c.quantity,
-          'best_datum': DateTime.now().toIso8601String(), // Set order date
+          'best_datum': correctDate.toIso8601String(), // Set the actual date the item is for
           'best_kos_is_liked': false, // Default to not liked
         };
       }).toList();
 
-    final insertedItems = await sb.from('bestelling_kos_item').insert(bkItems).select();
-    if (insertedItems.isEmpty) throw Exception('Kon items nie insit nie.');
+      debugPrint('Inserting bestelling_kos_item rows...');
+      final insertedItems = await sb.from('bestelling_kos_item').insert(bkItems).select().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => throw TimeoutException('Bestelling_kos_item insertion timed out'),
+      );
+      debugPrint('Inserted ${insertedItems.length} items');
+      if (insertedItems.isEmpty) throw Exception('Kon items nie insit nie.');
 
       // 5️⃣ Insert status for each item ('Bestelling Ontvang')
       const String initialStatusId = 'aef58a24-1a1d-4940-8855-df4c35ae5d5e';
@@ -665,7 +773,7 @@ class _CartPageState extends State<CartPage> {
 
       // 6️⃣ Record beursie_transaksie (negative amount for uitbetaling)
       await sb.from('beursie_transaksie').insert({
-        'gebr_id': user.id,
+        'gebr_id': userId,
         'trans_bedrag': -orderTotal, // Negative amount for uitbetaling (money going out)
         'trans_tipe_id': transTypeId,
         'trans_beskrywing': 'Bestelling $bestId - afhaallokasie: $pickup',
@@ -677,24 +785,23 @@ class _CartPageState extends State<CartPage> {
       await sb
           .from('gebruikers')
           .update({'beursie_balans': newBal})
-          .eq('gebr_id', user.id);
+          .eq('gebr_id', userId);
 
       // 8️⃣ Clear mandjie
-      await sb.from('mandjie').delete().eq('gebr_id', user.id);
+      await sb.from('mandjie').delete().eq('gebr_id', userId);
 
       // 9️⃣ Update local state
+      debugPrint('Order placement successful! Updating UI...');
       setState(() {
         walletBalance = newBal;
         cart.clear();
-        isPlacingOrder = false; // Reset loading state on success
       });
 
-      return true;
+      debugPrint('Order placement completed successfully');
     } catch (e) {
-      debugPrint('Fout tydens plaasBestelling: $e');
-      setState(() => isPlacingOrder = false); // Reset loading state on error
+      debugPrint('Fout in _performOrderPlacement: $e');
       await _loadEverything(); // reload to reflect DB state
-      return false;
+      rethrow; // Re-throw to be caught by the timeout wrapper
     }
   }
 
@@ -1244,10 +1351,17 @@ class _CartPageState extends State<CartPage> {
                           OutlinedButton(
                             onPressed: () => context.go('/wallet'),
                             style: OutlinedButton.styleFrom(
-                              side: BorderSide(color: Theme.of(context).colorScheme.primary),
-                              foregroundColor: Theme.of(context).colorScheme.primary,
+                              side: BorderSide(color: Colors.white),
+                              foregroundColor: Colors.white,
+                              backgroundColor: Colors.white.withOpacity(0.1),
                             ),
-                            child: const Text('Laai Beursie'),
+                            child: const Text(
+                              'Laai Beursie',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           )
                         else
                           Text(
@@ -1311,14 +1425,10 @@ class _CartPageState extends State<CartPage> {
                         }
                         _lastButtonPress = now;
                         
-                        // Set loading state immediately to prevent multiple executions
-                        setState(() => isPlacingOrder = true);
-                        
                         try {
                           final conflicts = await _validateDietConflicts();
                           final proceed = await _confirmDietConflicts(conflicts);
                           if (!proceed) {
-                            setState(() => isPlacingOrder = false);
                             return;
                           }
                           if (conflicts.isNotEmpty) {
@@ -1329,7 +1439,6 @@ class _CartPageState extends State<CartPage> {
                           }
                           final confirm = await _confirmOrderSummary(conflicts);
                           if (!confirm) {
-                            setState(() => isPlacingOrder = false);
                             return;
                           }
                           final bool success = await placeOrder(pickupLocation!);
