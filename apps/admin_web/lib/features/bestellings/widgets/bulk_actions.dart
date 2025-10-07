@@ -103,11 +103,16 @@ class _BulkActionsState extends State<BulkActions> {
                   _selectedOrders.clear();
                   _bulkStatus = null;
                 });
+              } catch (e) {
+                // Re-throw to let the dialog handle it
+                rethrow;
               } finally {
                 if (mounted) {
                   setState(() {
                     _isUpdating = false;
                   });
+                  // Always close the dialog after the operation completes
+                  Navigator.of(context).pop();
                 }
               }
             },

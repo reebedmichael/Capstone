@@ -303,6 +303,10 @@ class _OrderCardState extends State<OrderCard> {
 
           try {
             await widget.onUpdateStatus(order.id, newStatus);
+            // Close the dialog after successful update
+            if (mounted) {
+              Navigator.of(context).pop();
+            }
           } finally {
             if (mounted) {
               setState(() {

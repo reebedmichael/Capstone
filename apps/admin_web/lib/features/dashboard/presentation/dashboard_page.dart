@@ -21,98 +21,7 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  String selectedLocation = 'all';
   int _unreadNotificationCount = 0;
-
-  List<Map<String, dynamic>> todaysOrders = [
-    {
-      'id': '#12345',
-      'customer': 'John Doe',
-      'status': 'In Progress',
-      'time': '10:30 AM',
-      'items': 3,
-      'location': 'Downtown',
-    },
-    {
-      'id': '#12346',
-      'customer': 'Jane Smith',
-      'status': 'Ready',
-      'time': '11:15 AM',
-      'items': 2,
-      'location': 'Uptown',
-    },
-    {
-      'id': '#12347',
-      'customer': 'Mike Johnson',
-      'status': 'Pending',
-      'time': '12:00 PM',
-      'items': 1,
-      'location': 'Downtown',
-    },
-    {
-      'id': '#12348',
-      'customer': 'Sarah Wilson',
-      'status': 'Delivered',
-      'time': '09:45 AM',
-      'items': 4,
-      'location': 'Mall',
-    },
-    {
-      'id': '#12349',
-      'customer': 'Alex Brown',
-      'status': 'Pending',
-      'time': '12:30 PM',
-      'items': 2,
-      'location': 'Uptown',
-    },
-    {
-      'id': '#12350',
-      'customer': 'Emma Davis',
-      'status': 'In Progress',
-      'time': '01:00 PM',
-      'items': 3,
-      'location': 'Mall',
-    },
-    {
-      'id': '#12351',
-      'customer': 'Tom Wilson',
-      'status': 'Ready',
-      'time': '01:15 PM',
-      'items': 1,
-      'location': 'Downtown',
-    },
-    {
-      'id': '#12352',
-      'customer': 'Lisa Chen',
-      'status': 'Out for Delivery',
-      'time': '11:30 AM',
-      'items': 2,
-      'location': 'Uptown',
-    },
-    {
-      'id': '#12353',
-      'customer': 'David Park',
-      'status': 'Pending',
-      'time': '01:45 PM',
-      'items': 1,
-      'location': 'Mall',
-    },
-    {
-      'id': '#12354',
-      'customer': 'Rachel Green',
-      'status': 'Delivered',
-      'time': '10:15 AM',
-      'items': 3,
-      'location': 'Downtown',
-    },
-  ];
-
-  final List<String> locations = [
-    'All Locations',
-    'Downtown',
-    'Uptown',
-    'Mall',
-  ];
 
   late final List<DateTime> nextWeekDates;
   late List<Map<String, dynamic>> weeklyMenu;
@@ -238,101 +147,6 @@ class _DashboardPageState extends State<DashboardPage> {
       weekDays.add(nextMonday.add(Duration(days: i)));
     }
     return weekDays;
-  }
-
-  Color getStatusColor(String status) {
-    switch (status) {
-      case 'Pending':
-        return Colors.amber;
-      case 'In Progress':
-        return Colors.blue;
-      case 'Ready':
-        return Colors.purple;
-      case 'Out for Delivery':
-        return Colors.orange;
-      case 'Delivered':
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String? getNextStatus(String currentStatus) {
-    switch (currentStatus) {
-      case 'Pending':
-        return 'In Progress';
-      case 'In Progress':
-        return 'Ready';
-      case 'Ready':
-        return 'Out for Delivery';
-      case 'Out for Delivery':
-        return 'Delivered';
-      case 'Delivered':
-        return null;
-      default:
-        return null;
-    }
-  }
-
-  void updateOrdersByStatus(String currentStatus) {
-    final nextStatus = getNextStatus(currentStatus);
-    if (nextStatus == null) return;
-    setState(() {
-      todaysOrders = todaysOrders.map((order) {
-        if (order['status'] == currentStatus &&
-            (selectedLocation == 'all' ||
-                order['location'] == selectedLocation)) {
-          final updated = Map<String, dynamic>.from(order);
-          updated['status'] = nextStatus;
-          return updated;
-        }
-        return order;
-      }).toList();
-    });
-  }
-
-  List<Map<String, dynamic>> getFilteredOrders() {
-    if (selectedLocation == 'all') return todaysOrders;
-    return todaysOrders
-        .where((o) => o['location'] == selectedLocation)
-        .toList();
-  }
-
-  List<Map<String, dynamic>> getStatusGroups() {
-    final filtered = getFilteredOrders();
-    final Map<String, int> summary = {};
-    for (var order in filtered) {
-      final s = order['status'] as String;
-      summary[s] = (summary[s] ?? 0) + 1;
-    }
-    final groups = [
-      {
-        'status': 'Pending',
-        'count': summary['Pending'] ?? 0,
-        'color': getStatusColor('Pending'),
-      },
-      {
-        'status': 'In Progress',
-        'count': summary['In Progress'] ?? 0,
-        'color': getStatusColor('In Progress'),
-      },
-      {
-        'status': 'Ready',
-        'count': summary['Ready'] ?? 0,
-        'color': getStatusColor('Ready'),
-      },
-      {
-        'status': 'Out for Delivery',
-        'count': summary['Out for Delivery'] ?? 0,
-        'color': getStatusColor('Out for Delivery'),
-      },
-      {
-        'status': 'Delivered',
-        'count': summary['Delivered'] ?? 0,
-        'color': getStatusColor('Delivered'),
-      },
-    ];
-    return groups.where((g) => (g['count'] as int) > 0).toList();
   }
 
   void approveUser(String userId) {
@@ -487,20 +301,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Today's Orders (left)
-                    Expanded(
-                      child: TodaysOrders(
-                        todaysOrders: todaysOrders,
-                        selectedLocation: selectedLocation,
-                        locations: locations,
-                        onLocationChanged: (location) {
-                          setState(() {
-                            selectedLocation = location;
-                          });
-                        },
-                        onUpdateOrdersByStatus: updateOrdersByStatus,
-                        onNavigateToOrders: widget.onNavigate ?? (page) {},
-                      ),
-                    ),
+                    Expanded(child: TodaysOrders()),
                     const SizedBox(width: 16),
                     // Weekly Menu (right)
                     Expanded(

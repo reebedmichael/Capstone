@@ -23,8 +23,23 @@ class StatusUpdateConfirmationDialog extends StatelessWidget {
   });
 
   Future<void> _handleConfirm(BuildContext context) async {
-    await onConfirm();
-    onClose();
+    try {
+      await onConfirm();
+      // Don't call onClose() here as the onConfirm callback should handle navigation
+    } catch (e) {
+      // If there's an error, we should still close the dialog
+      onClose();
+      // Show error message to user
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Update failed: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   @override
