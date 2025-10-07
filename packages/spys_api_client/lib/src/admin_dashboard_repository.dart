@@ -65,9 +65,13 @@ class AdminDashboardRepository {
     final todayOrders = todayOrdersRes.length;
     final yesterdayOrders = yesterdayOrdersRes.length;
 
-    // Get afgehandel status ID once
-    final afgehandelIds = allStatusesRes
-        .where((s) => s['kos_stat_naam'] == 'Afgehandel')
+    // Get completed status IDs (both done and canceled)
+    final completedStatusIds = allStatusesRes
+        .where(
+          (s) =>
+              s['kos_stat_naam'] == 'Afgehandel' ||
+              s['kos_stat_naam'] == 'Gekanseleer',
+        )
         .map((s) => s['kos_stat_id'] as String)
         .toSet();
 
@@ -90,7 +94,7 @@ class AdminDashboardRepository {
       _getMostPopularItem(bestIdsToday),
 
       // Uncompleted orders calculation
-      _getUncompletedOrdersCount(bestIdsToday, afgehandelIds),
+      _getUncompletedOrdersCount(bestIdsToday, completedStatusIds),
     ]);
 
     final mostPopularItem = remainingResults[0] as String?;
@@ -144,17 +148,21 @@ class AdminDashboardRepository {
   }
 
   /// Helper method to get uncompleted orders count efficiently
+  /// Counts items that are NOT marked as done (Afgehandel) or canceled (Gekanseleer)
   Future<int> _getUncompletedOrdersCount(
     List<dynamic> bestIdsToday,
-    Set<String> afgehandelIds,
+    Set<String> completedStatusIds,
   ) async {
-    if (bestIdsToday.isEmpty) return 0;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final todayStr = today.toIso8601String();
 
-    // Get all order items and their statuses in one query
+    // Get all order items for today based on best_datum
     final statusRes = await _sb
         .from('bestelling_kos_item')
         .select('best_kos_id, item_hoev')
-        .inFilter('best_id', bestIdsToday);
+        .gte('best_datum', todayStr)
+        .lt('best_datum', now.toIso8601String());
 
     if (statusRes.isEmpty) return 0;
 
@@ -174,7 +182,7 @@ class AdminDashboardRepository {
         row['best_kos_id'] as String: row['item_hoev'] as int,
     };
 
-    // Count uncompleted items
+    // Count uncompleted items (not done and not canceled)
     int uncompletedOrders = 0;
     final processedItems = <String>{};
 
@@ -186,8 +194,8 @@ class AdminDashboardRepository {
       if (processedItems.contains(bestKosId)) continue;
       processedItems.add(bestKosId);
 
-      // If status is not 'Afgehandel', count the quantity
-      if (!afgehandelIds.contains(kosStatId)) {
+      // If status is NOT completed (not done and not canceled), count the quantity
+      if (!completedStatusIds.contains(kosStatId)) {
         uncompletedOrders += itemQtyMap[bestKosId] ?? 0;
       }
     }

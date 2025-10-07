@@ -290,11 +290,11 @@ class _KpiCardsState extends State<KpiCards> {
           valueIsLarge: false,
         ),
         _buildKpiCard(
-          title: 'Kos Items',
-          icon: Icons.schedule,
+          title: 'Items om te lewer',
+          icon: Icons.delivery_dining,
           value: uncompletedOrders.toString(),
           subtitle: const Text(
-            'Items nog nie afgehandel nie',
+            'Nog nie afgehandel of gekanseleer nie',
             style: TextStyle(fontSize: 12),
           ),
           width: _kpiWidth(widget.mediaWidth),
