@@ -641,9 +641,23 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
                             ),
                           ),
                           if (selectedDay != "Geskiedenis")
-                            BulkActions(
-                              orders: filteredOrders,
-                              onBulkUpdate: handleBulkUpdate,
+                            Row(
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: _handleCleanupUnclaimedOrders,
+                                  icon: const Icon(Icons.cleaning_services_outlined),
+                                  label: const Text('Opruim Onopgehaalde'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.orange.shade100,
+                                    foregroundColor: Colors.orange.shade800,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                BulkActions(
+                                  orders: filteredOrders,
+                                  onBulkUpdate: handleBulkUpdate,
+                                ),
+                              ],
                             ),
                         ],
                       ),
@@ -668,6 +682,96 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleCleanupUnclaimedOrders() async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Bevestig Opruiming'),
+        content: const Text(
+          'Is jy seker jy wil onopgehaalde bestellings outomaties kanselleer? '
+          'Hierdie aksie kan nie ongedaan gemaak word nie.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Kanselleer'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Bevestig'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Opruim onopgehaalde bestellings...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final result = await _repo.cancelUnclaimedOrders();
+      
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+      
+      // Show result
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(result['success'] == true ? 'Opruiming Voltooi' : 'Fout'),
+            content: Text(result['message'] as String? ?? 'Onbekende fout'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  if (result['success'] == true) {
+                    _loadOrders(); // Refresh the orders list
+                  }
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+      
+      // Show error
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Fout'),
+            content: Text('Fout tydens opruiming: $e'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
   }
 
   void _showOrderDetails(BuildContext context, Order order) {
