@@ -356,43 +356,6 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
 
           const SizedBox(height: 30),
 
-          // 🔹 Quick filter buttons for common views
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () => setState(() {
-                  // Show only pending users (Pending admin type or inactive Ekstern)
-                  filterAdminTipeId = AdminPermissions.pendingAdminId;
-                  filterAktief = false;
-                }),
-                icon: const Icon(Icons.pending_actions, size: 16),
-                label: const Text('Wag Goedkeuring'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange.shade100,
-                  foregroundColor: Colors.orange.shade800,
-                ),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: () => setState(() {
-                  // Clear all filters
-                  searchQuery = '';
-                  filterGebrTipeId = null;
-                  filterAdminTipeId = null;
-                  filterKampusId = null;
-                  filterAktief = null;
-                }),
-                icon: const Icon(Icons.clear_all, size: 16),
-                label: const Text('Alle Gebruikers'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade100,
-                  foregroundColor: Colors.blue.shade800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
 
           // 🔹 Search en filter (refined layout inside a card for better visual grouping)
           LayoutBuilder(
@@ -581,6 +544,10 @@ Widget _buildBigStat(String title, String count, {String? small}) {
     elevation: 1,
     child: Container(
       width: double.infinity,
+      constraints: BoxConstraints(
+        minHeight: isVerySmall ? 60 : (isSmall ? 70 : 80),
+        maxHeight: isVerySmall ? 100 : (isSmall ? 120 : 140),
+      ),
       padding: EdgeInsets.symmetric(
         horizontal: isVerySmall ? 8 : (isSmall ? 12 : 16), 
         vertical: isVerySmall ? 8 : (isSmall ? 10 : 14)
@@ -589,7 +556,8 @@ Widget _buildBigStat(String title, String count, {String? small}) {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Flexible(
+          Expanded(
+            flex: 2,
             child: Text(
               title, 
               style: TextStyle(
@@ -601,7 +569,8 @@ Widget _buildBigStat(String title, String count, {String? small}) {
             ),
           ),
           SizedBox(height: isVerySmall ? 4 : (isSmall ? 6 : 8)),
-          Flexible(
+          Expanded(
+            flex: 3,
             child: Text(
               count, 
               style: TextStyle(
@@ -615,7 +584,8 @@ Widget _buildBigStat(String title, String count, {String? small}) {
           ),
           if (small != null) ...[
             SizedBox(height: isVerySmall ? 2 : 4),
-            Flexible(
+            Expanded(
+              flex: 1,
               child: Text(
                 small, 
                 style: TextStyle(

@@ -121,16 +121,32 @@ class RegisterPage extends ConsumerWidget {
                         if (authError != null)
                           Container(
                             margin: const EdgeInsets.only(bottom: 16),
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.errorContainer,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Theme.of(context).colorScheme.error),
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.red.shade200, width: 1),
                             ),
-                            child: Text(
-                              authError,
-                              style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 14),
-                              textAlign: TextAlign.center,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.warning_rounded,
+                                  color: Colors.red.shade600,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    authError,
+                                    style: TextStyle(
+                                      color: Colors.red.shade700,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    textAlign: TextAlign.left,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
 
@@ -180,59 +196,8 @@ class RegisterPage extends ConsumerWidget {
                               );
 
                               if (response.user != null) {
-                                // Create gebruiker record with defaults
-                                final client = Supabase.instance.client;
-                                // Check existence and abort
-                                final existing = await client
-                                  .from('gebruikers')
-                                  .select('gebr_id')
-                                  .ilike('gebr_epos', email)
-                                  .limit(1)
-                                  .maybeSingle();
-                                final ekstern = await client
-                                  .from('gebruiker_tipes')
-                                  .select('gebr_tipe_id')
-                                  .ilike('gebr_tipe_naam', 'Ekstern')
-                                  .limit(1)
-                                  .maybeSingle();
-                                final adminNone = await client
-                                  .from('admin_tipes')
-                                  .select('admin_tipe_id')
-                                  .ilike('admin_tipe_naam', 'None')
-                                  .limit(1)
-                                  .maybeSingle();
-                                final firstKampus = await client
-                                  .from('kampus')
-                                  .select('kampus_id')
-                                  .order('kampus_naam', ascending: true)
-                                  .limit(1)
-                                  .maybeSingle();
-
-                                if (ekstern == null || adminNone == null || firstKampus == null) {
-                                  throw Exception('Kon nie verstekwaardes laai nie');
-                                }
-
-                                if (existing != null) {
-                                  ref.read(authErrorProvider.notifier).state = 'E-pos adres bestaan reeds in die stelsel';
-                                  return;
-                                }
-
-                                await client
-                                  .from('gebruikers')
-                                  .insert({
-                                    'gebr_epos': email,
-                                    'gebr_naam': firstName,
-                                    'gebr_van': lastName,
-                                    'gebr_selfoon': cellphone,
-                                    'is_aktief': true,
-                                    'beursie_balans': 0,
-                                    'gebr_tipe_id': ekstern['gebr_tipe_id'],
-                                    'admin_tipe_id': adminNone['admin_tipe_id'],
-                                    'kampus_id': firstKampus['kampus_id'],
-                                  })
-                                  .select()
-                                  .single();
-
+                                // User creation is handled by AuthService._createUserInDatabase()
+                                // No need for duplicate user creation logic here
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
