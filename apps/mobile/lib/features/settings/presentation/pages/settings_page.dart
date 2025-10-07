@@ -162,38 +162,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ],
             ),
 
-          // Quick Access
-          _buildCard(
-            title: "Vinnige Toegang",
-            icon: Icons.flash_on,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.person),
-                title: const Text("My Profiel"),
-                onTap: () => context.go('/profile'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.account_balance_wallet),
-                title: const Text("Beursie"),
-                onTap: () => context.go('/wallet'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.receipt_long),
-                title: const Text("My Bestellings"),
-                onTap: () => context.go('/orders'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.calendar_today),
-                title: const Text("Maandelikse Toelae"),
-                onTap: () => context.go('/allowance'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.notifications),
-                title: const Text("Kennisgewings"),
-                onTap: () => context.go('/notifications'),
-              ),
-            ],
-          ),
 
           // Help & Support
           _buildCard(

@@ -115,18 +115,24 @@ class _HomePageState extends State<HomePage> {
   
   String _formatMenuDate(DateTime date) {
     final months = [
-      'Januarie', 'Februarie', 'Maart', 'April', 'Mei', 'Junie',
-      'Julie', 'Augustus', 'September', 'Oktober', 'November', 'Desember'
+      'Jan', 'Feb', 'Mrt', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des'
     ];
 
-    final weekdays = [
-      'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrydag', 'Saterdag', 'Sondag'
-    ];
+    // Get the start of the week (Monday)
+    final weekStart = date.subtract(Duration(days: date.weekday - 1));
+    // Get the end of the week (Sunday)
+    final weekEnd = weekStart.add(const Duration(days: 6));
 
-    final weekday = weekdays[date.weekday - 1];
-    final month = months[date.month - 1];
+    final startMonth = months[weekStart.month - 1];
+    final endMonth = months[weekEnd.month - 1];
 
-    return '$weekday, ${date.day} $month ${date.year}';
+    // Format: "6 Okt tot 12 Okt 2024"
+    if (weekStart.month == weekEnd.month) {
+      return '${weekStart.day} $startMonth tot ${weekEnd.day} $endMonth ${weekStart.year}';
+    } else {
+      return '${weekStart.day} $startMonth tot ${weekEnd.day} $endMonth ${weekStart.year}';
+    }
   }
 
 

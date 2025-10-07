@@ -480,30 +480,99 @@ class _WalletPageState extends State<WalletPage>
                           final datum = DateTime.parse(t['trans_geskep_datum']);
                           final datumFormaat = '${datum.day} ${_kryMaandNaam(datum.month)} ${datum.year} ${datum.hour.toString().padLeft(2, '0')}:${datum.minute.toString().padLeft(2, '0')}';
                           
+                          // Determine appropriate icon based on transaction type
+                          IconData getTransactionIcon() {
+                            if (isInbetaling) {
+                              return Icons.account_balance_wallet; // Money coming in
+                            }
+                            
+                            final beskrywing = (t['trans_beskrywing'] ?? '').toLowerCase();
+                            if (beskrywing.contains('bestelling') || beskrywing.contains('order')) {
+                              return Icons.restaurant; // Food order
+                            } else if (beskrywing.contains('uitbetaling') || beskrywing.contains('payment')) {
+                              return Icons.payment; // Payment made
+                            } else if (beskrywing.contains('refund') || beskrywing.contains('terugbetaling')) {
+                              return Icons.undo; // Refund
+                            } else {
+                              return Icons.shopping_cart; // General spending
+                            }
+                          }
+                          
                           return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: isInbetaling
-                                    ? Theme.of(context).colorScheme.tertiaryContainer
-                                    : Theme.of(context).colorScheme.errorContainer,
-                                child: Icon(
-                                  isInbetaling
-                                      ? Icons.arrow_upward
-                                      : Icons.arrow_downward,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              leading: Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
                                   color: isInbetaling
-                                      ? Theme.of(context).colorScheme.tertiary
-                                      : Theme.of(context).colorScheme.error,
+                                      ? Colors.green.withOpacity(0.1)
+                                      : Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isInbetaling
+                                        ? Colors.green.withOpacity(0.3)
+                                        : Colors.red.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Icon(
+                                  getTransactionIcon(),
+                                  color: isInbetaling
+                                      ? Colors.green.shade600
+                                      : Colors.red.shade600,
+                                  size: 24,
                                 ),
                               ),
-                              title: Text(t['trans_beskrywing'] ?? 'Transaksie'),
-                              subtitle: Text(datumFormaat),
-                              trailing: Text(
-                                '${isInbetaling ? '+' : '-'}R${bedrag.toStringAsFixed(2)}',
+                              title: Text(
+                                t['trans_beskrywing'] ?? 'Transaksie',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              subtitle: Text(
+                                datumFormaat,
                                 style: TextStyle(
-                                    fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              trailing: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isInbetaling
+                                      ? Colors.green.withOpacity(0.1)
+                                      : Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
                                     color: isInbetaling
-                                        ? Theme.of(context).colorScheme.tertiary
-                                        : Theme.of(context).colorScheme.error),
+                                        ? Colors.green.withOpacity(0.3)
+                                        : Colors.red.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  '${isInbetaling ? '+' : '-'}R${bedrag.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: isInbetaling
+                                        ? Colors.green.shade700
+                                        : Colors.red.shade700,
+                                  ),
+                                ),
                               ),
                             ),
                           );
@@ -540,30 +609,82 @@ class _WalletPageState extends State<WalletPage>
                           final datumFormaat = '${datum.day} ${_kryMaandNaam(datum.month)} ${datum.year} ${datum.hour.toString().padLeft(2, '0')}:${datum.minute.toString().padLeft(2, '0')}';
                           
                           return Card(
-                            color: Theme.of(context).colorScheme.secondaryContainer,
+                            margin: const EdgeInsets.only(bottom: 8),
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: isInbetaling
-                                    ? Theme.of(context).colorScheme.tertiaryContainer
-                                    : Theme.of(context).colorScheme.errorContainer,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              leading: Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: isInbetaling
+                                      ? Colors.green.withOpacity(0.1)
+                                      : Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isInbetaling
+                                        ? Colors.green.withOpacity(0.3)
+                                        : Colors.red.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
                                 child: Icon(
                                   isInbetaling
-                                      ? Icons.arrow_upward
-                                      : Icons.arrow_downward,
+                                      ? Icons.account_balance_wallet
+                                      : Icons.remove_circle_outline,
                                   color: isInbetaling
-                                      ? Theme.of(context).colorScheme.tertiary
-                                      : Theme.of(context).colorScheme.error,
+                                      ? Colors.green.shade600
+                                      : Colors.red.shade600,
+                                  size: 24,
                                 ),
                               ),
-                              title: Text(t['trans_beskrywing'] ?? 'Toelae Transaksie'),
-                              subtitle: Text(datumFormaat),
-                              trailing: Text(
-                                '${isInbetaling ? '+' : '-'}R${bedrag.toStringAsFixed(2)}',
+                              title: Text(
+                                t['trans_beskrywing'] ?? 'Toelae Transaksie',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              subtitle: Text(
+                                datumFormaat,
                                 style: TextStyle(
-                                    fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              trailing: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isInbetaling
+                                      ? Colors.green.withOpacity(0.1)
+                                      : Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
                                     color: isInbetaling
-                                        ? Theme.of(context).colorScheme.tertiary
-                                        : Theme.of(context).colorScheme.error),
+                                        ? Colors.green.withOpacity(0.3)
+                                        : Colors.red.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  '${isInbetaling ? '+' : '-'}R${bedrag.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: isInbetaling
+                                        ? Colors.green.shade700
+                                        : Colors.red.shade700,
+                                  ),
+                                ),
                               ),
                             ),
                           );

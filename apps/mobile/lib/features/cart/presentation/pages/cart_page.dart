@@ -72,6 +72,8 @@ class _CartPageState extends State<CartPage> {
   String? pickupError;
 
   bool loading = true;
+  bool isPlacingOrder = false; // Prevent multiple order submissions
+  DateTime? _lastButtonPress; // Debounce button presses
 
   // expose setter for pickup from child (unused but kept for potential future use)
   // void _setPickup(String? v) => setState(() => pickupLocation = v);
@@ -136,13 +138,20 @@ class _CartPageState extends State<CartPage> {
     final List<_DietConflict> conflicts = <_DietConflict>[];
     if (userDietPrefs.isEmpty) return conflicts;
 
+    // Get unique food items to avoid duplicate validation
+    final Set<String> processedItems = <String>{};
+    
     // For each cart item, check if it conflicts with user's diet preferences
     for (final CartItemModel c in cart) {
       final name = c.foodItem.name;
       final kosItemId = c.foodItem.id;
       
-      // Check if this item has diet restrictions that conflict with user preferences
-      await _checkItemDietConflicts(kosItemId, name, conflicts);
+      // Only validate each unique food item once
+      if (!processedItems.contains(kosItemId)) {
+        processedItems.add(kosItemId);
+        // Check if this item has diet restrictions that conflict with user preferences
+        await _checkItemDietConflicts(kosItemId, name, conflicts);
+      }
     }
     return conflicts;
   }
@@ -159,6 +168,9 @@ class _CartPageState extends State<CartPage> {
           .map<String>((row) => row['dieet_id'].toString())
           .toList();
       
+      // Collect all missing diet requirements for this item
+      final List<String> missingDiets = [];
+      
       // Check if user has diet preferences that are NOT satisfied by this item
       for (final userDietId in userDietPrefs) {
         if (!itemDietIds.contains(userDietId)) {
@@ -170,11 +182,20 @@ class _CartPageState extends State<CartPage> {
               .maybeSingle();
           
           final dietName = dietInfo?['dieet_naam'] ?? 'Onbekende dieet';
-          conflicts.add(_DietConflict(
-            itemName: itemName, 
-            reason: 'Nie geskik vir $dietName nie'
-          ));
+          missingDiets.add(dietName);
         }
+      }
+      
+      // Only add one conflict per item, combining all missing diet requirements
+      if (missingDiets.isNotEmpty) {
+        final reason = missingDiets.length == 1 
+            ? 'Nie geskik vir ${missingDiets.first} nie'
+            : 'Nie geskik vir ${missingDiets.join(', ')} nie';
+        
+        conflicts.add(_DietConflict(
+          itemName: itemName, 
+          reason: reason
+        ));
       }
     } catch (e) {
       debugPrint('Kon nie dieet konflik nagaan vir $itemName nie: $e');
@@ -270,11 +291,9 @@ class _CartPageState extends State<CartPage> {
                         style: TextStyle(color: Theme.of(context).colorScheme.error),
                       ),
                       const SizedBox(height: 4),
-                      ...conflicts.map(
-                        (c) => Text(
-                          '• ${c.itemName}: ${c.reason}',
-                          style: const TextStyle(fontSize: 12),
-                        ),
+                      Text(
+                        'Dieet/Allergeen konflikte is reeds bevestig',
+                        style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
                       ),
                     ],
                     const SizedBox(height: 8),
@@ -559,26 +578,57 @@ class _CartPageState extends State<CartPage> {
   }
 
   Future<bool> placeOrder(String pickup) async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return false;
+    // Prevent multiple simultaneous order submissions
+    if (isPlacingOrder) {
+      debugPrint('Order already being placed, ignoring duplicate request');
+      return false;
+    }
 
-    if (cart.isEmpty) return false;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      setState(() => isPlacingOrder = false);
+      return false;
+    }
+
+    if (cart.isEmpty) {
+      setState(() => isPlacingOrder = false);
+      return false;
+    }
 
     final sb = Supabase.instance.client;
     final double orderTotal = subtotal;
 
     // Load latest balance
     await _loadWalletBalance();
-    if (walletBalance < orderTotal) return false;
+    if (walletBalance < orderTotal) {
+      setState(() => isPlacingOrder = false);
+      return false;
+    }
 
     try {
       // 1️⃣ Ensure transaksie_tipe 'uitbetaling'
       final transTypeId = await _ensureTransTypeId('uitbetaling');
 
-      // 2️⃣ Create bestelling
+      // 2️⃣ Get kampus_id from pickup location name
+      String? kampusId;
+      try {
+        kampusId = await sl<KampusRepository>().kryKampusID(pickup);
+        debugPrint('Kampus ID for "$pickup": $kampusId');
+      } catch (e) {
+        debugPrint('Warning: Could not get kampus ID for "$pickup": $e');
+        // Continue without kampus_id - order will still be created
+      }
+
+      // 3️⃣ Create bestelling with kampus_id
+      final bestellingData = {
+        'gebr_id': user.id, 
+        'best_volledige_prys': orderTotal,
+        if (kampusId != null) 'kampus_id': kampusId,
+      };
+      
       final bestellingInsert = await sb
           .from('bestelling')
-          .insert({'gebr_id': user.id, 'best_volledige_prys': orderTotal})
+          .insert(bestellingData)
           .select()
           .maybeSingle();
 
@@ -587,19 +637,21 @@ class _CartPageState extends State<CartPage> {
       }
       final String bestId = bestellingInsert['best_id'].toString();
 
-      // 3️⃣ Insert bestelling_kos_item rows
+      // 4️⃣ Insert bestelling_kos_item rows
       final List<Map<String, dynamic>> bkItems = cart.map((c) {
         return {
           'best_id': bestId,
           'kos_item_id': c.foodItem.id,
           'item_hoev': c.quantity,
+          'best_datum': DateTime.now().toIso8601String(), // Set order date
+          'best_kos_is_liked': false, // Default to not liked
         };
       }).toList();
 
     final insertedItems = await sb.from('bestelling_kos_item').insert(bkItems).select();
     if (insertedItems.isEmpty) throw Exception('Kon items nie insit nie.');
 
-      // 4️⃣ Insert status for each item ('Bestelling Ontvang')
+      // 5️⃣ Insert status for each item ('Bestelling Ontvang')
       const String initialStatusId = 'aef58a24-1a1d-4940-8855-df4c35ae5d5e';
       final List<Map<String, dynamic>> statusInserts = List.generate(
         insertedItems.length,
@@ -611,33 +663,36 @@ class _CartPageState extends State<CartPage> {
 
       await sb.from('best_kos_item_statusse').insert(statusInserts);
 
-      // 5️⃣ Record beursie_transaksie
+      // 6️⃣ Record beursie_transaksie (negative amount for uitbetaling)
       await sb.from('beursie_transaksie').insert({
         'gebr_id': user.id,
-        'trans_bedrag': orderTotal,
+        'trans_bedrag': -orderTotal, // Negative amount for uitbetaling (money going out)
         'trans_tipe_id': transTypeId,
         'trans_beskrywing': 'Bestelling $bestId - afhaallokasie: $pickup',
+        'trans_geskep_datum': DateTime.now().toIso8601String(), // Explicitly set transaction date
       });
 
-      // 6️⃣ Update wallet
+      // 7️⃣ Update wallet
       final double newBal = walletBalance - orderTotal;
       await sb
           .from('gebruikers')
           .update({'beursie_balans': newBal})
           .eq('gebr_id', user.id);
 
-      // 7️⃣ Clear mandjie
+      // 8️⃣ Clear mandjie
       await sb.from('mandjie').delete().eq('gebr_id', user.id);
 
-      // 8️⃣ Update local state
+      // 9️⃣ Update local state
       setState(() {
         walletBalance = newBal;
         cart.clear();
+        isPlacingOrder = false; // Reset loading state on success
       });
 
       return true;
     } catch (e) {
       debugPrint('Fout tydens plaasBestelling: $e');
+      setState(() => isPlacingOrder = false); // Reset loading state on error
       await _loadEverything(); // reload to reflect DB state
       return false;
     }
@@ -1241,30 +1296,72 @@ class _CartPageState extends State<CartPage> {
               ),
               ElevatedButton(
                 onPressed:
-                    (!hasSufficientFunds ||
+                    (isPlacingOrder || // Disable when placing order
+                        !hasSufficientFunds ||
                         pickupLocation == null ||
                         unavailableItems.isNotEmpty)
                     ? null
                     : () async {
-                        final conflicts = await _validateDietConflicts();
-                        final proceed = await _confirmDietConflicts(conflicts);
-                        if (!proceed) return;
-                        if (conflicts.isNotEmpty) {
-                          // Log warning locally
-                          debugPrint(
-                            'Diet conflicts acknowledged: ${conflicts.map((c) => '${c.itemName}:${c.reason}').join('; ')}',
-                          );
+                        // Debounce rapid button presses (prevent multiple clicks within 1 second)
+                        final now = DateTime.now();
+                        if (_lastButtonPress != null && 
+                            now.difference(_lastButtonPress!).inMilliseconds < 1000) {
+                          debugPrint('Button press ignored - too soon after last press');
+                          return;
                         }
-                        final confirm = await _confirmOrderSummary(conflicts);
-                        if (!confirm) return;
-                        final bool success = await placeOrder(pickupLocation!);
-                        if (success) context.go('/orders');
+                        _lastButtonPress = now;
+                        
+                        // Set loading state immediately to prevent multiple executions
+                        setState(() => isPlacingOrder = true);
+                        
+                        try {
+                          final conflicts = await _validateDietConflicts();
+                          final proceed = await _confirmDietConflicts(conflicts);
+                          if (!proceed) {
+                            setState(() => isPlacingOrder = false);
+                            return;
+                          }
+                          if (conflicts.isNotEmpty) {
+                            // Log warning locally
+                            debugPrint(
+                              'Diet conflicts acknowledged: ${conflicts.map((c) => '${c.itemName}:${c.reason}').join('; ')}',
+                            );
+                          }
+                          final confirm = await _confirmOrderSummary(conflicts);
+                          if (!confirm) {
+                            setState(() => isPlacingOrder = false);
+                            return;
+                          }
+                          final bool success = await placeOrder(pickupLocation!);
+                          if (success) context.go('/orders');
+                        } catch (e) {
+                          setState(() => isPlacingOrder = false);
+                          debugPrint('Error in order process: $e');
+                        }
                       },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.primary,
                   minimumSize: const Size(140, 48),
                 ),
-                child: const Text('Plaas Bestelling'),
+                child: isPlacingOrder 
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Theme.of(context).colorScheme.onPrimary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text('Plaas Bestelling...'),
+                        ],
+                      )
+                    : const Text('Plaas Bestelling'),
               ),
             ],
           ),

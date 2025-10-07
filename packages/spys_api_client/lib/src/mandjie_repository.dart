@@ -29,10 +29,14 @@ Future<Map<String, dynamic>> voegByMandjie({
   Future<void> verwyderUitMandjie({
     required String gebrId,
     required String kosItemId,
+    String? weekDagNaam,
+    int aantal = 1,
   }) async {
     await _sb.from('mandjie')
         .delete()
-        .match({'gebr_id': gebrId, 'kos_item_id': kosItemId});
+        .eq('gebr_id', gebrId)
+        .eq('kos_item_id', kosItemId)
+        .eq('week_dag_naam', weekDagNaam ?? '');
   }
 
   Future<List<Map<String, dynamic>>> kryMandjie(String gebrId) async {
