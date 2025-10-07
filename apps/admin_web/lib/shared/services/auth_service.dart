@@ -46,6 +46,7 @@ class AuthService {
     required String firstName,
     required String lastName,
     required String cellphone,
+    bool createInDatabase = true,
   }) async {
     try {
       final response = await _supabase.auth.signUp(
@@ -53,7 +54,7 @@ class AuthService {
         password: password,
       );
 
-      if (response.user != null) {
+      if (response.user != null && createInDatabase) {
         // Create user in our gebruikers table
         try {
           await _createUserInDatabase(

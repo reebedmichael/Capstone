@@ -174,6 +174,7 @@ class RegistreerAdminPage extends ConsumerWidget {
                               firstName: firstName,
                               lastName: lastName,
                               cellphone: cellphone,
+                              createInDatabase: false, // We'll create the user manually with correct values
                             );
                             
                             if (response.user != null) {

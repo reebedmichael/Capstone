@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'core/theme/app_theme.dart';
@@ -7,7 +8,9 @@ import 'shared/providers/theme_provider.dart';
 import 'bootstrap.dart';
 import 'locator.dart';
 import 'shared/services/notification_service.dart';
+import 'shared/services/order_cleanup_service.dart';
 import 'core/services/timezone_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,6 +48,14 @@ Future<void> main() async {
       print('Notification service initialized');
     } catch (e) {
       print('Notification service failed: $e');
+    }
+
+    try {
+      // Start automatic order cleanup service
+      _startOrderCleanupService();
+      print('Order cleanup service started');
+    } catch (e) {
+      print('Order cleanup service failed: $e');
     }
 
     print('All services initialized, starting app...');
@@ -129,4 +140,38 @@ class ErrorApp extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Start the automatic order cleanup service
+void _startOrderCleanupService() {
+  // Run cleanup every 6 hours to catch expired orders
+  // This ensures orders are cancelled after midnight of their due date
+  Timer.periodic(const Duration(hours: 6), (timer) async {
+    try {
+      final client = Supabase.instance.client;
+      final cleanupService = OrderCleanupService(client);
+      final result = await cleanupService.cancelUnclaimedOrders();
+      
+      if (result['success'] == true && result['cancelledCount'] > 0) {
+        print('🧹 Automatic cleanup: ${result['message']}');
+      }
+    } catch (e) {
+      print('❌ Automatic cleanup failed: $e');
+    }
+  });
+  
+  // Also run cleanup immediately on app start
+  Timer(const Duration(seconds: 5), () async {
+    try {
+      final client = Supabase.instance.client;
+      final cleanupService = OrderCleanupService(client);
+      final result = await cleanupService.cancelUnclaimedOrders();
+      
+      if (result['success'] == true && result['cancelledCount'] > 0) {
+        print('🧹 Initial cleanup: ${result['message']}');
+      }
+    } catch (e) {
+      print('❌ Initial cleanup failed: $e');
+    }
+  });
 }

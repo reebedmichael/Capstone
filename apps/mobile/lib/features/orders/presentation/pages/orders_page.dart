@@ -212,27 +212,11 @@ class _OrdersPageState extends State<OrdersPage>
       final ordersData = await bestellingRepository.lysBestellings(user.id);
       
       debugPrint('Repository data: $ordersData');
-      
-      // If no orders found, create some test orders for debugging
-      if (ordersData.isEmpty) {
-        debugPrint('No orders found, creating test orders...');
-        await _createTestOrders(user.id);
-        // Reload after creating test orders
-        final newOrdersData = await bestellingRepository.lysBestellings(user.id);
-        debugPrint('After creating test orders: $newOrdersData');
-        if (mounted) {
-          setState(() {
-            orders = newOrdersData;
-            isLoading = false;
-          });
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            orders = ordersData;
-            isLoading = false;
-          });
-        }
+      if (mounted) {
+        setState(() {
+          orders = ordersData;
+          isLoading = false;
+        });
       }
     } catch (e) {
       debugPrint('Error loading orders: $e');
@@ -246,77 +230,7 @@ class _OrdersPageState extends State<OrdersPage>
     }
   }
 
-  Future<void> _createTestOrders(String userId) async {
-    try {
-      // Get a kampus ID first
-      final kampusData = await Supabase.instance.client
-          .from('kampus')
-          .select('kampus_id')
-          .limit(1);
-      
-      if (kampusData.isEmpty) {
-        debugPrint('No kampus found');
-        return;
-      }
-      
-      final kampusId = kampusData.first['kampus_id'];
-      
-      // Get some kos items
-      final kosItemsData = await Supabase.instance.client
-          .from('kos_item')
-          .select('kos_item_id, kos_item_koste')
-          .limit(2);
-      
-      if (kosItemsData.isEmpty) {
-        debugPrint('No kos items found');
-        return;
-      }
-      
-      // Create test order 1
-      final order1 = await Supabase.instance.client
-          .from('bestelling')
-          .insert({
-            'gebr_id': userId,
-            'kampus_id': kampusId,
-            'best_volledige_prys': 45.00,
-          })
-          .select()
-          .single();
-      
-      // Add items to order 1
-      await Supabase.instance.client
-          .from('bestelling_kos_item')
-          .insert({
-            'best_id': order1['best_id'],
-            'kos_item_id': kosItemsData[0]['kos_item_id'],
-          });
-      
-      // Create test order 2
-      final order2 = await Supabase.instance.client
-          .from('bestelling')
-          .insert({
-            'gebr_id': userId,
-            'kampus_id': kampusId,
-            'best_volledige_prys': 55.00,
-          })
-          .select()
-          .single();
-      
-      // Add items to order 2
-      if (kosItemsData.length > 1) {
-        await Supabase.instance.client
-            .from('bestelling_kos_item')
-            .insert({
-              'best_id': order2['best_id'],
-              'kos_item_id': kosItemsData[1]['kos_item_id'],
-            });
-      }
-      
-      debugPrint('Test orders created successfully');
-    } catch (e) {
-      debugPrint('Error creating test orders: $e');
-    }
-  }
+  
 
   void handleRefresh() {
     if (!mounted) return;
@@ -528,6 +442,8 @@ class _OrdersPageState extends State<OrdersPage>
         return Theme.of(context).colorScheme.tertiaryContainer;
       case 'Gekanselleer':
         return Theme.of(context).colorScheme.errorContainer;
+      case 'Verstryk':
+        return Colors.red.shade100;
       default:
         return Theme.of(context).colorScheme.surfaceVariant;
     }
@@ -546,14 +462,35 @@ class _OrdersPageState extends State<OrdersPage>
 
     bool hasVisibleForTab(Map<String, dynamic> order, bool forCompletedTab) {
       final List items = (order['bestelling_kos_item'] as List? ?? []);
+      final today = DateTime.now();
+      final todayDate = DateTime(today.year, today.month, today.day);
+      
       for (final it in items) {
         final statuses = (it['best_kos_item_statusse'] as List? ?? []);
         final String? lastStatus = statuses.isNotEmpty
             ? ((statuses.last['kos_item_statusse'] as Map<String, dynamic>? ?? {})['kos_stat_naam'] as String?)
             : null;
         final bool isCompletedItem = lastStatus == 'Afgehandel' || lastStatus == 'Gekanselleer';
-        if (!forCompletedTab && !isCompletedItem) return true;
-        if (forCompletedTab && isCompletedItem) return true;
+        
+        // Check if this item is past its due date
+        final bestDatumStr = it['best_datum'] as String?;
+        bool isPastDue = false;
+        if (bestDatumStr != null) {
+          try {
+            final bestDatum = DateTime.parse(bestDatumStr);
+            final orderDate = DateTime(bestDatum.year, bestDatum.month, bestDatum.day);
+            isPastDue = orderDate.isBefore(todayDate);
+          } catch (e) {
+            // If date parsing fails, don't consider it past due
+            isPastDue = false;
+          }
+        }
+        
+        // Item should be in completed tab if it's completed OR past due
+        final bool shouldBeInCompletedTab = isCompletedItem || isPastDue;
+        
+        if (!forCompletedTab && !shouldBeInCompletedTab) return true;
+        if (forCompletedTab && shouldBeInCompletedTab) return true;
       }
       return false;
     }
@@ -815,11 +752,29 @@ class _OrdersPageState extends State<OrdersPage>
                 // Compute cutoff date from bestelling_kos_item.best_datum: previous day at 17:00
                 DateTime? itemCutoff = _computeCutoffFromBestDatum(item['best_datum'] as String?);
 
+                // Check if this item is past its due date
+                final itemBestDatumStr = item['best_datum'] as String?;
+                bool isPastDue = false;
+                if (itemBestDatumStr != null) {
+                  try {
+                    final bestDatum = DateTime.parse(itemBestDatumStr);
+                    final today = DateTime.now();
+                    final orderDate = DateTime(bestDatum.year, bestDatum.month, bestDatum.day);
+                    final todayDate = DateTime(today.year, today.month, today.day);
+                    isPastDue = orderDate.isBefore(todayDate);
+                  } catch (e) {
+                    isPastDue = false;
+                  }
+                }
+                
+                // Item should be in completed tab if it's completed OR past due
+                final bool shouldBeInCompletedTab = isCompletedItem || isPastDue;
+                
                 // Hide/show items according to current tab
-                if (_tabController.index == 0 && isCompletedItem) {
+                if (_tabController.index == 0 && shouldBeInCompletedTab) {
                   return const SizedBox.shrink();
                 }
-                if (_tabController.index == 1 && !isCompletedItem) {
+                if (_tabController.index == 1 && !shouldBeInCompletedTab) {
                   return const SizedBox.shrink();
                 }
                 return Container(
@@ -920,14 +875,14 @@ class _OrdersPageState extends State<OrdersPage>
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: _statusColor(lastStatus ?? ''),
+                                  color: isPastDue ? Colors.red.shade100 : _statusColor(lastStatus ?? ''),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      lastStatus ?? 'Onbekend',
+                                      isPastDue ? 'Verstryk' : (lastStatus ?? 'Onbekend'),
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: _tabController.index == 1 ? Colors.white : null,

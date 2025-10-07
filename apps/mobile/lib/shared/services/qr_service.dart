@@ -38,11 +38,11 @@ class QrService {
       }
       print('✅ QR code not expired');
 
-      // Verify the item exists in database
+      // Verify the item exists in database and get the order date
       print('🔍 Looking for item in database: ${payload.bestKosId}');
       final itemData = await _supabase
           .from('bestelling_kos_item')
-          .select('best_kos_id, best_id, kos_item_id, kos_item:kos_item_id(kos_item_naam)')
+          .select('best_kos_id, best_id, kos_item_id, best_datum, kos_item:kos_item_id(kos_item_naam)')
           .eq('best_kos_id', payload.bestKosId)
           .maybeSingle();
 
@@ -54,6 +54,40 @@ class QrService {
         };
       }
       print('✅ Item found in database: ${itemData['kos_item']?['kos_item_naam']}');
+
+      // Check if the QR code is being scanned on the correct day
+      final bestDatumStr = itemData['best_datum'] as String?;
+      if (bestDatumStr != null) {
+        try {
+          final bestDatum = DateTime.parse(bestDatumStr);
+          final today = DateTime.now();
+          
+          // Check if the order date matches today's date (ignoring time)
+          final orderDate = DateTime(bestDatum.year, bestDatum.month, bestDatum.day);
+          final todayDate = DateTime(today.year, today.month, today.day);
+          
+          if (!orderDate.isAtSameMomentAs(todayDate)) {
+            print('❌ QR code scanned on wrong day. Order date: $orderDate, Today: $todayDate');
+            return {
+              'success': false,
+              'message': 'Hierdie QR kode kan slegs op ${_formatDateForDisplay(orderDate)} geskandeer word. Vandag is ${_formatDateForDisplay(todayDate)}.',
+            };
+          }
+          print('✅ QR code scanned on correct day');
+        } catch (e) {
+          print('❌ Error parsing order date: $e');
+          return {
+            'success': false,
+            'message': 'Fout met verwerking van bestelling datum',
+          };
+        }
+      } else {
+        print('❌ No order date found for item');
+        return {
+          'success': false,
+          'message': 'Geen bestelling datum gevind nie',
+        };
+      }
 
       // Check if item has already been collected
       final existingStatuses = await _supabase
@@ -162,6 +196,23 @@ class QrService {
       bestId: bestId,
       kosItemId: kosItemId,
     );
+  }
+
+  /// Format date for display in Afrikaans
+  String _formatDateForDisplay(DateTime date) {
+    final months = [
+      'Januarie', 'Februarie', 'Maart', 'April', 'Mei', 'Junie',
+      'Julie', 'Augustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    
+    final weekdays = [
+      'Sondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrydag', 'Saterdag'
+    ];
+    
+    final weekday = weekdays[date.weekday % 7];
+    final month = months[date.month - 1];
+    
+    return '$weekday ${date.day} $month ${date.year}';
   }
 
   /// Check if a user is a tertiary admin
