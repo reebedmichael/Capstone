@@ -20,125 +20,81 @@ class AdminDashboardRepository {
     final todayStr = today.toIso8601String();
     final yesterdayStr = yesterday.toIso8601String();
 
-    // 1. Total earnings today and yesterday
-    final todayEarningsRes = await _sb
-        .from('bestelling')
-        .select('best_volledige_prys')
-        .gte('best_geskep_datum', todayStr)
-        .lte('best_geskep_datum', now.toIso8601String());
+    // Execute all queries in parallel for better performance
+    final results = await Future.wait([
+      // 1. Today's orders with earnings
+      _sb
+          .from('bestelling')
+          .select('best_id, best_volledige_prys')
+          .gte('best_geskep_datum', todayStr)
+          .lte('best_geskep_datum', now.toIso8601String()),
 
-    final yesterdayEarningsRes = await _sb
-        .from('bestelling')
-        .select('best_volledige_prys')
-        .gte('best_geskep_datum', yesterdayStr)
-        .lt('best_geskep_datum', todayStr);
+      // 2. Yesterday's orders with earnings
+      _sb
+          .from('bestelling')
+          .select('best_id, best_volledige_prys')
+          .gte('best_geskep_datum', yesterdayStr)
+          .lt('best_geskep_datum', todayStr),
 
-    final double todayEarnings = todayEarningsRes.fold<double>(
+      // 3. Today's order items for popular item calculation
+      _sb
+          .from('bestelling')
+          .select('best_id')
+          .gte('best_geskep_datum', todayStr)
+          .lte('best_geskep_datum', now.toIso8601String()),
+
+      // 4. Get all status types once
+      _sb.from('kos_item_statusse').select('kos_stat_id, kos_stat_naam'),
+    ]);
+
+    final todayOrdersRes = results[0] as List;
+    final yesterdayOrdersRes = results[1] as List;
+    final todayBestIdsRes = results[2] as List;
+    final allStatusesRes = results[3] as List;
+
+    // Calculate earnings and order counts
+    final double todayEarnings = todayOrdersRes.fold<double>(
       0,
       (sum, row) => sum + (row['best_volledige_prys'] as num).toDouble(),
     );
-    final double yesterdayEarnings = yesterdayEarningsRes.fold<double>(
+    final double yesterdayEarnings = yesterdayOrdersRes.fold<double>(
       0,
       (sum, row) => sum + (row['best_volledige_prys'] as num).toDouble(),
     );
 
-    // 2. Order counts today and yesterday
-    final todayOrders = todayEarningsRes.length;
-    final yesterdayOrders = yesterdayEarningsRes.length;
+    final todayOrders = todayOrdersRes.length;
+    final yesterdayOrders = yesterdayOrdersRes.length;
 
-    // 3. Most popular item today
-    final popularRes = await _sb
-        .from('bestelling')
-        .select('best_id')
-        .gte('best_geskep_datum', todayStr)
-        .lte('best_geskep_datum', now.toIso8601String());
+    // Get afgehandel status ID once
+    final afgehandelIds = allStatusesRes
+        .where((s) => s['kos_stat_naam'] == 'Afgehandel')
+        .map((s) => s['kos_stat_id'] as String)
+        .toSet();
 
-    final bestIdsToday = (popularRes as List).map((r) => r['best_id']).toList();
+    // Execute remaining queries in parallel
+    final bestIdsToday = todayBestIdsRes.map((r) => r['best_id']).toList();
 
-    String? mostPopularItem;
-    if (bestIdsToday.isNotEmpty) {
-      final itemRes = await _sb
-          .from('bestelling_kos_item')
-          .select('kos_item_id')
-          .inFilter('best_id', bestIdsToday);
-
-      if (itemRes.isNotEmpty) {
-        final counts = <dynamic, int>{};
-        for (var row in itemRes) {
-          final id = row['kos_item_id'];
-          counts[id] = (counts[id] ?? 0) + 1;
-        }
-
-        // Find most frequent kos_item_id
-        final sorted = counts.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
-        final topItemId = sorted.first.key;
-
-        final kosItemRes = await _sb
-            .from('kos_item')
-            .select('kos_item_naam')
-            .eq('kos_item_id', topItemId)
-            .maybeSingle();
-
-        mostPopularItem = kosItemRes?['kos_item_naam'];
-      }
+    if (bestIdsToday.isEmpty) {
+      return {
+        'todayEarnings': todayEarnings,
+        'yesterdayEarnings': yesterdayEarnings,
+        'todayOrders': todayOrders,
+        'yesterdayOrders': yesterdayOrders,
+        'mostPopularItem': null,
+        'uncompletedOrders': 0,
+      };
     }
 
-    // 4. Uncompleted orders today
-    final uncompletedRes = await _sb
-        .from('bestelling')
-        .select('best_id')
-        .gte('best_geskep_datum', todayStr)
-        .lte('best_geskep_datum', now.toIso8601String());
+    final remainingResults = await Future.wait([
+      // Popular item calculation
+      _getMostPopularItem(bestIdsToday),
 
-    final bestIdsForStatus = (uncompletedRes as List)
-        .map((r) => r['best_id'])
-        .toList();
+      // Uncompleted orders calculation
+      _getUncompletedOrdersCount(bestIdsToday, afgehandelIds),
+    ]);
 
-    int uncompletedOrders = 0;
-    if (bestIdsForStatus.isNotEmpty) {
-      final statusRes = await _sb
-          .from('bestelling_kos_item')
-          .select('best_kos_id, item_hoev')
-          .inFilter('best_id', bestIdsForStatus);
-
-      final bestKosIds = (statusRes as List)
-          .map((r) => r['best_kos_id'] as String)
-          .toList();
-
-      if (bestKosIds.isNotEmpty) {
-        final statCountRes = await _sb
-            .from('best_kos_item_statusse')
-            .select('best_kos_stat_id, kos_stat_id, best_kos_id')
-            .inFilter('best_kos_id', bestKosIds);
-
-        // Fetch status names
-        final allStatuses = await _sb
-            .from('kos_item_statusse')
-            .select('kos_stat_id, kos_stat_naam');
-
-        final afgehandelIds = allStatuses
-            .where((s) => s['kos_stat_naam'] == 'Afgehandel')
-            .map((s) => s['kos_stat_id'] as String)
-            .toSet();
-
-        // Maak 'n map van best_kos_id -> item_hoev (hoeveelheid)
-        final itemQtyMap = {
-          for (var row in statusRes)
-            row['best_kos_id'] as String: row['item_hoev'] as int,
-        };
-
-        // Som al die hoeveelhede waar die status nie 'Afgehandel' is nie
-        uncompletedOrders = (statCountRes as List).fold<int>(0, (sum, s) {
-          final kosStatId = s['kos_stat_id'] as String;
-          if (!afgehandelIds.contains(kosStatId)) {
-            final bestKosId = s['best_kos_id'] as String;
-            return sum + (itemQtyMap[bestKosId] ?? 0);
-          }
-          return sum;
-        });
-      }
-    }
+    final mostPopularItem = remainingResults[0] as String?;
+    final uncompletedOrders = remainingResults[1] as int;
 
     return {
       'todayEarnings': todayEarnings,
@@ -148,6 +104,95 @@ class AdminDashboardRepository {
       'mostPopularItem': mostPopularItem,
       'uncompletedOrders': uncompletedOrders,
     };
+  }
+
+  /// Helper method to get most popular item efficiently
+  Future<String?> _getMostPopularItem(List<dynamic> bestIdsToday) async {
+    if (bestIdsToday.isEmpty) return null;
+
+    // Get item counts in one query with join
+    final itemRes = await _sb
+        .from('bestelling_kos_item')
+        .select('kos_item_id')
+        .inFilter('best_id', bestIdsToday);
+
+    if (itemRes.isEmpty) return null;
+
+    // Count occurrences efficiently
+    final counts = <dynamic, int>{};
+    for (var row in itemRes) {
+      final id = row['kos_item_id'];
+      counts[id] = (counts[id] ?? 0) + 1;
+    }
+
+    // Find most frequent kos_item_id
+    final sorted = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    if (sorted.isEmpty) return null;
+
+    final topItemId = sorted.first.key;
+
+    // Get item name
+    final kosItemRes = await _sb
+        .from('kos_item')
+        .select('kos_item_naam')
+        .eq('kos_item_id', topItemId)
+        .maybeSingle();
+
+    return kosItemRes?['kos_item_naam'];
+  }
+
+  /// Helper method to get uncompleted orders count efficiently
+  Future<int> _getUncompletedOrdersCount(
+    List<dynamic> bestIdsToday,
+    Set<String> afgehandelIds,
+  ) async {
+    if (bestIdsToday.isEmpty) return 0;
+
+    // Get all order items and their statuses in one query
+    final statusRes = await _sb
+        .from('bestelling_kos_item')
+        .select('best_kos_id, item_hoev')
+        .inFilter('best_id', bestIdsToday);
+
+    if (statusRes.isEmpty) return 0;
+
+    final bestKosIds = statusRes
+        .map((r) => r['best_kos_id'] as String)
+        .toList();
+
+    // Get statuses for these items
+    final statCountRes = await _sb
+        .from('best_kos_item_statusse')
+        .select('kos_stat_id, best_kos_id')
+        .inFilter('best_kos_id', bestKosIds);
+
+    // Create quantity map
+    final itemQtyMap = {
+      for (var row in statusRes)
+        row['best_kos_id'] as String: row['item_hoev'] as int,
+    };
+
+    // Count uncompleted items
+    int uncompletedOrders = 0;
+    final processedItems = <String>{};
+
+    for (var s in statCountRes) {
+      final bestKosId = s['best_kos_id'] as String;
+      final kosStatId = s['kos_stat_id'] as String;
+
+      // Only process each item once
+      if (processedItems.contains(bestKosId)) continue;
+      processedItems.add(bestKosId);
+
+      // If status is not 'Afgehandel', count the quantity
+      if (!afgehandelIds.contains(kosStatId)) {
+        uncompletedOrders += itemQtyMap[bestKosId] ?? 0;
+      }
+    }
+
+    return uncompletedOrders;
   }
 
   // Fetch total amount of items for each day in current week (Mon-Sun)

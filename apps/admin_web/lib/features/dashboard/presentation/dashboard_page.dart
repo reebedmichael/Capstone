@@ -1,4 +1,3 @@
-import 'package:capstone_admin/features/dashboard/Widgets/quick_actions.dart';
 import 'package:capstone_admin/features/dashboard/Widgets/dashboard_header.dart';
 import 'package:capstone_admin/features/dashboard/Widgets/kpi_cards.dart';
 import 'package:capstone_admin/features/dashboard/Widgets/sales_overview.dart';
@@ -25,45 +24,6 @@ class _DashboardPageState extends State<DashboardPage> {
 
   late final List<DateTime> nextWeekDates;
   late List<Map<String, dynamic>> weeklyMenu;
-
-  List<Map<String, dynamic>> pendingUsers = [
-    {
-      'id': 'user_001',
-      'name': 'Michael Rodriguez',
-      'email': 'michael.rodriguez@email.com',
-      'phone': '+1 (555) 123-4567',
-      'registrationDate': '2024-10-04',
-      'accountType': 'Customer',
-      'location': 'Downtown',
-    },
-    {
-      'id': 'user_002',
-      'name': 'Jessica Thompson',
-      'email': 'jessica.thompson@email.com',
-      'phone': '+1 (555) 987-6543',
-      'registrationDate': '2024-10-04',
-      'accountType': 'Delivery Partner',
-      'location': 'Uptown',
-    },
-    {
-      'id': 'user_003',
-      'name': 'Ahmed Hassan',
-      'email': 'ahmed.hassan@email.com',
-      'phone': '+1 (555) 456-7890',
-      'registrationDate': '2024-10-03',
-      'accountType': 'Customer',
-      'location': 'Mall',
-    },
-    {
-      'id': 'user_004',
-      'name': 'Sofia Chen',
-      'email': 'sofia.chen@email.com',
-      'phone': '+1 (555) 321-0987',
-      'registrationDate': '2024-10-03',
-      'accountType': 'Restaurant Partner',
-      'location': 'Downtown',
-    },
-  ];
 
   final List<Map<String, String>> recentActivity = [
     {'action': 'Admin John updated the menu template', 'time': '5 mins ago'},
@@ -147,20 +107,6 @@ class _DashboardPageState extends State<DashboardPage> {
       weekDays.add(nextMonday.add(Duration(days: i)));
     }
     return weekDays;
-  }
-
-  void approveUser(String userId) {
-    setState(() {
-      pendingUsers = pendingUsers.where((u) => u['id'] != userId).toList();
-    });
-    // API call would go here
-  }
-
-  void rejectUser(String userId) {
-    setState(() {
-      pendingUsers = pendingUsers.where((u) => u['id'] != userId).toList();
-    });
-    // API call would go here
   }
 
   TextStyle accountTypeTextStyle(String type) {
@@ -274,62 +220,83 @@ class _DashboardPageState extends State<DashboardPage> {
                 const SizedBox(height: 16),
 
                 // Charts & Important Notifications
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Sales chart (left, large)
-                    Expanded(flex: 2, child: SalesOverview()),
-                    const SizedBox(width: 16),
-                    // Important Notifications (right, small)
-                    Expanded(
-                      flex: 1,
-                      child: ImportantNotifications(
+                if (isLarge || isMedium)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Sales chart (left, large)
+                      Expanded(flex: 2, child: SalesOverview()),
+                      const SizedBox(width: 16),
+                      // Important Notifications (right, small)
+                      Expanded(
+                        flex: 1,
+                        child: ImportantNotifications(
+                          onNotificationCountChanged: (count) {
+                            setState(() {
+                              _unreadNotificationCount = count;
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Column(
+                    children: [
+                      SalesOverview(),
+                      const SizedBox(height: 16),
+                      ImportantNotifications(
                         onNotificationCountChanged: (count) {
                           setState(() {
                             _unreadNotificationCount = count;
                           });
                         },
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
 
                 const SizedBox(height: 16),
 
                 // Today's Orders & Weekly Menu
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Today's Orders (left)
-                    Expanded(child: TodaysOrders()),
-                    const SizedBox(width: 16),
-                    // Weekly Menu (right)
-                    Expanded(
-                      child: NextWeeksMenu(
+                if (isLarge || isMedium)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Today's Orders (left)
+                      Expanded(child: TodaysOrders()),
+                      const SizedBox(width: 16),
+                      // Weekly Menu (right)
+                      Expanded(
+                        child: NextWeeksMenu(
+                          onNavigateToMenu: widget.onNavigate ?? (page) {},
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Column(
+                    children: [
+                      TodaysOrders(),
+                      const SizedBox(height: 16),
+                      NextWeeksMenu(
                         onNavigateToMenu: widget.onNavigate ?? (page) {},
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
 
                 const SizedBox(height: 16),
 
-                // Pending User Approvals
-                PendingUserApprovals(
-                  pendingUsers: pendingUsers,
-                  onApproveUser: approveUser,
-                  onRejectUser: rejectUser,
-                  onNavigateToUsers: widget.onNavigate ?? (page) {},
-                ),
+                // User Management Summary
+                const UserManagementSummary(),
 
                 const SizedBox(height: 16),
 
                 // Quick Actions
-                QuickActions(
-                  isLarge: isLarge,
-                  isMedium: isMedium,
-                  widget: widget,
-                ),
+                // QuickActions(
+                //   isLarge: isLarge,
+                //   isMedium: isMedium,
+                //   widget: widget,
+                // ),
               ],
             ),
           ),

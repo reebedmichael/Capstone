@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:spys_api_client/spys_api_client.dart';
 import 'package:spys_api_client/src/admin_bestellings_repository.dart';
+import 'package:spys_api_client/src/kampus_repository.dart';
 import '../../../shared/types/order.dart';
 import '../../../shared/utils/status_utils.dart';
 import '../../../shared/constants/order_constants.dart';
@@ -27,29 +28,66 @@ class _TodaysOrdersState extends State<TodaysOrders> {
   bool _isUpdating = false;
 
   // Configuration
-  final List<String> _locations = ['Downtown', 'Uptown', 'Mall'];
+  List<String> _locations = [];
   late final AdminBestellingRepository _repo;
+  late final KampusRepository _kampusRepo;
 
   @override
   void initState() {
     super.initState();
-    _initializeRepository();
-    _loadOrders();
+    _initializeRepositories();
+    _loadData();
   }
 
-  void _initializeRepository() {
+  void _initializeRepositories() {
     try {
       final client = Supabase.instance.client;
-      _repo = AdminBestellingRepository(SupabaseDb(client));
+      final db = SupabaseDb(client);
+      _repo = AdminBestellingRepository(db);
+      _kampusRepo = KampusRepository(db);
     } catch (e) {
-      _handleError('Failed to initialize repository: $e');
+      _handleError('Failed to initialize repositories: $e');
+    }
+  }
+
+  Future<void> _loadData() async {
+    if (!mounted) return;
+
+    _setLoadingState(true);
+
+    try {
+      await Future.wait([_loadCampusNames(), _loadOrders()]);
+    } finally {
+      _setLoadingState(false);
+    }
+  }
+
+  Future<void> _loadCampusNames() async {
+    try {
+      final campusData = await _kampusRepo.kryKampusse();
+      final campusNames = campusData
+          .where((data) => data != null && data['kampus_naam'] != null)
+          .map((data) => data!['kampus_naam'] as String)
+          .toList();
+
+      if (mounted) {
+        setState(() {
+          _locations = campusNames;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load campus names: $e');
+      // Fallback to empty list if campus loading fails
+      if (mounted) {
+        setState(() {
+          _locations = [];
+        });
+      }
     }
   }
 
   Future<void> _loadOrders() async {
     if (!mounted) return;
-
-    _setLoadingState(true);
 
     try {
       final rows = await _repo.getBestellings();
@@ -71,8 +109,6 @@ class _TodaysOrdersState extends State<TodaysOrders> {
       }
     } catch (e) {
       _handleError('Failed to load orders: $e');
-    } finally {
-      _setLoadingState(false);
     }
   }
 
@@ -93,14 +129,9 @@ class _TodaysOrdersState extends State<TodaysOrders> {
     final List<Order> splitOrders = [];
 
     for (final order in orders) {
-      // Filter items for today that are not done or cancelled
+      // Filter items for today (include all statuses)
       final todayItems = order.items
-          .where(
-            (item) =>
-                item.scheduledDay == todayString &&
-                item.status != OrderStatus.done &&
-                item.status != OrderStatus.cancelled,
-          )
+          .where((item) => item.scheduledDay == todayString)
           .toList();
 
       if (todayItems.isEmpty) continue;
@@ -261,11 +292,11 @@ class _TodaysOrdersState extends State<TodaysOrders> {
       // Update local state
       if (mounted) {
         _updateLocalState(itemsToUpdate, newStatus);
-        _showSuccessMessage('Items successfully updated');
+        _showSuccessMessage('Bestellings suksesvol opgedateer');
       }
     } catch (e) {
       if (mounted) {
-        _showErrorMessage('Update failed: $e');
+        _showErrorMessage('Fout met opdatering: $e');
       }
     } finally {
       _setUpdatingState(false);
@@ -458,8 +489,8 @@ class _TodaysOrdersState extends State<TodaysOrders> {
             mainAxisSize: MainAxisSize.min,
             children: const [
               CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Loading today\'s orders...'),
+              SizedBox(height: 32),
+              Text('Laai vandag se bestellings...'),
             ],
           ),
         ),
@@ -478,7 +509,7 @@ class _TodaysOrdersState extends State<TodaysOrders> {
             Icon(Icons.error_outline, color: Colors.red, size: 48),
             const SizedBox(height: 16),
             Text(
-              'Error loading orders',
+              'Fout met laai van bestellings',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
@@ -488,7 +519,10 @@ class _TodaysOrdersState extends State<TodaysOrders> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(onPressed: _loadOrders, child: const Text('Retry')),
+            ElevatedButton(
+              onPressed: _loadData,
+              child: const Text('Probeer weer'),
+            ),
           ],
         ),
       ),
@@ -506,7 +540,7 @@ class _TodaysOrdersState extends State<TodaysOrders> {
         child: Column(
           children: [
             _buildHeader(),
-            const SizedBox(height: 12),
+            const SizedBox(height: 18),
             if (statusGroups.isEmpty)
               _buildEmptyState()
             else
@@ -518,6 +552,62 @@ class _TodaysOrdersState extends State<TodaysOrders> {
   }
 
   Widget _buildHeader() {
+    final mediaWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = mediaWidth < 600;
+
+    if (isSmallScreen) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Vandag se Bestellings',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Bestellings gegroepeer volgens status met afhaalpunt filtrering',
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildLocationDropdown()),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () {
+                  if (mounted) {
+                    try {
+                      // Use push instead of go to avoid stack issues
+                      context.push('/bestellings');
+                    } catch (e) {
+                      debugPrint('Navigation error: $e');
+                      // Show a message instead of crashing
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Kan nie na bestellingsbladsy navigeer nie',
+                            ),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                      }
+                    }
+                  }
+                },
+                child: const Text('Meer'),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
     return Row(
       children: [
         Expanded(
@@ -525,12 +615,12 @@ class _TodaysOrdersState extends State<TodaysOrders> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: const [
               Text(
-                'Today\'s Orders',
+                'Vandag se Bestellings',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 4),
               Text(
-                'Orders grouped by status with pickup point filtering',
+                'Bestellings gegroepeer volgens status met afhaalpunt filtrering',
                 style: TextStyle(color: Colors.grey, fontSize: 12),
               ),
             ],
@@ -551,7 +641,9 @@ class _TodaysOrdersState extends State<TodaysOrders> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Unable to navigate to orders page'),
+                      content: Text(
+                        'Kan nie na bestellingsbladsy navigeer nie',
+                      ),
                       backgroundColor: Colors.orange,
                     ),
                   );
@@ -559,7 +651,7 @@ class _TodaysOrdersState extends State<TodaysOrders> {
               }
             }
           },
-          child: const Text('More'),
+          child: const Text('Meer'),
         ),
       ],
     );
@@ -568,13 +660,15 @@ class _TodaysOrdersState extends State<TodaysOrders> {
   Widget _buildLocationDropdown() {
     return DropdownButton<String>(
       value: _selectedLocation,
-      onChanged: (value) {
-        if (value != null && mounted) {
-          setState(() {
-            _selectedLocation = value;
-          });
-        }
-      },
+      onChanged: _locations.isEmpty
+          ? null
+          : (value) {
+              if (value != null && mounted) {
+                setState(() {
+                  _selectedLocation = value;
+                });
+              }
+            },
       items: [
         DropdownMenuItem(
           value: 'all',
@@ -582,7 +676,7 @@ class _TodaysOrdersState extends State<TodaysOrders> {
             children: const [
               Icon(Icons.place, size: 16),
               SizedBox(width: 6),
-              Text('All Locations'),
+              Text('Alle Punte'),
             ],
           ),
         ),
@@ -597,9 +691,20 @@ class _TodaysOrdersState extends State<TodaysOrders> {
   Widget _buildEmptyState() {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 24),
-      child: Text(
-        'No orders for this location',
-        style: TextStyle(color: Colors.grey[600]),
+      child: Column(
+        children: [
+          Text(
+            'Geen bestellings vir hierdie punt nie',
+            style: TextStyle(color: Colors.grey[600]),
+          ),
+          if (_locations.isEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Geen kampusse gevind nie',
+              style: TextStyle(color: Colors.grey[500], fontSize: 12),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -626,6 +731,9 @@ class _TodaysOrdersState extends State<TodaysOrders> {
   }
 
   Widget _buildStatusGroupsWidget(List<Map<String, dynamic>> groups) {
+    final mediaWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = mediaWidth < 600;
+
     return Column(
       children: groups.map((group) {
         final status = group['status'] as OrderStatus;
@@ -633,6 +741,79 @@ class _TodaysOrdersState extends State<TodaysOrders> {
         final color = group['color'] as Color;
         final label = group['label'] as String;
         final nextStatus = getNextStatus(status);
+
+        if (isSmallScreen) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            label,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            '$count bestelling${count == 1 ? '' : 's'}',
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '$count',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+                if (nextStatus != null && !_isUpdating) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _updateStatusForItems(status),
+                      icon: const Icon(Icons.arrow_forward, size: 16),
+                      label: Text('${getStatusInfo(nextStatus).label}'),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        }
 
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
@@ -664,7 +845,7 @@ class _TodaysOrdersState extends State<TodaysOrders> {
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       Text(
-                        '$count item${count == 1 ? '' : 's'}',
+                        '$count bestelling${count == 1 ? '' : 's'}',
                         style: const TextStyle(
                           color: Colors.grey,
                           fontSize: 12,
@@ -692,7 +873,7 @@ class _TodaysOrdersState extends State<TodaysOrders> {
                     OutlinedButton.icon(
                       onPressed: () => _updateStatusForItems(status),
                       icon: const Icon(Icons.arrow_forward, size: 16),
-                      label: Text('Move to ${getStatusInfo(nextStatus).label}'),
+                      label: Text('${getStatusInfo(nextStatus).label}'),
                     ),
                 ],
               ),

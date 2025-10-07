@@ -10,11 +10,55 @@ class AdminBestellingRepository {
 
   SupabaseClient get _sb => _db.raw;
 
+  // Cache management
+  List<Map<String, dynamic>>? _cachedBestellings;
+  DateTime? _lastCacheUpdate;
+  Duration _cacheValidityDuration = const Duration(minutes: 5);
+
+  /// Check if cache is valid (not expired)
+  bool get _isCacheValid {
+    if (_cachedBestellings == null || _lastCacheUpdate == null) return false;
+    return DateTime.now().difference(_lastCacheUpdate!) <
+        _cacheValidityDuration;
+  }
+
+  /// Clear the cache
+  void clearCache() {
+    _cachedBestellings = null;
+    _lastCacheUpdate = null;
+  }
+
+  /// Force refresh cache by clearing it
+  void invalidateCache() {
+    clearCache();
+  }
+
+  /// Set cache validity duration
+  void setCacheValidityDuration(Duration duration) {
+    _cacheValidityDuration = duration;
+  }
+
+  /// Get cached data if valid, otherwise return null
+  List<Map<String, dynamic>>? getCachedBestellings() {
+    return _isCacheValid ? _cachedBestellings : null;
+  }
+
   /// Haal bestellings en assembles al die verwante data in `kos_items`.
   ///
   /// Returned `List<Map<String, dynamic>>` met elke bestelling se kern velde
   /// en 'n `kos_items` sleutel wat 'n lys van items met name en statusse bevat.
-  Future<List<Map<String, dynamic>>> getBestellings() async {
+  ///
+  /// Uses cache if available and valid to improve performance.
+  Future<List<Map<String, dynamic>>> getBestellings({
+    bool forceRefresh = false,
+  }) async {
+    // Return cached data if valid and not forcing refresh
+    if (!forceRefresh && _isCacheValid) {
+      print('Cache hit: Returning cached bestellings data');
+      return _cachedBestellings!;
+    }
+
+    print('Cache miss or force refresh: Fetching fresh data from database');
     try {
       // Stap 1: laai basiese bestellingsreeks
       final rows = await _sb
@@ -159,6 +203,11 @@ class AdminBestellingRepository {
         results.add(order);
       }
 
+      // Cache the results
+      _cachedBestellings = results;
+      _lastCacheUpdate = DateTime.now();
+      print('Cache updated: ${results.length} bestellings cached');
+
       return results;
     } catch (e, st) {
       print('Fout in getBestellings: $e\n$st');
@@ -182,6 +231,7 @@ class AdminBestellingRepository {
   }
 
   /// Dateer die status van 'n `bestelling_kos_item` op.
+  /// Automatically invalidates cache after successful update.
   Future<void> updateStatus({
     required String bestKosId, // GEWYSIG NA STRING
     required String statusNaam,
@@ -265,6 +315,10 @@ class AdminBestellingRepository {
           'trans_tipe_id': transTipeId,
         });
       }
+
+      // Invalidate cache after successful update
+      invalidateCache();
+      print('Cache invalidated after status update');
     } catch (e, st) {
       print('Fout in updateStatus: $e\n$st');
       rethrow;

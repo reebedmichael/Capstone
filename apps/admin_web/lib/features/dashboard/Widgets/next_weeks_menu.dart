@@ -170,9 +170,9 @@ class _NextWeeksMenuState extends State<NextWeeksMenu> {
       'Jul',
       'Aug',
       'Sep',
-      'Oct',
+      'Okt',
       'Nov',
-      'Dec',
+      'Des',
     ];
     return '${months[d.month - 1]} ${d.day}';
   }

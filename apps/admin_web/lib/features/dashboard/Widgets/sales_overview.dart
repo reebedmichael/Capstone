@@ -248,7 +248,7 @@ class _SalesOverviewState extends State<SalesOverview> {
                         ),
                         const SizedBox(height: 6),
                         const Text(
-                          'Weeklikse item verkope prestasie',
+                          'Huidige week se item verkope prestasie',
                           style: TextStyle(color: Colors.grey),
                         ),
                       ],

@@ -26,22 +26,34 @@ class _KpiCardsState extends State<KpiCards> {
   }
 
   Future<void> _loadKpiData() async {
+    if (!mounted) return;
+
     try {
       setState(() {
         _isLoading = true;
         _errorMessage = null;
       });
 
-      final data = await _repo.fetcKpiStats();
-      setState(() {
-        _kpiData = data;
-        _isLoading = false;
-      });
+      final data = await _repo.fetcKpiStats().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('KPI data loading timeout - please try again');
+        },
+      );
+
+      if (mounted) {
+        setState(() {
+          _kpiData = data;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
