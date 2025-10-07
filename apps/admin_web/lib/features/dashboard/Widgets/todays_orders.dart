@@ -10,7 +10,9 @@ import '../../../shared/constants/order_constants.dart';
 import '../../bestellings/widgets/status_update_confirmation.dart';
 
 class TodaysOrders extends StatefulWidget {
-  const TodaysOrders({super.key});
+  final VoidCallback? onStatusChangedToDone; // Add callback for status changes
+
+  const TodaysOrders({super.key, this.onStatusChangedToDone});
 
   @override
   State<TodaysOrders> createState() => _TodaysOrdersState();
@@ -113,26 +115,44 @@ class _TodaysOrdersState extends State<TodaysOrders> {
   }
 
   bool _isOrderForToday(Order order, String todayString) {
-    // Check if order was created today
+    // Check if any items are scheduled for today using best_datum
     final today = DateTime.now();
-    if (order.createdAt.year == today.year &&
-        order.createdAt.month == today.month &&
-        order.createdAt.day == today.day) {
-      return true;
-    }
+    final todayDate = DateTime(today.year, today.month, today.day);
 
-    // Check if any items are scheduled for today
-    return order.items.any((item) => item.scheduledDay == todayString);
+    return order.items.any((item) {
+      // Use the actual bestDatum if available
+      if (item.bestDatum != null) {
+        final itemDate = DateTime(
+          item.bestDatum!.year,
+          item.bestDatum!.month,
+          item.bestDatum!.day,
+        );
+        return itemDate.isAtSameMomentAs(todayDate);
+      }
+
+      // Fallback to scheduledDay if bestDatum is not available
+      return item.scheduledDay == todayString;
+    });
   }
 
   List<Order> _createSplitOrders(List<Order> orders, String todayString) {
     final List<Order> splitOrders = [];
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
 
     for (final order in orders) {
-      // Filter items for today (include all statuses)
-      final todayItems = order.items
-          .where((item) => item.scheduledDay == todayString)
-          .toList();
+      // Filter items for today using bestDatum if available, otherwise fallback to scheduledDay
+      final todayItems = order.items.where((item) {
+        if (item.bestDatum != null) {
+          final itemDate = DateTime(
+            item.bestDatum!.year,
+            item.bestDatum!.month,
+            item.bestDatum!.day,
+          );
+          return itemDate.isAtSameMomentAs(todayDate);
+        }
+        return item.scheduledDay == todayString;
+      }).toList();
 
       if (todayItems.isEmpty) continue;
 
@@ -293,6 +313,12 @@ class _TodaysOrdersState extends State<TodaysOrders> {
       if (mounted) {
         _updateLocalState(itemsToUpdate, newStatus);
         _showSuccessMessage('Bestellings suksesvol opgedateer');
+
+        // Trigger callback if status changed to done
+        if (newStatus == OrderStatus.done &&
+            widget.onStatusChangedToDone != null) {
+          widget.onStatusChangedToDone!();
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -330,7 +356,23 @@ class _TodaysOrdersState extends State<TodaysOrders> {
           final todayString = OrderConstants.getCurrentDayInAfrikaans();
 
           final updatedItems = order.items.map((item) {
-            if (item.scheduledDay == todayString &&
+            final today = DateTime.now();
+            final todayDate = DateTime(today.year, today.month, today.day);
+
+            // Check if item is for today using bestDatum if available
+            bool isItemForToday = false;
+            if (item.bestDatum != null) {
+              final itemDate = DateTime(
+                item.bestDatum!.year,
+                item.bestDatum!.month,
+                item.bestDatum!.day,
+              );
+              isItemForToday = itemDate.isAtSameMomentAs(todayDate);
+            } else {
+              isItemForToday = item.scheduledDay == todayString;
+            }
+
+            if (isItemForToday &&
                 foodTypesToUpdate.contains(item.name) &&
                 getNextStatus(item.status) == newStatus) {
               return item.copyWith(status: newStatus);
@@ -436,6 +478,18 @@ class _TodaysOrdersState extends State<TodaysOrders> {
         final status = mapStatusFromNames(statusNames);
         final bestKosId = (itemData['best_kos_id']?.toString()) ?? '';
 
+        // Parse best_datum to DateTime
+        DateTime? bestDatum;
+        try {
+          final bestDatumRaw = itemData['best_datum'];
+          if (bestDatumRaw != null) {
+            bestDatum = DateTime.parse(bestDatumRaw.toString());
+          }
+        } catch (e) {
+          debugPrint('Error parsing best_datum: $e');
+          bestDatum = null;
+        }
+
         scheduledDays.add(weekdag);
         items.add(
           OrderItem(
@@ -445,6 +499,7 @@ class _TodaysOrdersState extends State<TodaysOrders> {
             quantity: quantity,
             status: status,
             scheduledDay: weekdag,
+            bestDatum: bestDatum, // Add the actual date
           ),
         );
       }

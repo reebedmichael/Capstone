@@ -22,6 +22,9 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   int _unreadNotificationCount = 0;
 
+  // Add ValueNotifier to trigger KPI refresh
+  final ValueNotifier<int> _kpiRefreshTrigger = ValueNotifier<int>(0);
+
   late final List<DateTime> nextWeekDates;
   late List<Map<String, dynamic>> weeklyMenu;
 
@@ -215,7 +218,10 @@ class _DashboardPageState extends State<DashboardPage> {
             child: Column(
               children: [
                 // KPI Cards
-                KpiCards(mediaWidth: mediaWidth),
+                KpiCards(
+                  mediaWidth: mediaWidth,
+                  refreshTrigger: _kpiRefreshTrigger,
+                ),
 
                 const SizedBox(height: 16),
 
@@ -263,7 +269,14 @@ class _DashboardPageState extends State<DashboardPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Today's Orders (left)
-                      Expanded(child: TodaysOrders()),
+                      Expanded(
+                        child: TodaysOrders(
+                          onStatusChangedToDone: () {
+                            // Refresh KPI cards when status changes to done
+                            _kpiRefreshTrigger.value++;
+                          },
+                        ),
+                      ),
                       const SizedBox(width: 16),
                       // Weekly Menu (right)
                       Expanded(
@@ -276,7 +289,12 @@ class _DashboardPageState extends State<DashboardPage> {
                 else
                   Column(
                     children: [
-                      TodaysOrders(),
+                      TodaysOrders(
+                        onStatusChangedToDone: () {
+                          // Refresh KPI cards when status changes to done
+                          _kpiRefreshTrigger.value++;
+                        },
+                      ),
                       const SizedBox(height: 16),
                       NextWeeksMenu(
                         onNavigateToMenu: widget.onNavigate ?? (page) {},

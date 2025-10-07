@@ -119,6 +119,19 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
             (it['statusse'] as List?)?.whereType<String>().toList() ?? const [];
         final status = mapStatusFromNames(statusNames);
         final bestKosId = (it['best_kos_id']?.toString()) ?? '';
+
+        // Parse best_datum to DateTime
+        DateTime? bestDatum;
+        try {
+          final bestDatumRaw = it['best_datum'];
+          if (bestDatumRaw != null) {
+            bestDatum = DateTime.parse(bestDatumRaw.toString());
+          }
+        } catch (e) {
+          debugPrint('Error parsing best_datum: $e');
+          bestDatum = null;
+        }
+
         scheduledDays.add(weekdag);
         items.add(
           OrderItem(
@@ -128,6 +141,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
             quantity: qty,
             status: status,
             scheduledDay: weekdag,
+            bestDatum: bestDatum, // Add the actual date
           ),
         );
       }
@@ -651,7 +665,9 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
                               children: [
                                 ElevatedButton.icon(
                                   onPressed: _handleCleanupUnclaimedOrders,
-                                  icon: const Icon(Icons.cleaning_services_outlined),
+                                  icon: const Icon(
+                                    Icons.cleaning_services_outlined,
+                                  ),
                                   label: const Text('Opruim Onopgehaalde'),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.orange.shade100,
@@ -732,16 +748,18 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
 
     try {
       final result = await _repo.cancelUnclaimedOrders();
-      
+
       // Close loading dialog
       if (mounted) Navigator.of(context).pop();
-      
+
       // Show result
       if (mounted) {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: Text(result['success'] == true ? 'Opruiming Voltooi' : 'Fout'),
+            title: Text(
+              result['success'] == true ? 'Opruiming Voltooi' : 'Fout',
+            ),
             content: Text(result['message'] as String? ?? 'Onbekende fout'),
             actions: [
               TextButton(
@@ -760,7 +778,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
     } catch (e) {
       // Close loading dialog
       if (mounted) Navigator.of(context).pop();
-      
+
       // Show error
       if (mounted) {
         showDialog(
