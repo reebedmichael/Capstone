@@ -12,7 +12,8 @@ class TerugvoerRepository {
     try {
       final rows = await _sb
           .from('terugvoer')
-          .select('terug_id, terug_naam, terug_beskrywing')
+          .select('terug_id, terug_naam, terug_beskrywing, terug_is_aktief')
+          .eq('terug_is_aktief', true)
           .order('terug_naam');
       
       return List<Map<String, dynamic>>.from(rows);
