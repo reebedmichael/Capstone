@@ -29,10 +29,8 @@ class _OrdersPageState extends State<OrdersPage>
   List<Map<String, dynamic>> orders = [];
   StreamSubscription? _orderStatusSubscription;
   StreamSubscription? _globalRefreshSubscription;
-  Map<String, String> _kosItemIdToWeekDag = {};
   Map<String, DateTime> _kosItemIdToCutoff = {};
   Map<String, DateTime> _kosItemDayToCutoff = {}; // key: "<kos_item_id>|<dayLower>"
-  Map<String, String> _kosItemDayToWeekDag = {}; // key: "<kos_item_id>|<dayLower>" -> 'Maandag' etc
   String? _currentSpyskaartNaam;
 
   @override
@@ -67,10 +65,8 @@ class _OrdersPageState extends State<OrdersPage>
       final weekStart = _getCurrentWeekStart();
       final spyskaartRepo = sl<SpyskaartRepository>();
       final spyskaart = await spyskaartRepo.getAktieweSpyskaart(weekStart);
-      final Map<String, String> map = {};
       final Map<String, DateTime> cutoffMap = {};
       final Map<String, DateTime> cutoffByItemDay = {};
-      final Map<String, String> weekDagByItemDay = {};
       final List<dynamic> items = (spyskaart?['spyskaart_kos_item'] as List? ?? []);
       for (final dynamic raw in items) {
         final Map<String, dynamic> row = Map<String, dynamic>.from(raw as Map);
@@ -80,9 +76,6 @@ class _OrdersPageState extends State<OrdersPage>
         if (dayName == null || dayName.isEmpty) {
           final Map<String, dynamic>? weekDagMap = row['week_dag'] as Map<String, dynamic>?;
           dayName = weekDagMap != null ? weekDagMap['week_dag_naam'] as String? : null;
-        }
-        if (kosItemId != null && (dayName != null && dayName.isNotEmpty)) {
-          map[kosItemId] = dayName;
         }
 
         // Capture cutoff from the same spyskaart_kos_item record
@@ -97,17 +90,14 @@ class _OrdersPageState extends State<OrdersPage>
             final String? dayLower = dayName?.toLowerCase();
             if (dayLower != null && dayLower.isNotEmpty) {
               cutoffByItemDay['$kosItemId|$dayLower'] = dt;
-              weekDagByItemDay['$kosItemId|$dayLower'] = dayName!;
             }
           }
         }
       }
       if (mounted) {
         setState(() {
-          _kosItemIdToWeekDag = map;
           _kosItemIdToCutoff = cutoffMap;
           _kosItemDayToCutoff = cutoffByItemDay;
-          _kosItemDayToWeekDag = weekDagByItemDay;
           _currentSpyskaartNaam = (spyskaart?['spyskaart_naam'] as String?)?.toString();
         });
       }
@@ -173,6 +163,20 @@ class _OrdersPageState extends State<OrdersPage>
       "Des",
     ];
     return months[month - 1];
+  }
+
+  String _weekdayNameAfrikaans(int weekday) {
+    const days = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrydag', 'Saterdag', 'Sondag'];
+    return days[(weekday - 1).clamp(0, 6)];
+  }
+
+  DateTime? _computeCutoffFromBestDatum(String? bestDatumIso) {
+    if (bestDatumIso == null || bestDatumIso.isEmpty) return null;
+    final DateTime? bestDatumParsed = DateTime.tryParse(bestDatumIso);
+    if (bestDatumParsed == null) return null;
+    final DateTime bestLocal = bestDatumParsed;
+    final DateTime prevDay = bestLocal.subtract(const Duration(days: 1));
+    return DateTime(prevDay.year, prevDay.month, prevDay.day, 17, 0);
   }
 
   Future<void> _loadOrders() async {
@@ -393,30 +397,26 @@ class _OrdersPageState extends State<OrdersPage>
       final num unitPrice = (kosItemMap['kos_item_koste'] as num?) ?? 0;
       final double cancelAmount = (unitPrice * qty).toDouble();
 
-      // 2b) Enforce cutoff: read from current week's linked spyskaart_kos_item
+      // 2b) Enforce cutoff: compute from bestelling_kos_item.best_datum (previous day 17:00)
       try {
-        final String? kosItemIdStr = itemRow['kos_item_id']?.toString();
-        // Derive the precise day key using best_datum if available
-        String? itemDayLowerKey;
-        final String? bestDatumStr3 = itemRow['best_datum'] as String?;
-        final DateTime? bestDatum3 = bestDatumStr3 != null ? DateTime.tryParse(bestDatumStr3) : null;
-        if (bestDatum3 != null) {
-          const daysL = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrydag', 'saterdag', 'sondag'];
-          itemDayLowerKey = daysL[bestDatum3.weekday - 1];
+        final String? bestDatumIso = itemRow['best_datum'] as String?;
+        final DateTime? computedCutoff = _computeCutoffFromBestDatum(bestDatumIso);
+        if (computedCutoff != null && DateTime.now().isAfter(computedCutoff)) {
+          Fluttertoast.showToast(msg: 'Kansellasie na afsny tyd is nie toegelaat nie');
+          return false;
         }
-        if (kosItemIdStr != null) {
-          // Ensure mapping is loaded
-          if (_kosItemDayToCutoff.isEmpty && _kosItemIdToCutoff.isEmpty) {
-            await _loadCurrentWeekSpyskaartWeekdays();
-          }
-          DateTime? cutoff;
-          if (itemDayLowerKey != null) {
-            cutoff = _kosItemDayToCutoff['$kosItemIdStr|$itemDayLowerKey'];
-          }
-          cutoff ??= _kosItemIdToCutoff[kosItemIdStr];
-          if (cutoff != null && DateTime.now().isAfter(cutoff)) {
-            Fluttertoast.showToast(msg: 'Kansellasie na afsny tyd is nie toegelaat nie');
-            return false;
+        // Fallback to previous mapping if best_datum is missing or unparsable
+        if (computedCutoff == null) {
+          final String? kosItemIdStr = itemRow['kos_item_id']?.toString();
+          if (kosItemIdStr != null) {
+            if (_kosItemDayToCutoff.isEmpty && _kosItemIdToCutoff.isEmpty) {
+              await _loadCurrentWeekSpyskaartWeekdays();
+            }
+            final DateTime? mappedCutoff = _kosItemIdToCutoff[kosItemIdStr];
+            if (mappedCutoff != null && DateTime.now().isAfter(mappedCutoff)) {
+              Fluttertoast.showToast(msg: 'Kansellasie na afsny tyd is nie toegelaat nie');
+              return false;
+            }
           }
         }
       } catch (_) {}
@@ -675,27 +675,15 @@ class _OrdersPageState extends State<OrdersPage>
       final bool isCompletedItem = lastStatus == 'Afgehandel' || lastStatus == 'Gekanselleer';
       if ((_tabController.index == 0 && !isCompletedItem) || (_tabController.index == 1 && isCompletedItem)) {
         anyVisible = true;
-        // Track earliest cutoff among all items using current week's spyskaart
-        final kosItem = item['kos_item'] as Map<String, dynamic>? ?? {};
-        final String? kosItemIdStr = kosItem['kos_item_id']?.toString();
-        final DateTime? mappedCutoff =
-            kosItemIdStr != null ? _kosItemIdToCutoff[kosItemIdStr] : null;
-        if (mappedCutoff != null) {
-          if (cutoffForTab == null || mappedCutoff.isBefore(cutoffForTab)) {
-            cutoffForTab = mappedCutoff;
-          }
-        } else {
-          // Fallback to any attached spyskaart_kos_item on the item
-          final List skItems = (kosItem['spyskaart_kos_item'] as List? ?? []);
-          for (final sk in skItems) {
-            final String? iso = (sk['spyskaart_kos_afsny_datum'] as String?);
-            if (iso == null) continue;
-            final dt = DateTime.tryParse(iso);
-            if (dt == null) continue;
-            if (cutoffForTab == null || dt.isBefore(cutoffForTab)) cutoffForTab = dt;
+        // Compute cutoff based on the item's best_datum: previous day at 17:00
+        final String? bestDatumIso = item['best_datum'] as String?;
+        final DateTime? computed = _computeCutoffFromBestDatum(bestDatumIso);
+        if (computed != null) {
+          if (cutoffForTab == null || computed.isBefore(cutoffForTab)) {
+            cutoffForTab = computed;
           }
         }
-        break;
+        // Do not break; ensure we find the earliest cutoff across visible items
       }
     }
     if (!anyVisible) return const SizedBox.shrink();
@@ -816,72 +804,16 @@ class _OrdersPageState extends State<OrdersPage>
                 }
                 final bool isCompletedItem = lastStatus == 'Afgehandel' || lastStatus == 'Gekanselleer';
 
-                // Determine week day per bestelling_kos_item via current week's spyskaart
+                // Determine week day label solely from bestelling_kos_item.best_datum
                 String? weekDagNaam;
-                final String? kosItemIdStr = (food['kos_item_id'] ?? food['id'])?.toString();
-                String? dayLowerForWeek;
                 final String? bestDatumStr = item['best_datum'] as String?;
                 final DateTime? bestDatum = bestDatumStr != null ? DateTime.tryParse(bestDatumStr) : null;
                 if (bestDatum != null) {
-                  const daysLower = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrydag', 'saterdag', 'sondag'];
-                  dayLowerForWeek = daysLower[bestDatum.weekday - 1];
-                }
-                if (kosItemIdStr != null && dayLowerForWeek != null) {
-                  weekDagNaam = _kosItemDayToWeekDag['$kosItemIdStr|$dayLowerForWeek']
-                      ?? _kosItemIdToWeekDag[kosItemIdStr];
-                }
-                // Fallbacks
-                if (weekDagNaam == null) {
-                  final List skItemsForThis = (food['spyskaart_kos_item'] as List? ?? []);
-                  for (final sk in skItemsForThis) {
-                    final String? directWeekDagNaam = (sk['week_dag_naam'] as String?);
-                    if (directWeekDagNaam != null && directWeekDagNaam.isNotEmpty) {
-                      weekDagNaam = directWeekDagNaam;
-                      break;
-                    }
-                    final Map<String, dynamic>? weekDagMap = sk['week_dag'] as Map<String, dynamic>?;
-                    final String? nestedWeekDagNaam = weekDagMap != null
-                        ? weekDagMap['week_dag_naam'] as String?
-                        : null;
-                    if (nestedWeekDagNaam != null && nestedWeekDagNaam.isNotEmpty) {
-                      weekDagNaam = nestedWeekDagNaam;
-                      break;
-                    }
-                  }
-                }
-                if (weekDagNaam == null && bestDatum != null) {
-                  const days = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrydag', 'Saterdag', 'Sondag'];
-                  weekDagNaam = days[bestDatum.weekday - 1];
+                  weekDagNaam = _weekdayNameAfrikaans(bestDatum.weekday);
                 }
 
-                // Compute cutoff date for this specific item from current week's spyskaart (per item, per day)
-                DateTime? itemCutoff;
-                final String? itemKosIdStr = (food['kos_item_id'] ?? food['id'])?.toString();
-                String? itemDayLowerKey;
-                // Align the day used for cutoff lookup with the item's own date when present
-                final String? bestDatumStr2 = item['best_datum'] as String?;
-                final DateTime? bestDatum2 = bestDatumStr2 != null ? DateTime.tryParse(bestDatumStr2) : null;
-                if (bestDatum2 != null) {
-                  const daysL = ['maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrydag', 'saterdag', 'sondag'];
-                  itemDayLowerKey = daysL[bestDatum2.weekday - 1];
-                } else if (itemKosIdStr != null && _kosItemIdToWeekDag.containsKey(itemKosIdStr)) {
-                  itemDayLowerKey = _kosItemIdToWeekDag[itemKosIdStr]!.toLowerCase();
-                }
-                if (itemKosIdStr != null && itemDayLowerKey != null) {
-                  itemCutoff = _kosItemDayToCutoff['$itemKosIdStr|$itemDayLowerKey'];
-                }
-                itemCutoff ??= (itemKosIdStr != null ? _kosItemIdToCutoff[itemKosIdStr] : null);
-                if (itemCutoff == null) {
-                  // Fallback: read attached spyskaart_kos_item data
-                  final List skItemsForCutoff = (food['spyskaart_kos_item'] as List? ?? []);
-                  for (final sk in skItemsForCutoff) {
-                    final String? iso = (sk['spyskaart_kos_afsny_datum'] as String?);
-                    if (iso == null) continue;
-                    final dt = DateTime.tryParse(iso);
-                    if (dt == null) continue;
-                    if (itemCutoff == null || dt.isBefore(itemCutoff)) itemCutoff = dt;
-                  }
-                }
+                // Compute cutoff date from bestelling_kos_item.best_datum: previous day at 17:00
+                DateTime? itemCutoff = _computeCutoffFromBestDatum(item['best_datum'] as String?);
 
                 // Hide/show items according to current tab
                 if (_tabController.index == 0 && isCompletedItem) {
@@ -996,13 +928,20 @@ class _OrdersPageState extends State<OrdersPage>
                                   children: [
                                     Text(
                                       lastStatus ?? 'Onbekend',
-                                      style: const TextStyle(fontSize: 11),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: _tabController.index == 1 ? Colors.white : null,
+                                      ),
                                     ),
                                     if (lastUpdated != null) ...[
                                       const SizedBox(width: 6),
                                       Text(
                                         formatDate(lastUpdated),
-                                        style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontStyle: FontStyle.italic,
+                                          color: _tabController.index == 1 ? Colors.white : null,
+                                        ),
                                       ),
                                     ],
                                   ],
@@ -1068,6 +1007,9 @@ class _OrdersPageState extends State<OrdersPage>
                 if (_tabController.index == 0)
                   Expanded(
                     child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : null,
+                      ),
                       icon: const Icon(FeatherIcons.smartphone, size: 16),
                       label: const Text('Wys QR Kode'),
                       onPressed: () async {

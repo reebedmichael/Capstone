@@ -15,3 +15,4 @@ export 'src/dieet_repository.dart';
 export 'src/terugvoer_repository.dart';
 export 'src/allowance_repository.dart';
 export 'src/admin_dashboard_repository.dart';
+export 'src/instellings_repository.dart';

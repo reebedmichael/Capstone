@@ -12,16 +12,168 @@ class GebruikerTipesToelaePage extends StatefulWidget {
 
 class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
   final ToelaeRepository _toelaeRepo = GetIt.instance<ToelaeRepository>();
+  final InstellingsRepository _instellingsRepo = GetIt.instance<InstellingsRepository>();
 
   List<Map<String, dynamic>> _gebruikerTipes = [];
   bool _isLoading = true;
   String? _error;
   bool _isDistributing = false;
+  
+  // Settings
+  int _verspreidingDag = 1;
+  bool _loadingSettings = false;
 
   @override
   void initState() {
     super.initState();
     _loadGebruikerTipes();
+    _loadSettings();
+  }
+  
+  Future<void> _loadSettings() async {
+    try {
+      final dag = await _instellingsRepo.kryToelaeVerspreidingDag();
+      if (mounted) {
+        setState(() {
+          _verspreidingDag = dag;
+        });
+      }
+    } catch (e) {
+      print('Fout met laai instellings: $e');
+    }
+  }
+
+  Future<void> _updateVerspreidingDag(int nieuweDag) async {
+    setState(() => _loadingSettings = true);
+    
+    try {
+      await _instellingsRepo.updateToelaeVerspreidingDag(nieuweDag);
+      
+      if (mounted) {
+        setState(() {
+          _verspreidingDag = nieuweDag;
+          _loadingSettings = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Toelae sal nou versprei word op dag $nieuweDag van elke maand'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loadingSettings = false);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fout: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+  
+  String _getNextDistributionDate() {
+    final now = DateTime.now();
+    DateTime nextDate;
+    
+    if (now.day < _verspreidingDag) {
+      // Next distribution is this month
+      nextDate = DateTime(now.year, now.month, _verspreidingDag);
+    } else {
+      // Next distribution is next month
+      nextDate = DateTime(now.year, now.month + 1, _verspreidingDag);
+    }
+    
+    final months = ['Jan', 'Feb', 'Mrt', 'Apr', 'Mei', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des'];
+    return '${nextDate.day} ${months[nextDate.month - 1]} ${nextDate.year}';
+  }
+
+  void _showVerspreidingDagDialog() {
+    int selectedDag = _verspreidingDag;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Verander Verspreiding Dag'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Kies die dag van die maand waarop toelae outomaties versprei moet word:',
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.orange.shade700, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Kies \'n dag tussen 1-28 om te verseker alle maande is gedek',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.orange.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            StatefulBuilder(
+              builder: (context, setState) => DropdownButtonFormField<int>(
+                value: selectedDag,
+                decoration: const InputDecoration(
+                  labelText: 'Dag van die Maand',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.calendar_today),
+                ),
+                items: List.generate(28, (index) {
+                  final dag = index + 1;
+                  return DropdownMenuItem(
+                    value: dag,
+                    child: Text('Dag $dag'),
+                  );
+                }),
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => selectedDag = value);
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Kanselleer'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _updateVerspreidingDag(selectedDag);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Stoor'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadGebruikerTipes() async {
@@ -32,15 +184,19 @@ class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
 
     try {
       final tipes = await _toelaeRepo.lysGebruikerTipes();
-      setState(() {
-        _gebruikerTipes = tipes;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _gebruikerTipes = tipes;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -103,7 +259,9 @@ class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
 
     if (confirm != true) return;
 
-    setState(() => _isDistributing = true);
+    if (mounted) {
+      setState(() => _isDistributing = true);
+    }
 
     try {
       final result = await _toelaeRepo.distribueeMaandelikseToelaes();
@@ -111,26 +269,32 @@ class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
       final usersCredited = result['users_credited'] ?? 0;
       final totalAmount = (result['total_amount'] as num?)?.toDouble() ?? 0.0;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Suksesvol! $usersCredited gebruikers gekrediteer met R${totalAmount.toStringAsFixed(2)}',
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Suksesvol! $usersCredited gebruikers gekrediteer met R${totalAmount.toStringAsFixed(2)}',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
           ),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 5),
-        ),
-      );
+        );
 
-      await _loadGebruikerTipes();
+        await _loadGebruikerTipes();
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Fout tydens distribusie: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fout tydens distribusie: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() => _isDistributing = false);
+      if (mounted) {
+        setState(() => _isDistributing = false);
+      }
     }
   }
 
@@ -196,53 +360,161 @@ class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Gebruiker Tipes & Toelaes',
-                    style: Theme.of(context).textTheme.headlineMedium,
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header
+            Row(
+              children: [
+                Icon(Icons.group_work, 
+                    size: 32, 
+                    color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Gebruiker Tipes & Toelaes',
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Bestuur maandelikse toelaes vir elke gebruiker tipe',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Bestuur maandelikse toelaes vir elke gebruiker tipe',
-                    style: TextStyle(color: Colors.grey),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  onPressed: _isDistributing
+                      ? null
+                      : _distribueeMaandelikseToelaes,
+                  icon: _isDistributing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.send),
+                  label: Text(
+                    _isDistributing
+                        ? 'Besig...'
+                        : 'Distribueer Nou',
                   ),
-                ],
-              ),
-              ElevatedButton.icon(
-                onPressed: _isDistributing
-                    ? null
-                    : _distribueeMaandelikseToelaes,
-                icon: _isDistributing
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.send),
-                label: Text(
-                  _isDistributing
-                      ? 'Besig...'
-                      : 'Distribueer Maandelikse Toelaes',
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  ),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Settings Card - Verspreiding Dag
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.settings, 
+                            size: 24, 
+                            color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Outomatiese Verspreiding Instellings',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.shade200, width: 2),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade100,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(Icons.calendar_today, 
+                                color: Colors.blue.shade700, size: 32),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Maandelikse Verspreiding Dag',
+                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Toelae word outomaties versprei op dag $_verspreidingDag van elke maand om middernag',
+                                  style: Theme.of(context).textTheme.bodyLarge,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Volgende verspreiding: ${_getNextDistributionDate()}',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.blue.shade900,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                          ElevatedButton.icon(
+                            onPressed: _loadingSettings ? null : () {
+                              _showVerspreidingDagDialog();
+                            },
+                            icon: _loadingSettings 
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.edit),
+                            label: const Text('Verander Dag'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 20),
+            ),
+            
+            const SizedBox(height: 24),
 
           if (_isLoading)
             const Center(child: CircularProgressIndicator())
@@ -264,211 +536,274 @@ class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
               ),
             )
           else
-            Expanded(
-              child: Card(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SingleChildScrollView(
-                    child: DataTable(
-                      columns: const [
-                        DataColumn(label: Text('Gebruiker Tipe')),
-                        DataColumn(label: Text('Beskrywing')),
-                        DataColumn(label: Text('Maandelikse Toelae')),
-                        DataColumn(label: Text('Aksies')),
-                      ],
-                      rows: _gebruikerTipes.map((tipe) {
-                        final naam = tipe['gebr_tipe_naam'] ?? 'Onbekend';
-                        final beskrywing = tipe['gebr_tipe_beskrywing'] ?? '-';
-                        final toelaag =
-                            (tipe['gebr_toelaag'] as num?)?.toDouble() ?? 0.0;
-
-                        return DataRow(
-                          cells: [
-                            DataCell(
-                              Text(
-                                naam,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
+            Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Gebruiker Tipes',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 16),
+                    Theme(
+                      data: Theme.of(context).copyWith(
+                        dividerColor: const Color(0xFFE7D9CF), // subtle warm divider like screenshot
+                      ),
+                      child: DataTableTheme(
+                        data: DataTableThemeData(
+                          dividerThickness: 1,
+                          headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+                          headingTextStyle: const TextStyle(fontWeight: FontWeight.w700),
+                          dataRowMinHeight: 60,
+                          dataRowMaxHeight: 68,
+                        ),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: DataTable(
+                            columnSpacing: 64,
+                            horizontalMargin: 24,
+                            columns: [
+                              DataColumn(
+                                label: Text(
+                                  'Gebruiker Tipe',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w700),
                                 ),
+                                numeric: false,
                               ),
-                            ),
-                            DataCell(
-                              Text(
-                                beskrywing.isEmpty ? '-' : beskrywing,
-                                style: const TextStyle(color: Colors.grey),
+                              DataColumn(
+                                label: Text(
+                                  'Beskrywing',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                numeric: false,
                               ),
-                            ),
-                            DataCell(
-                              InkWell(
-                                onTap: () => _showEditDialog(tipe),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: toelaag > 0
-                                        ? Colors.green.shade50
-                                        : Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: toelaag > 0
-                                          ? Colors.green.shade200
-                                          : Colors.grey.shade300,
+                              DataColumn(
+                                label: Text(
+                                  'Maandelikse Toelae',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                numeric: false,
+                              ),
+                            ],
+                            rows: _gebruikerTipes.map((tipe) {
+                              final naam = tipe['gebr_tipe_naam'] ?? 'Onbekend';
+                              final beskrywing = tipe['gebr_tipe_beskrywing'] ?? '-';
+                              final toelaag =
+                                  (tipe['gebr_toelaag'] as num?)?.toDouble() ?? 0.0;
+ 
+                              return DataRow(
+                                cells: [
+                                  DataCell(
+                                    Text(
+                                      naam,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(fontWeight: FontWeight.w600),
                                     ),
                                   ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        'R${toelaag.toStringAsFixed(2)}',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: toelaag > 0
-                                              ? Colors.green.shade900
-                                              : Colors.grey.shade700,
+                                  DataCell(
+                                    Text(
+                                      beskrywing.isEmpty ? '-' : beskrywing,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyLarge
+                                          ?.copyWith(color: Colors.black.withOpacity(0.6)),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: InkWell(
+                                        onTap: () => _showEditDialog(tipe),
+                                        child: ConstrainedBox(
+                                          constraints: const BoxConstraints(minWidth: 220),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 12,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green.shade50,
+                                              borderRadius: BorderRadius.circular(18),
+                                              border: Border.all(
+                                                color: Colors.green.shade400,
+                                                width: 1.2,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                Text(
+                                                  'R${toelaag.toStringAsFixed(2)}',
+                                                  style: Theme.of(context)
+                                                      .textTheme
+                                                      .titleMedium
+                                                      ?.copyWith(
+                                                        fontWeight: FontWeight.w700,
+                                                        color: Colors.green.shade800,
+                                                      ),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                Icon(
+                                                  Icons.edit,
+                                                  size: 18,
+                                                  color: Colors.green.shade700,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                      const SizedBox(width: 4),
-                                      Icon(
-                                        Icons.edit,
-                                        size: 14,
-                                        color: toelaag > 0
-                                            ? Colors.green.shade700
-                                            : Colors.grey.shade600,
-                                      ),
-                                    ],
+                                    ),
                                   ),
-                                ),
-                              ),
-                            ),
-                            DataCell(
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.edit, size: 16),
-                                label: const Text('Wysig'),
-                                onPressed: () => _showEditDialog(tipe),
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 8,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
 
-          const SizedBox(height: 16),
+            const SizedBox(height: 24),
 
-          // Quick setup and Info
-          Row(
-            children: [
-              Expanded(
-                child: Card(
-                  color: Colors.orange.shade50,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.flash_on, color: Colors.orange.shade700),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Vinnige Opset',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.orange.shade900,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Klik op die toelae bedrag of "Wysig" knoppie om die maandelikse toelae te verander.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.orange.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          children: [
-                            TextButton.icon(
-                              icon: const Icon(Icons.edit, size: 16),
-                              label: const Text('Stel Student → R1000'),
-                              onPressed: () =>
-                                  _setQuickToelaag('Student', 1000),
-                              style: TextButton.styleFrom(
-                                backgroundColor: Colors.orange.shade100,
-                              ),
-                            ),
-                            TextButton.icon(
-                              icon: const Icon(Icons.edit, size: 16),
-                              label: const Text('Stel Personeel → R15000'),
-                              onPressed: () =>
-                                  _setQuickToelaag('Personeel', 15000),
-                              style: TextButton.styleFrom(
-                                backgroundColor: Colors.orange.shade100,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Card(
-                  color: Colors.blue.shade50,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.blue.shade700),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+            // Quick setup and Info - Full width cards
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Card(
+                    elevation: 2,
+                    color: Colors.orange.shade50,
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
+                              Icon(Icons.flash_on, color: Colors.orange.shade700, size: 28),
+                              const SizedBox(width: 12),
                               Text(
-                                'Hoe Dit Werk',
+                                'Vinnige Opset',
                                 style: TextStyle(
+                                  fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.blue.shade900,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '1. Stel maandelikse toelae\n'
-                                '2. Druk "Distribueer"\n'
-                                '3. Alle aktiewe gebruikers ontvang toelae',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.blue.shade700,
+                                  color: Colors.orange.shade900,
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 12),
+                          Text(
+                            'Klik op die toelae bedrag om die maandelikse toelae te verander.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.orange.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: [
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.edit, size: 18),
+                                label: const Text('Stel Student → R1000'),
+                                onPressed: () =>
+                                    _setQuickToelaag('Student', 1000),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange.shade600,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20, vertical: 14),
+                                ),
+                              ),
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.edit, size: 18),
+                                label: const Text('Stel Personeel → R15000'),
+                                onPressed: () =>
+                                    _setQuickToelaag('Personeel', 15000),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange.shade600,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20, vertical: 14),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ],
+                const SizedBox(width: 24),
+                Expanded(
+                  child: Card(
+                    elevation: 2,
+                    color: Colors.blue.shade50,
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.blue.shade700, size: 32),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Hoe Dit Werk',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue.shade900,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  '1. Stel maandelikse toelae per tipe\n'
+                                  '2. Druk "Distribueer Nou" vir onmiddellike distribusie\n'
+                                  '3. Outomatiese distribusie gebeur op dag $_verspreidingDag van elke maand\n'
+                                  '4. Alle aktiewe gebruikers ontvang toelae volgens hulle tipe',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.blue.shade700,
+                                    height: 1.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

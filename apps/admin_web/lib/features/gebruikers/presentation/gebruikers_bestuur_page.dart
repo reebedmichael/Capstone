@@ -207,9 +207,6 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                             case 'add_gebr_tipe':
                               _showAddTypeDialog(context, isAdmin: false);
                               break;
-                            case 'add_admin_tipe':
-                              _showAddTypeDialog(context, isAdmin: true);
-                              break;
                           }
                         },
                         itemBuilder: (context) => [
@@ -218,14 +215,6 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                             child: ListTile(
                               leading: Icon(Icons.group_add),
                               title: Text('Voeg Gebruiker Tipe'),
-                              dense: true,
-                            ),
-                          ),
-                          const PopupMenuItem<String>(
-                            value: 'add_admin_tipe',
-                            child: ListTile(
-                              leading: Icon(Icons.admin_panel_settings),
-                              title: Text('Voeg Admin Tipe'),
                               dense: true,
                             ),
                           ),
@@ -249,6 +238,8 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
             builder: (context, constraints) {
               final isWide = constraints.maxWidth >= 1100;
               final isMedium = constraints.maxWidth >= 700;
+              final isSmall = constraints.maxWidth < 500;
+              final isVerySmall = constraints.maxWidth < 350;
               final crossAxisCount = isWide ? 4 : (isMedium ? 2 : 1);
               final roleStats = [
                 {
@@ -281,17 +272,23 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: crossAxisCount,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: isWide ? 3.8 : (isMedium ? 3.2 : 3.0),
+                  crossAxisSpacing: isVerySmall ? 4 : (isSmall ? 8 : 16),
+                  mainAxisSpacing: isVerySmall ? 4 : (isSmall ? 8 : 16),
+                  childAspectRatio: isWide ? 3.8 : (isMedium ? 3.2 : (isSmall ? 2.5 : (isVerySmall ? 2.0 : 3.0))),
                 ),
                 itemCount: roleStats.length,
                 itemBuilder: (context, index) {
                   final stat = roleStats[index];
-                  return _buildBigStat(
-                    stat['title'] as String,
-                    stat['value'] as String,
-                    small: 'Gebruiker tipe',
+                  return Container(
+                    constraints: BoxConstraints(
+                      minHeight: isVerySmall ? 60 : 80,
+                      maxHeight: isVerySmall ? 100 : (isSmall ? 120 : 150),
+                    ),
+                    child: _buildBigStat(
+                      stat['title'] as String,
+                      stat['value'] as String,
+                      small: 'Gebruiker tipe',
+                    ),
                   );
                 },
               );
@@ -306,6 +303,8 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
             builder: (context, constraints) {
               final isWide = constraints.maxWidth >= 1100;
               final isMedium = constraints.maxWidth >= 700;
+              final isSmall = constraints.maxWidth < 500;
+              final isVerySmall = constraints.maxWidth < 350;
               final crossAxisCount = isWide ? 4 : (isMedium ? 2 : 1);
               final stats = [
                 {
@@ -336,14 +335,20 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: crossAxisCount,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: isWide ? 3.8 : (isMedium ? 3.2 : 3.0),
+                  crossAxisSpacing: isVerySmall ? 4 : (isSmall ? 8 : 16),
+                  mainAxisSpacing: isVerySmall ? 4 : (isSmall ? 8 : 16),
+                  childAspectRatio: isWide ? 3.8 : (isMedium ? 3.2 : (isSmall ? 2.5 : (isVerySmall ? 2.0 : 3.0))),
                 ),
                 itemCount: stats.length,
                 itemBuilder: (context, index) {
                   final s = stats[index];
-                  return _buildBigStat(s['title'] as String, s['value'] as String, small: s['label'] as String);
+                  return Container(
+                    constraints: BoxConstraints(
+                      minHeight: isVerySmall ? 60 : 80,
+                      maxHeight: isVerySmall ? 100 : (isSmall ? 120 : 150),
+                    ),
+                    child: _buildBigStat(s['title'] as String, s['value'] as String, small: s['label'] as String),
+                  );
                 },
               );
             },
@@ -351,43 +356,6 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
 
           const SizedBox(height: 30),
 
-          // 🔹 Quick filter buttons for common views
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () => setState(() {
-                  // Show only pending users (Pending admin type or inactive Ekstern)
-                  filterAdminTipeId = AdminPermissions.pendingAdminId;
-                  filterAktief = false;
-                }),
-                icon: const Icon(Icons.pending_actions, size: 16),
-                label: const Text('Wag Goedkeuring'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange.shade100,
-                  foregroundColor: Colors.orange.shade800,
-                ),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: () => setState(() {
-                  // Clear all filters
-                  searchQuery = '';
-                  filterGebrTipeId = null;
-                  filterAdminTipeId = null;
-                  filterKampusId = null;
-                  filterAktief = null;
-                }),
-                icon: const Icon(Icons.clear_all, size: 16),
-                label: const Text('Alle Gebruikers'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade100,
-                  foregroundColor: Colors.blue.shade800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
 
           // 🔹 Search en filter (refined layout inside a card for better visual grouping)
           LayoutBuilder(
@@ -568,45 +536,72 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
 
 
 Widget _buildBigStat(String title, String count, {String? small}) {
+  final screenWidth = MediaQuery.of(context).size.width;
+  final isVerySmall = screenWidth < 350;
+  final isSmall = screenWidth < 500;
+  
   return Card(
     elevation: 1,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    child: Container(
+      width: double.infinity,
+      constraints: BoxConstraints(
+        minHeight: isVerySmall ? 60 : (isSmall ? 70 : 80),
+        maxHeight: isVerySmall ? 100 : (isSmall ? 120 : 140),
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: isVerySmall ? 8 : (isSmall ? 12 : 16), 
+        vertical: isVerySmall ? 8 : (isSmall ? 10 : 14)
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title, 
-            style: TextStyle(
-              fontSize: 12, 
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)
-            )
+          Expanded(
+            flex: 2,
+            child: Text(
+              title, 
+              style: TextStyle(
+                fontSize: isVerySmall ? 10 : (isSmall ? 11 : 12), 
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: isVerySmall ? 1 : 2,
+            ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            count, 
-            style: TextStyle(
-              fontSize: 26, 
-              fontWeight: FontWeight.w700,
-              color: Theme.of(context).colorScheme.onSurface,
-            )
+          SizedBox(height: isVerySmall ? 4 : (isSmall ? 6 : 8)),
+          Expanded(
+            flex: 3,
+            child: Text(
+              count, 
+              style: TextStyle(
+                fontSize: isVerySmall ? 18 : (isSmall ? 22 : 26), 
+                fontWeight: FontWeight.w700,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
           ),
           if (small != null) ...[
-          const SizedBox(height: 4),
-            Text(
-              small, 
-              style: TextStyle(
-                fontSize: 11, 
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
-              )
+            SizedBox(height: isVerySmall ? 2 : 4),
+            Expanded(
+              flex: 1,
+              child: Text(
+                small, 
+                style: TextStyle(
+                  fontSize: isVerySmall ? 9 : (isSmall ? 10 : 11), 
+                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
             ),
           ],
         ],
       ),
-      ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildUserCard(Map<String, dynamic> u) {
     final name = ((u['gebr_naam'] ?? '') + ' ' + (u['gebr_van'] ?? '')).trim();
@@ -1824,34 +1819,6 @@ Widget _buildBigStat(String title, String count, {String? small}) {
     );
   }
 
-  // Add missing _showDeactivateUserDialog method
-  Future<void> _showDeactivateUserDialog(Map<String, dynamic> user) async {
-    final userName = '${user['gebr_naam'] ?? ''} ${user['gebr_van'] ?? ''}'.trim();
-    
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Deaktiveer Gebruiker - $userName'),
-        content: const Text('Is jy seker jy wil hierdie gebruiker deaktiveer?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Kanselleer'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              // Add deactivation logic here if needed
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('$userName is gedeaktiveer')),
-              );
-            },
-            child: const Text('Deaktiveer'),
-          ),
-        ],
-      ),
-    );
-  }
   
   // NOTE: All old user creation methods removed per new workflow.
   // Users now register via mobile app and appear as pending Ekstern users.

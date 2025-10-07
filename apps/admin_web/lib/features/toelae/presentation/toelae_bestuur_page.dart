@@ -21,12 +21,19 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
   
   final _bedragController = TextEditingController();
   final _beskrywingController = TextEditingController();
+  final _scrollController = ScrollController();
   String _transaksieMode = 'add'; // 'add' or 'deduct'
   
   String _searchQuery = '';
   bool _showLowAllowance = false;
   String _selectedUserType = 'alle'; // 'alle', 'studente', 'admin', 'laag'
-
+  
+  // Transaction history filters
+  String _selectedTransactionUser = 'alle'; // 'alle' or specific user ID
+  String _selectedTransactionType = 'alle'; // 'alle', 'inbetaling', 'afbetaling'
+  DateTime? _selectedDateFrom;
+  DateTime? _selectedDateTo;
+  
   @override
   void initState() {
     super.initState();
@@ -37,6 +44,7 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
   void dispose() {
     _bedragController.dispose();
     _beskrywingController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -60,21 +68,25 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
       final toelaeRepo = sl<ToelaeRepository>();
       final transaksies = await toelaeRepo.lysAlleToelaeTransaksies();
 
-      setState(() {
-        _gebruikers = List<Map<String, dynamic>>.from(gebruikersData);
-        _toelaeTransaksies = transaksies;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _gebruikers = List<Map<String, dynamic>>.from(gebruikersData);
+          _toelaeTransaksies = transaksies;
+          _loading = false;
+        });
+      }
       
       // Debug: Print first user to see the data structure
       if (gebruikersData.isNotEmpty) {
         print('🔍 First user data: ${gebruikersData.first}');
       }
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -137,6 +149,136 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
     return filtered;
   }
 
+  List<Map<String, dynamic>> get _filteredTransactions {
+    var filtered = _toelaeTransaksies;
+
+    // Filter by selected user - REMOVED for main transaction list
+    // The main transaction list should show ALL transactions
+
+    // Filter by transaction type
+    if (_selectedTransactionType != 'alle') {
+      filtered = filtered.where((t) {
+        final transTipeId = t['trans_tipe_id']?.toString() ?? '';
+        if (_selectedTransactionType == 'inbetaling') {
+          return transTipeId == '1654002c-61bc-4e31-9186-edb75a34d181' || // inbetaling
+                 transTipeId == '9c1d1ea9-5ccb-46b0-83d6-e7ba9cf86d5b' || // admin kanselasie (refund)
+                 transTipeId == 'a1e58a24-1a1d-4940-8855-df4c35ae5d5f';   // toelae_inbetaling
+        } else if (_selectedTransactionType == 'afbetaling') {
+          return transTipeId == 'a2e58a24-1a1d-4940-8855-df4c35ae5d5f' || // toelae_uitbetaling
+                 transTipeId == 'bdfb88ce-b0c9-483d-97a2-226cfca4e5ea';   // uitbetaling
+        }
+        return true;
+      }).toList();
+    }
+
+    // Filter by date range
+    if (_selectedDateFrom != null) {
+      filtered = filtered.where((t) {
+        final datum = DateTime.tryParse(t['trans_geskep_datum'] ?? '');
+        if (datum == null) return false;
+        final datumDate = DateTime(datum.year, datum.month, datum.day);
+        final fromDate = DateTime(_selectedDateFrom!.year, _selectedDateFrom!.month, _selectedDateFrom!.day);
+        return datumDate.isAtSameMomentAs(fromDate) || datumDate.isAfter(fromDate);
+      }).toList();
+    }
+
+    if (_selectedDateTo != null) {
+      filtered = filtered.where((t) {
+        final datum = DateTime.tryParse(t['trans_geskep_datum'] ?? '');
+        if (datum == null) return false;
+        final datumDate = DateTime(datum.year, datum.month, datum.day);
+        final toDate = DateTime(_selectedDateTo!.year, _selectedDateTo!.month, _selectedDateTo!.day);
+        return datumDate.isAtSameMomentAs(toDate) || datumDate.isBefore(toDate);
+      }).toList();
+    }
+
+    return filtered;
+  }
+
+  Widget _buildQuickDateChip(String label, VoidCallback onTap, {bool isClear = false}) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isClear ? Colors.red.shade50 : Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isClear ? Colors.red.shade200 : Colors.blue.shade200,
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: isClear ? Colors.red.shade700 : Colors.blue.shade700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateField({
+    required String label,
+    required DateTime? date,
+    required VoidCallback onTap,
+    required VoidCallback onClear,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
+          color: Colors.grey.shade50,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.calendar_today,
+              size: 16,
+              color: Colors.grey[600],
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                date != null
+                    ? DateFormat('dd MMM yyyy').format(date)
+                    : label,
+                style: TextStyle(
+                  color: date != null ? Colors.black : Colors.grey[600],
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            if (date != null)
+              InkWell(
+                onTap: onClear,
+                child: Icon(
+                  Icons.clear,
+                  size: 16,
+                  color: Colors.grey[600],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showUserTransactionDetails(Map<String, dynamic> gebruiker) {
+    showDialog(
+      context: context,
+      builder: (context) => _UserTransactionDetailsDialog(
+        gebruiker: gebruiker,
+        allTransactions: _toelaeTransaksies,
+      ),
+    );
+  }
+
   Future<void> _submitTransaction() async {
     if (_selectedGebruiker == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -153,7 +295,9 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
       return;
     }
 
-    setState(() => _loading = true);
+    if (mounted) {
+      setState(() => _loading = true);
+    }
 
     try {
       final toelaeRepo = sl<ToelaeRepository>();
@@ -192,7 +336,10 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
       // Clear form and reload
       _bedragController.clear();
       _beskrywingController.clear();
-      setState(() => _selectedGebruiker = null);
+      setState(() {
+        _selectedGebruiker = null;
+        _selectedTransactionUser = 'alle'; // Reset transaction filter
+      });
       await _loadData();
     } catch (e) {
       if (mounted) {
@@ -200,7 +347,9 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
           SnackBar(content: Text('Fout: $e'), backgroundColor: Colors.red),
         );
       }
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -214,6 +363,7 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
 
     return Scaffold(
       body: SingleChildScrollView(
+        controller: _scrollController,
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -332,7 +482,11 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
                             ),
                             IconButton(
                               onPressed: () {
-                                setState(() => _selectedGebruiker = null);
+                                setState(() {
+                                  _selectedGebruiker = null;
+                                  // Reset transaction filter
+                                  _selectedTransactionUser = 'alle';
+                                });
                               },
                               icon: const Icon(Icons.close),
                               tooltip: 'Verwyder gebruiker',
@@ -382,7 +536,6 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
                       decoration: InputDecoration(
                         labelText: 'Bedrag',
                         border: const OutlineInputBorder(),
-                        prefixIcon: const Icon(Icons.attach_money),
                         prefixText: 'R ',
                         helperText: 'Voer bedrag in (bv. 100.00)',
                       ),
@@ -599,27 +752,51 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
                               ),
                               title: Text(naam.isEmpty ? 'Geen naam' : naam),
                               subtitle: Text(epos),
-                              trailing: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: balans < 50
-                                      ? Colors.orange.shade100
-                                      : Colors.green.shade100,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  'R${balans.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: balans < 50 ? Colors.orange : Colors.green,
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: balans < 50
+                                          ? Colors.orange.shade100
+                                          : Colors.green.shade100,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      'R${balans.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: balans < 50 ? Colors.orange : Colors.green,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    onPressed: () => _showUserTransactionDetails(g),
+                                    icon: const Icon(Icons.visibility),
+                                    tooltip: 'Bekyk transaksie geskiedenis',
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: Colors.blue.shade50,
+                                    ),
+                                  ),
+                                ],
                               ),
                             onTap: () {
-                              setState(() => _selectedGebruiker = g);
+                              setState(() {
+                                _selectedGebruiker = g;
+                              });
+                              // Auto scroll to transaction form
+                              Future.delayed(const Duration(milliseconds: 100), () {
+                                _scrollController.animateTo(
+                                  0, // Scroll to top where transaction form is
+                                  duration: const Duration(milliseconds: 500),
+                                  curve: Curves.easeInOut,
+                                );
+                              });
                             },
                             );
                           },
@@ -645,7 +822,183 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
                     ),
                     const SizedBox(height: 16),
 
-                    if (_toelaeTransaksies.isEmpty)
+                    // Transaction Filters
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Transaction Type Filters
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            FilterChip(
+                              label: const Text('Alle Tipes'),
+                              selected: _selectedTransactionType == 'alle',
+                              onSelected: (selected) {
+                                setState(() {
+                                  _selectedTransactionType = selected ? 'alle' : 'alle';
+                                });
+                              },
+                            ),
+                            FilterChip(
+                              label: const Text('Inbetalings'),
+                              selected: _selectedTransactionType == 'inbetaling',
+                              onSelected: (selected) {
+                                setState(() {
+                                  _selectedTransactionType = selected ? 'inbetaling' : 'alle';
+                                });
+                              },
+                            ),
+                            FilterChip(
+                              label: const Text('Afbetalings'),
+                              selected: _selectedTransactionType == 'afbetaling',
+                              onSelected: (selected) {
+                                setState(() {
+                                  _selectedTransactionType = selected ? 'afbetaling' : 'alle';
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                    
+                    // Quick Date Options
+                    Text(
+                      'Vinnige Datum Opsies:',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        _buildQuickDateChip('Vandag', () {
+                          final today = DateTime.now();
+                          setState(() {
+                            _selectedDateFrom = today;
+                            _selectedDateTo = today;
+                          });
+                        }),
+                        _buildQuickDateChip('7 Dae', () {
+                          final now = DateTime.now();
+                          setState(() {
+                            _selectedDateFrom = now.subtract(const Duration(days: 7));
+                            _selectedDateTo = now;
+                          });
+                        }),
+                        _buildQuickDateChip('14 Dae', () {
+                          final now = DateTime.now();
+                          setState(() {
+                            _selectedDateFrom = now.subtract(const Duration(days: 14));
+                            _selectedDateTo = now;
+                          });
+                        }),
+                        _buildQuickDateChip('30 Dae', () {
+                          final now = DateTime.now();
+                          setState(() {
+                            _selectedDateFrom = now.subtract(const Duration(days: 30));
+                            _selectedDateTo = now;
+                          });
+                        }),
+                        _buildQuickDateChip('90 Dae', () {
+                          final now = DateTime.now();
+                          setState(() {
+                            _selectedDateFrom = now.subtract(const Duration(days: 90));
+                            _selectedDateTo = now;
+                          });
+                        }),
+                        _buildQuickDateChip('Maak Skoon', () {
+                          setState(() {
+                            _selectedDateFrom = null;
+                            _selectedDateTo = null;
+                          });
+                        }, isClear: true),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Custom Date Range
+                    Text(
+                      'Pasgemaakte Datum Reeks:',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildDateField(
+                            label: 'Van',
+                            date: _selectedDateFrom,
+                            onTap: () async {
+                              final date = await showDatePicker(
+                                context: context,
+                                initialDate: _selectedDateFrom ?? DateTime.now(),
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime.now(),
+                              );
+                              if (date != null) {
+                                setState(() {
+                                  _selectedDateFrom = date;
+                                });
+                              }
+                            },
+                            onClear: () {
+                              setState(() {
+                                _selectedDateFrom = null;
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildDateField(
+                            label: 'Tot',
+                            date: _selectedDateTo,
+                            onTap: () async {
+                              final date = await showDatePicker(
+                                context: context,
+                                initialDate: _selectedDateTo ?? DateTime.now(),
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime.now(),
+                              );
+                              if (date != null) {
+                                setState(() {
+                                  _selectedDateTo = date;
+                                });
+                              }
+                            },
+                            onClear: () {
+                              setState(() {
+                                _selectedDateTo = null;
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Results count
+                    if (_selectedTransactionType != 'alle' || _selectedDateFrom != null || _selectedDateTo != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          '${_filteredTransactions.length} van ${_toelaeTransaksies.length} transaksies gevind',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+
+                    if (_filteredTransactions.isEmpty)
                       const Center(
                         child: Padding(
                           padding: EdgeInsets.all(32),
@@ -656,14 +1009,18 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
                       ListView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        itemCount: _toelaeTransaksies.take(10).length,
+                        itemCount: _filteredTransactions.take(20).length,
                         itemBuilder: (context, index) {
-                          final t = _toelaeTransaksies[index];
+                          final t = _filteredTransactions[index];
                           final bedrag = (t['trans_bedrag'] as num?)?.toDouble() ?? 0.0;
                           final tipeNaam = t['trans_tipe_naam'] ?? '';
-                          final isInbetaling = tipeNaam.contains('inbetaling');
                           final datum = DateTime.tryParse(t['trans_geskep_datum'] ?? '');
                           final beskrywing = t['trans_beskrywing'] ?? '';
+                          // Determine if this is an addition or deduction based on trans_tipe_id
+                          final transTipeId = t['trans_tipe_id']?.toString() ?? '';
+                          final isInbetaling = transTipeId == '1654002c-61bc-4e31-9186-edb75a34d181' || // inbetaling
+                                             transTipeId == '9c1d1ea9-5ccb-46b0-83d6-e7ba9cf86d5b' || // admin kanselasie (refund)
+                                             transTipeId == 'a1e58a24-1a1d-4940-8855-df4c35ae5d5f';   // toelae_inbetaling
                           final gebruikerNaam = '${t['gebr_naam'] ?? ''} ${t['gebr_van'] ?? ''}'.trim();
                           final adminNaam = t['admin_naam'] != null
                               ? '${t['admin_naam']} ${t['admin_van'] ?? ''}'.trim()
@@ -695,20 +1052,539 @@ class _ToelaeBestuurPageState extends State<ToelaeBestuurPage> {
                                   ),
                               ],
                             ),
-                            trailing: Text(
-                              '${isInbetaling ? '+' : '-'}R${bedrag.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: isInbetaling ? Colors.green : Colors.red,
+                            trailing: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isInbetaling ? Colors.green.shade50 : Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isInbetaling ? Colors.green.shade200 : Colors.red.shade200,
+                                ),
+                              ),
+                              child: Text(
+                                '${isInbetaling ? '+' : '-'}R${bedrag.abs().toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isInbetaling ? Colors.green.shade800 : Colors.red.shade800,
+                                ),
                               ),
                             ),
                           );
                         },
                       ),
                   ],
+                ),],
+              ),
+            ),),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UserTransactionDetailsDialog extends StatefulWidget {
+  final Map<String, dynamic> gebruiker;
+  final List<Map<String, dynamic>> allTransactions;
+
+  const _UserTransactionDetailsDialog({
+    required this.gebruiker,
+    required this.allTransactions,
+  });
+
+  @override
+  State<_UserTransactionDetailsDialog> createState() => _UserTransactionDetailsDialogState();
+}
+
+class _UserTransactionDetailsDialogState extends State<_UserTransactionDetailsDialog> {
+  String _selectedTransactionType = 'alle';
+  DateTime? _selectedDateFrom;
+  DateTime? _selectedDateTo;
+
+  Widget _buildQuickDateChipDialog(String label, VoidCallback onTap, {bool isClear = false}) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isClear ? Colors.red.shade50 : Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isClear ? Colors.red.shade200 : Colors.blue.shade200,
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: isClear ? Colors.red.shade700 : Colors.blue.shade700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateFieldDialog({
+    required String label,
+    required DateTime? date,
+    required VoidCallback onTap,
+    required VoidCallback onClear,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(6),
+          color: Colors.grey.shade50,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.calendar_today,
+              size: 14,
+              color: Colors.grey[600],
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                date != null
+                    ? DateFormat('dd MMM yyyy').format(date)
+                    : label,
+                style: TextStyle(
+                  color: date != null ? Colors.black : Colors.grey[600],
+                  fontSize: 12,
                 ),
               ),
+            ),
+            if (date != null)
+              InkWell(
+                onTap: onClear,
+                child: Icon(
+                  Icons.clear,
+                  size: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> get _userTransactions {
+    return widget.allTransactions
+        .where((t) => t['gebr_id']?.toString() == widget.gebruiker['gebr_id']?.toString())
+        .toList();
+  }
+
+  List<Map<String, dynamic>> get _filteredTransactions {
+    var filtered = _userTransactions;
+
+    // Filter by transaction type
+    if (_selectedTransactionType != 'alle') {
+      filtered = filtered.where((t) {
+        final transTipeId = t['trans_tipe_id']?.toString() ?? '';
+        if (_selectedTransactionType == 'inbetaling') {
+          return transTipeId == '1654002c-61bc-4e31-9186-edb75a34d181' || // inbetaling
+                 transTipeId == '9c1d1ea9-5ccb-46b0-83d6-e7ba9cf86d5b' || // admin kanselasie (refund)
+                 transTipeId == 'a1e58a24-1a1d-4940-8855-df4c35ae5d5f';   // toelae_inbetaling
+        } else if (_selectedTransactionType == 'afbetaling') {
+          return transTipeId == 'a2e58a24-1a1d-4940-8855-df4c35ae5d5f' || // toelae_uitbetaling
+                 transTipeId == 'bdfb88ce-b0c9-483d-97a2-226cfca4e5ea';   // uitbetaling
+        }
+        return true;
+      }).toList();
+    }
+
+    // Filter by date range
+    if (_selectedDateFrom != null) {
+      filtered = filtered.where((t) {
+        final datum = DateTime.tryParse(t['trans_geskep_datum'] ?? '');
+        if (datum == null) return false;
+        final datumDate = DateTime(datum.year, datum.month, datum.day);
+        final fromDate = DateTime(_selectedDateFrom!.year, _selectedDateFrom!.month, _selectedDateFrom!.day);
+        return datumDate.isAtSameMomentAs(fromDate) || datumDate.isAfter(fromDate);
+      }).toList();
+    }
+
+    if (_selectedDateTo != null) {
+      filtered = filtered.where((t) {
+        final datum = DateTime.tryParse(t['trans_geskep_datum'] ?? '');
+        if (datum == null) return false;
+        final datumDate = DateTime(datum.year, datum.month, datum.day);
+        final toDate = DateTime(_selectedDateTo!.year, _selectedDateTo!.month, _selectedDateTo!.day);
+        return datumDate.isAtSameMomentAs(toDate) || datumDate.isBefore(toDate);
+      }).toList();
+    }
+
+    return filtered;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final naam = '${widget.gebruiker['gebr_naam'] ?? ''} ${widget.gebruiker['gebr_van'] ?? ''}'.trim();
+    final epos = widget.gebruiker['gebr_epos'] ?? '';
+    final balans = (widget.gebruiker['beursie_balans'] as num?)?.toDouble() ?? 0.0;
+
+    return Dialog(
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.9,
+        height: MediaQuery.of(context).size.height * 0.8,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: balans < 50 ? Colors.orange : Colors.green,
+                  child: Text(
+                    (naam.isNotEmpty ? naam[0] : 'U').toUpperCase(),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        naam.isEmpty ? 'Geen naam' : naam,
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        epos,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: balans < 50 ? Colors.orange.shade100 : Colors.green.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'Balans: R${balans.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: balans < 50 ? Colors.orange.shade800 : Colors.green.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // Filters
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Filters',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        FilterChip(
+                          label: const Text('Alle Tipes'),
+                          selected: _selectedTransactionType == 'alle',
+                          onSelected: (selected) {
+                            setState(() {
+                              _selectedTransactionType = selected ? 'alle' : 'alle';
+                            });
+                          },
+                        ),
+                        FilterChip(
+                          label: const Text('Inbetalings'),
+                          selected: _selectedTransactionType == 'inbetaling',
+                          onSelected: (selected) {
+                            setState(() {
+                              _selectedTransactionType = selected ? 'inbetaling' : 'alle';
+                            });
+                          },
+                        ),
+                        FilterChip(
+                          label: const Text('Afbetalings'),
+                          selected: _selectedTransactionType == 'afbetaling',
+                          onSelected: (selected) {
+                            setState(() {
+                              _selectedTransactionType = selected ? 'afbetaling' : 'alle';
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Quick Date Options
+                    Text(
+                      'Vinnige Datum Opsies:',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        _buildQuickDateChipDialog('Vandag', () {
+                          final today = DateTime.now();
+                          setState(() {
+                            _selectedDateFrom = today;
+                            _selectedDateTo = today;
+                          });
+                        }),
+                        _buildQuickDateChipDialog('7 Dae', () {
+                          final now = DateTime.now();
+                          setState(() {
+                            _selectedDateFrom = now.subtract(const Duration(days: 7));
+                            _selectedDateTo = now;
+                          });
+                        }),
+                        _buildQuickDateChipDialog('14 Dae', () {
+                          final now = DateTime.now();
+                          setState(() {
+                            _selectedDateFrom = now.subtract(const Duration(days: 14));
+                            _selectedDateTo = now;
+                          });
+                        }),
+                        _buildQuickDateChipDialog('30 Dae', () {
+                          final now = DateTime.now();
+                          setState(() {
+                            _selectedDateFrom = now.subtract(const Duration(days: 30));
+                            _selectedDateTo = now;
+                          });
+                        }),
+                        _buildQuickDateChipDialog('90 Dae', () {
+                          final now = DateTime.now();
+                          setState(() {
+                            _selectedDateFrom = now.subtract(const Duration(days: 90));
+                            _selectedDateTo = now;
+                          });
+                        }),
+                        _buildQuickDateChipDialog('Maak Skoon', () {
+                          setState(() {
+                            _selectedDateFrom = null;
+                            _selectedDateTo = null;
+                          });
+                        }, isClear: true),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 12),
+                    
+                    // Custom Date Range
+                    Text(
+                      'Pasgemaakte Datum Reeks:',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildDateFieldDialog(
+                            label: 'Van',
+                            date: _selectedDateFrom,
+                            onTap: () async {
+                              final date = await showDatePicker(
+                                context: context,
+                                initialDate: _selectedDateFrom ?? DateTime.now(),
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime.now(),
+                              );
+                              if (date != null) {
+                                setState(() {
+                                  _selectedDateFrom = date;
+                                });
+                              }
+                            },
+                            onClear: () {
+                              setState(() {
+                                _selectedDateFrom = null;
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildDateFieldDialog(
+                            label: 'Tot',
+                            date: _selectedDateTo,
+                            onTap: () async {
+                              final date = await showDatePicker(
+                                context: context,
+                                initialDate: _selectedDateTo ?? DateTime.now(),
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime.now(),
+                              );
+                              if (date != null) {
+                                setState(() {
+                                  _selectedDateTo = date;
+                                });
+                              }
+                            },
+                            onClear: () {
+                              setState(() {
+                                _selectedDateTo = null;
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Results count
+            Row(
+              children: [
+                Text(
+                  'Transaksie Geskiedenis',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${_filteredTransactions.length} van ${_userTransactions.length} transaksies',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.blue.shade800,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // Transactions List
+            Expanded(
+              child: _filteredTransactions.isEmpty
+                  ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.receipt_long, size: 64, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text(
+                            'Geen transaksies gevind nie',
+                            style: TextStyle(color: Colors.grey, fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: _filteredTransactions.length,
+                      itemBuilder: (context, index) {
+                        final t = _filteredTransactions[index];
+                        final bedrag = (t['trans_bedrag'] as num?)?.toDouble() ?? 0.0;
+                        final tipeNaam = t['trans_tipe_naam'] ?? '';
+                        final datum = DateTime.tryParse(t['trans_geskep_datum'] ?? '');
+                        final beskrywing = t['trans_beskrywing'] ?? '';
+                        // Determine if this is an addition or deduction based on trans_tipe_id
+                        final transTipeId = t['trans_tipe_id']?.toString() ?? '';
+                        final isInbetaling = transTipeId == '1654002c-61bc-4e31-9186-edb75a34d181' || // inbetaling
+                                           transTipeId == '9c1d1ea9-5ccb-46b0-83d6-e7ba9cf86d5b' || // admin kanselasie (refund)
+                                           transTipeId == 'a1e58a24-1a1d-4940-8855-df4c35ae5d5f';   // toelae_inbetaling
+                        final adminNaam = t['admin_naam'] != null
+                            ? '${t['admin_naam']} ${t['admin_van'] ?? ''}'.trim()
+                            : 'Stelsel';
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: isInbetaling
+                                  ? Colors.green.shade100
+                                  : Colors.red.shade100,
+                              child: Icon(
+                                isInbetaling ? Icons.add : Icons.remove,
+                                color: isInbetaling ? Colors.green : Colors.red,
+                              ),
+                            ),
+                            title: Text(
+                              beskrywing.isNotEmpty ? beskrywing : tipeNaam,
+                              style: const TextStyle(fontWeight: FontWeight.w500),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Deur: $adminNaam',
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                                if (datum != null)
+                                  Text(
+                                    DateFormat('dd MMM yyyy HH:mm').format(datum),
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                              ],
+                            ),
+                            trailing: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isInbetaling ? Colors.green.shade50 : Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isInbetaling ? Colors.green.shade200 : Colors.red.shade200,
+                                ),
+                              ),
+                              child: Text(
+                                '${isInbetaling ? '+' : '-'}R${bedrag.abs().toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isInbetaling ? Colors.green.shade800 : Colors.red.shade800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),

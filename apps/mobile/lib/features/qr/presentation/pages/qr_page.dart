@@ -187,41 +187,74 @@ class _QrPageState extends State<QrPage> {
           Card(
             color: Theme.of(context).colorScheme.primaryContainer,
             child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    FeatherIcons.refreshCw,
-                    size: 16,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'QR kodes verfris outomaties elke 10 sekondes vir sekuriteit',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.primary,
+                  Row(
+                    children: [
+                      Icon(
+                        FeatherIcons.shield,
+                        size: 20,
+                        color: Colors.black87,
                       ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Sekuriteit Timer',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'QR kodes verfris outomaties elke 10 sekondes vir sekuriteit. Dit voorkom dat ou kodes misbruik word.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.black54,
+                      height: 1.4,
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${_refreshCountdown}s',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Icon(
+                        FeatherIcons.clock,
+                        size: 16,
+                        color: Colors.black87,
                       ),
-                    ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Volgende verfris in:',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.black87,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black87,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '${_refreshCountdown}s',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -353,7 +386,7 @@ class _QrPageState extends State<QrPage> {
                               'Item ID: ${bestKosId.substring(0, 8)}...',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.grey.shade600,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 fontFamily: 'monospace',
                               ),
                             ),
@@ -374,8 +407,8 @@ class _QrPageState extends State<QrPage> {
                                 color:
                                     status == 'Afgehandel' ||
                                         status == 'Ontvang'
-                                    ? Colors.green
-                                    : Colors.red,
+                                    ? Theme.of(context).colorScheme.tertiary
+                                    : Theme.of(context).colorScheme.error,
                               ),
                               const SizedBox(height: 8),
                               Text(
