@@ -65,8 +65,18 @@ class _NextWeeksMenuState extends State<NextWeeksMenu> {
         nextWeekStart,
       );
 
+      // Debug: Print the raw spyskaart data
+      print('Raw spyskaart data: $spyskaartData');
+      print('Spyskaart data keys: ${spyskaartData.keys.toList()}');
+
       // Process the data into the expected format
       _weeklyMenu = _processSpyskaartData(spyskaartData);
+
+      // Debug: Print processed menu
+      print('Processed weekly menu: ${_weeklyMenu?.length} days');
+      if (_weeklyMenu != null && _weeklyMenu!.isNotEmpty) {
+        print('First day menu: ${_weeklyMenu!.first}');
+      }
 
       setState(() {
         _isLoading = false;
@@ -88,6 +98,12 @@ class _NextWeeksMenuState extends State<NextWeeksMenu> {
           spyskaartData['spyskaart_kos_item'] ?? [],
         );
 
+    // Debug: Print the raw data structure
+    print('Spyskaart items count: ${spyskaartItems.length}');
+    if (spyskaartItems.isNotEmpty) {
+      print('First item structure: ${spyskaartItems.first}');
+    }
+
     // Group items by day
     final Map<String, List<Map<String, dynamic>>> itemsByDay = {};
     for (final item in spyskaartItems) {
@@ -101,30 +117,46 @@ class _NextWeeksMenuState extends State<NextWeeksMenu> {
       }
     }
 
+    // Debug: Print grouped items
+    print('Items by day: ${itemsByDay.keys.toList()}');
+    itemsByDay.forEach((day, items) {
+      print('$day: ${items.length} items');
+    });
+
+    // Check if we have any items at all
+    if (spyskaartItems.isEmpty) {
+      print('No spyskaart items found in data');
+    } else if (itemsByDay.isEmpty) {
+      print('Items found but no day grouping - checking item structure');
+      for (int i = 0; i < spyskaartItems.length && i < 3; i++) {
+        print('Item $i: ${spyskaartItems[i]}');
+      }
+    }
+
     // Create menu for each day of the week
     const dayNames = [
-      'maandag',
-      'dinsdag',
-      'woensdag',
-      'donderdag',
-      'vrydag',
-      'saterdag',
-      'sondag',
+      'Maandag',
+      'Dinsdag',
+      'Woensdag',
+      'Donderdag',
+      'Vrydag',
+      'Saterdag',
+      'Sondag',
     ];
-    const dayNamesEn = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday',
-    ];
+    // const dayNamesEn = [
+    //   'Monday',
+    //   'Tuesday',
+    //   'Wednesday',
+    //   'Thursday',
+    //   'Friday',
+    //   'Saturday',
+    //   'Sunday',
+    // ];
 
     for (int i = 0; i < 7; i++) {
       final dayName = dayNames[i];
-      final dayNameEn = dayNamesEn[i];
-      final dayItems = itemsByDay[dayName] ?? [];
+      // final dayNameEn = dayNamesEn[i];
+      final dayItems = itemsByDay[dayName.toLowerCase()] ?? [];
 
       // Extract food item names
       final List<String> itemNames = [];
@@ -147,7 +179,7 @@ class _NextWeeksMenuState extends State<NextWeeksMenu> {
       }
 
       weeklyMenu.add({
-        'day': dayNameEn,
+        'day': dayName,
         'date': _nextWeekDates![i],
         'items': itemNames,
         'totalItems': itemNames.length,
@@ -302,20 +334,36 @@ class _NextWeeksMenuState extends State<NextWeeksMenu> {
                   borderRadius: BorderRadius.circular(8),
                   color: Colors.grey.shade100,
                 ),
-                child: const Center(
+                child: Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.restaurant_menu, size: 48, color: Colors.grey),
-                      SizedBox(height: 8),
-                      Text(
+                      const Icon(
+                        Icons.restaurant_menu,
+                        size: 48,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
                         'Geen spyskaart vir volgende week nie',
                         style: TextStyle(color: Colors.red),
                       ),
-                      SizedBox(height: 4),
-                      Text(
+                      const SizedBox(height: 4),
+                      const Text(
                         'Klik "Meer" om een te skep',
                         style: TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton.icon(
+                        onPressed: _loadNextWeeksMenu,
+                        icon: const Icon(Icons.refresh, size: 16),
+                        label: const Text('Herlaai'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                        ),
                       ),
                     ],
                   ),
