@@ -60,18 +60,42 @@ class AuthService {
     required String cellphone
   }) async {
     try {
-      // New workflow: Create users as Ekstern with is_aktief=false and Pending admin type
-      // Primary admin will approve and assign proper user type
+      // Get default values for new users
+      final ekstern = await _supabase
+          .from('gebruiker_tipes')
+          .select('gebr_tipe_id')
+          .ilike('gebr_tipe_naam', 'Ekstern')
+          .limit(1)
+          .maybeSingle();
+      final adminNone = await _supabase
+          .from('admin_tipes')
+          .select('admin_tipe_id')
+          .ilike('admin_tipe_naam', 'None')
+          .limit(1)
+          .maybeSingle();
+      final firstKampus = await _supabase
+          .from('kampus')
+          .select('kampus_id')
+          .order('kampus_naam', ascending: true)
+          .limit(1)
+          .maybeSingle();
+
+      if (ekstern == null || adminNone == null || firstKampus == null) {
+        throw Exception('Kon nie verstekwaardes laai nie');
+      }
+
+      // Create user as active with default values (same as register page was doing)
       await _supabase.from('gebruikers').upsert({
-        'gebr_id': user.id,
+        'gebr_id': user.id, // CRITICAL: Use Supabase auth UID as gebr_id
         'gebr_epos': user.email!,
         'gebr_naam': firstName,
         'gebr_van': lastName,
         'gebr_selfoon': cellphone,
-        'is_aktief': false, // Requires Primary admin approval
-        'gebr_tipe_id': '4b2cadfb-90ee-4f89-931d-2b1e7abbc284', // Ekstern type ID
-        'admin_tipe_id': 'f5fde633-eea3-4d58-8509-fb80a74f68a6', // Pending admin type ID
-        'requested_admin_tipe_id': null, // Could be set if user requests specific admin role
+        'is_aktief': true, // Active by default for new registrations
+        'beursie_balans': 0,
+        'gebr_tipe_id': ekstern['gebr_tipe_id'],
+        'admin_tipe_id': adminNone['admin_tipe_id'],
+        'kampus_id': firstKampus['kampus_id'],
       }, onConflict: 'gebr_id');
     } catch (e) { 
       rethrow; 
