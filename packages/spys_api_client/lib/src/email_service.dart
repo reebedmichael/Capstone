@@ -17,7 +17,7 @@ class EmailService {
     try {
       // Kry gebruiker inligting
       final gebruiker = await _sb.from('gebruikers')
-          .select('gebr_email, gebr_naam')
+          .select('gebr_epos, gebr_naam')
           .eq('gebr_id', gebrId)
           .maybeSingle();
 
@@ -26,7 +26,7 @@ class EmailService {
         return false;
       }
 
-      final email = gebruiker['gebr_email'] as String?;
+      final email = gebruiker['gebr_epos'] as String?;
       final naam = gebruiker['gebr_naam'] as String?;
 
       if (email == null || email.isEmpty) {
@@ -67,9 +67,9 @@ class EmailService {
     try {
       // Kry alle gebruikers met email adresse
       final gebruikers = await _sb.from('gebruikers')
-          .select('gebr_email, gebr_naam')
-          .not('gebr_email', 'is', null)
-          .neq('gebr_email', '');
+          .select('gebr_epos, gebr_naam')
+          .not('gebr_epos', 'is', null)
+          .neq('gebr_epos', '');
 
       if (gebruikers.isEmpty) {
         print('Geen gebruikers met email adresse gevind');
@@ -79,7 +79,7 @@ class EmailService {
       // Stuur email aan elke gebruiker
       int suksesvol = 0;
       for (final gebruiker in gebruikers) {
-        final email = gebruiker['gebr_email'] as String?;
+        final email = gebruiker['gebr_epos'] as String?;
         final naam = gebruiker['gebr_naam'] as String?;
 
         if (email != null && email.isNotEmpty) {
@@ -123,10 +123,10 @@ class EmailService {
 
       // Kry gebruikers met email adresse
       final gebruikers = await _sb.from('gebruikers')
-          .select('gebr_id, gebr_email, gebr_naam')
+          .select('gebr_id, gebr_epos, gebr_naam')
           .inFilter('gebr_id', gebrIds)
-          .not('gebr_email', 'is', null)
-          .neq('gebr_email', '');
+          .not('gebr_epos', 'is', null)
+          .neq('gebr_epos', '');
 
       if (gebruikers.isEmpty) {
         print('Geen gebruikers met email adresse gevind');
@@ -136,7 +136,7 @@ class EmailService {
       // Stuur email aan elke gebruiker
       int suksesvol = 0;
       for (final gebruiker in gebruikers) {
-        final email = gebruiker['gebr_email'] as String?;
+        final email = gebruiker['gebr_epos'] as String?;
         final naam = gebruiker['gebr_naam'] as String?;
 
         if (email != null && email.isNotEmpty) {
