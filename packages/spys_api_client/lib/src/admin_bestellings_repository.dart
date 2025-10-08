@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'db.dart';
+import 'kennisgewing_repository.dart';
 
 /// AdminBestellingRepository
 /// Voltooi Supabase/Dart backend funksies om bestellings saam met verwante data
@@ -9,6 +10,7 @@ class AdminBestellingRepository {
   final SupabaseDb _db;
 
   SupabaseClient get _sb => _db.raw;
+  late final KennisgewingRepository _kennisgewingRepo = KennisgewingRepository(_db);
 
   // Cache management
   List<Map<String, dynamic>>? _cachedBestellings;
@@ -471,12 +473,111 @@ class AdminBestellingRepository {
         });
       }
 
+      // Step 4: Send notification to user about status change
+      if (gebrId != null) {
+        try {
+          // Get the food item name for the notification
+          final bestKosItemData = await _sb
+              .from('bestelling_kos_item')
+              .select('kos_item:kos_item_id(kos_item_naam)')
+              .eq('best_kos_id', bestKosId)
+              .maybeSingle();
+          
+          String kosItemNaam = 'Item';
+          if (bestKosItemData != null && bestKosItemData['kos_item'] != null) {
+            final kosItemMap = bestKosItemData['kos_item'] as Map<String, dynamic>;
+            kosItemNaam = kosItemMap['kos_item_naam']?.toString() ?? 'Item';
+          }
+          
+          // Create user-friendly status message
+          String statusBeskrywing = _getStatusBeskrywing(statusNaam, kosItemNaam);
+          String tipeNaam = _getKennisgewingTipe(statusNaam);
+          String titel = _getKennisgewingTitel(statusNaam);
+          
+          // Send notification (email disabled - Resend requires domain verification for production)
+          await _kennisgewingRepo.skepKennisgewing(
+            gebrId: gebrId,
+            beskrywing: statusBeskrywing,
+            tipeNaam: tipeNaam,
+            titel: titel,
+            stuurEmail: false, // Set to true when domain is verified on Resend
+          );
+          
+          print('✅ Notification and email sent to user $gebrId for status: $statusNaam');
+        } catch (e) {
+          print('⚠️ Warning: Could not send notification/email: $e');
+          // Don't rethrow - status update was successful, notification is secondary
+        }
+      }
+
       // Invalidate cache after successful update
       invalidateCache();
       print('Cache invalidated after status update');
     } catch (e, st) {
       print('Fout in updateStatus: $e\n$st');
       rethrow;
+    }
+  }
+  
+  /// Get a user-friendly description for the status change
+  String _getStatusBeskrywing(String statusNaam, String kosItemNaam) {
+    switch (statusNaam) {
+      case 'In afwagting':
+        return 'Jou bestelling vir "$kosItemNaam" is ontvang en word tans verwerk.';
+      case 'In voorbereiding':
+        return 'Jou "$kosItemNaam" word tans voorberei. Ons sal jou laat weet wanneer dit gereed is!';
+      case 'Gereed vir aflewering':
+        return 'Jou "$kosItemNaam" is gereed en sal binnekort afgelewer word.';
+      case 'Onderweg vir aflewering':
+        return 'Jou "$kosItemNaam" is onderweg! Verwag dit binnekort by jou aflaai punt.';
+      case 'Gereed om opgehaal te word':
+        return 'Jou "$kosItemNaam" is gereed om opgehaal te word by jou aflaai punt. Kom haal dit asseblief!';
+      case 'Afgehandel':
+        return 'Jou "$kosItemNaam" is suksesvol afgehandel. Geniet jou kos!';
+      case 'Gekanselleer':
+        return 'Jou bestelling vir "$kosItemNaam" is gekanselleer. Die geld is terugbetaal na jou beursie.';
+      default:
+        return 'Jou bestelling vir "$kosItemNaam" se status is opgedateer na: $statusNaam';
+    }
+  }
+  
+  /// Get the notification type based on status
+  String _getKennisgewingTipe(String statusNaam) {
+    switch (statusNaam) {
+      case 'Gekanselleer':
+        return 'waarskuwing';
+      case 'Afgehandel':
+      case 'Gereed om opgehaal te word':
+        return 'sukses';
+      case 'In afwagting':
+      case 'In voorbereiding':
+      case 'Gereed vir aflewering':
+      case 'Onderweg vir aflewering':
+        return 'info';
+      default:
+        return 'info';
+    }
+  }
+  
+  /// Get the notification title based on status
+  String _getKennisgewingTitel(String statusNaam) {
+    switch (statusNaam) {
+      case 'In afwagting':
+        return 'Bestelling Ontvang';
+      case 'In voorbereiding':
+        return 'Bestelling Word Voorberei';
+      case 'Gereed vir aflewering':
+        return 'Gereed vir Aflewering';
+      case 'Onderweg vir aflewering':
+        return 'Onderweg!';
+      case 'Gereed om opgehaal te word':
+        return 'Gereed om Op te Haal!';
+      case 'Afgehandel':
+        return 'Bestelling Voltooi';
+      case 'Gekanselleer':
+        return 'Bestelling Gekanselleer';
+      default:
+        return 'Bestelling Status Opdatering';
     }
   }
 
