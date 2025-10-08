@@ -97,7 +97,7 @@ class _HulpPageState extends ConsumerState<HulpPage> {
           children: [
             const Text('Is jy seker jy wil hierdie navraag stuur?'),
             const SizedBox(height: 12),
-            Text('Naar: ${eposCtrl.text}'),
+            Text('E-pos: ${eposCtrl.text}'),
             Text('Onderwerp: ${onderwerpCtrl.text}'),
             const SizedBox(height: 8),
             const Text(
@@ -177,7 +177,7 @@ class _HulpPageState extends ConsumerState<HulpPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('📧 Naar: ${eposCtrl.text}'),
+                      Text('📧 Naam: ${eposCtrl.text}'),
                       Text('📋 Onderwerp: ${onderwerpCtrl.text}'),
                       Text(
                         '⏰ Gestuur: ${DateTime.now().toString().split('.')[0]}',
