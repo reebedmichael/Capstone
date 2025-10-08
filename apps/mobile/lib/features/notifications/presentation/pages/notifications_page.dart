@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:spys_api_client/spys_api_client.dart';
-import 'package:intl/intl.dart';
+import '../../../../shared/state/notification_badge.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -15,8 +15,8 @@ class _NotificationsPageState extends State<NotificationsPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  int _currentTabIndex = 0; // 0 = Alle, 1 = Ongelees
-  String _tipeFilter = 'all'; // all | info | waarskuwing | sukses | fout
+  String _primaryTab = 'all'; // all | unread | read
+  String _secondaryTab = 'all'; // all | orders | menu | allowance
 
   List<Map<String, dynamic>> _notifications = [];
   List<Map<String, dynamic>> _globaleKennisgewings = [];
@@ -27,10 +27,20 @@ class _NotificationsPageState extends State<NotificationsPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
       setState(() {
-        _currentTabIndex = _tabController.index;
+        switch (_tabController.index) {
+          case 0:
+            _primaryTab = 'all';
+            break;
+          case 1:
+            _primaryTab = 'unread';
+            break;
+          case 2:
+            _primaryTab = 'read';
+            break;
+        }
       });
     });
     _laaiKennisgewings();
@@ -59,16 +69,30 @@ class _NotificationsPageState extends State<NotificationsPage>
       final kennisgewings = await kennisgewingRepo.kryKennisgewings(user.id);
       final globale = await kennisgewingRepo.kryGlobaleKennisgewings();
 
-      // Laai statistieke
-      final stats = await kennisgewingRepo.kryKennisgewingStatistieke(user.id);
-
       setState(() {
         _notifications = kennisgewings;
         _globaleKennisgewings = globale;
-        _statistieke = stats;
         _isLoading = false;
         _isRefreshing = false;
       });
+
+      // Calculate statistics from combined notifications
+      final alleKennisgewings = _alleKennisgewings;
+      final ongeleesKennisgewings = alleKennisgewings.where((k) => !(k['kennis_gelees'] ?? false)).toList();
+      final geleesKennisgewings = alleKennisgewings.where((k) => (k['kennis_gelees'] ?? false)).toList();
+      
+      final stats = {
+        'totaal': alleKennisgewings.length,
+        'ongelees': ongeleesKennisgewings.length,
+        'gelees': geleesKennisgewings.length,
+      };
+
+      setState(() {
+        _statistieke = stats;
+      });
+
+      // Update global notification badge
+      NotificationBadgeState.unreadCount.value = stats['ongelees'] ?? 0;
     } catch (e) {
       print('Fout met laai kennisgewings: $e');
       setState(() {
@@ -171,26 +195,48 @@ class _NotificationsPageState extends State<NotificationsPage>
 
   List<Map<String, dynamic>> get _gefilterdeKennisgewings {
     return _alleKennisgewings.where((kennisgewing) {
-      // Tab filter (alles/ongelees)
-      final bool tabMatch =
-          _currentTabIndex == 0 ||
-          (_currentTabIndex == 1 && !(kennisgewing['kennis_gelees'] ?? false));
+      // Primêre filter (alles/ongelees/gelees)
+      final bool primereMatch =
+          _primaryTab == 'all' ||
+          (_primaryTab == 'unread' && !(kennisgewing['kennis_gelees'] ?? false)) ||
+          (_primaryTab == 'read' && (kennisgewing['kennis_gelees'] ?? false));
 
-      // Tipe filter
-      if (_tipeFilter != 'all') {
-        final tipeNaam =
-            kennisgewing['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info';
-        if (tipeNaam.toLowerCase() != _tipeFilter.toLowerCase()) {
-          return false;
-        }
-      }
+      // Sekondere filter (tipe)
+      final bool sekondereMatch =
+          _secondaryTab == 'all' ||
+          _getKennisgewingTipe(kennisgewing) == _secondaryTab;
 
-      return tabMatch;
+      return primereMatch && sekondereMatch;
     }).toList();
   }
 
+  String _getKennisgewingTipe(Map<String, dynamic> kennisgewing) {
+    final tipeNaam =
+        kennisgewing['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info';
+
+    // Map kennisgewing tipes na app tipes
+    switch (tipeNaam.toLowerCase()) {
+      case 'bestelling':
+      case 'order':
+        return 'order';
+      case 'spyskaart':
+      case 'menu':
+        return 'menu';
+      case 'toelaag':
+      case 'allowance':
+        return 'allowance';
+      default:
+        return 'algemeen';
+    }
+  }
+
   String _formatDate(DateTime date) {
-    return DateFormat('dd MMM yyyy HH:mm').format(date);
+    const months = [
+      'Jan', 'Feb', 'Mrt', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des',
+    ];
+    return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} '
+        '${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
   
   String _formatTimeAgo(DateTime date) {
@@ -207,6 +253,84 @@ class _NotificationsPageState extends State<NotificationsPage>
       return '${difference.inMinutes} min gelede';
     } else {
       return 'Nou net';
+    }
+  }
+
+  Widget _compactStatCard(String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 14,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getFilterColor(String filter) {
+    switch (filter) {
+      case 'order':
+        return Colors.blue;
+      case 'menu':
+        return Colors.green;
+      case 'allowance':
+        return Colors.orange;
+      case 'algemeen':
+        return Colors.purple;
+      default:
+        return Theme.of(context).colorScheme.primary;
+    }
+  }
+
+  String _getFilterLabel(String filter) {
+    switch (filter) {
+      case 'order':
+        return 'Bestellings';
+      case 'menu':
+        return 'Spyskaart';
+      case 'allowance':
+        return 'Toelaag';
+      case 'algemeen':
+        return 'Algemeen';
+      default:
+        return 'Alle tipes';
     }
   }
 
@@ -540,7 +664,7 @@ class _NotificationsPageState extends State<NotificationsPage>
             tooltip: 'Filter',
             onSelected: (value) {
               setState(() {
-                _tipeFilter = value;
+                _secondaryTab = value;
               });
             },
             itemBuilder: (context) => [
@@ -658,6 +782,32 @@ class _NotificationsPageState extends State<NotificationsPage>
                 ],
               ),
             ),
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('Gelees'),
+                  if (_statistieke['gelees']! > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.tertiary,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${_statistieke['gelees']}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onTertiary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -665,43 +815,277 @@ class _NotificationsPageState extends State<NotificationsPage>
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _handleRefresh,
-              child: _gefilterdeKennisgewings.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            _currentTabIndex == 1 
-                              ? Icons.mark_email_read 
-                              : Icons.notifications_none,
-                            size: 80,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.5),
+              color: Theme.of(context).colorScheme.primary,
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Compact statistics row
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        border: Border(
+                          bottom: BorderSide(
+                            color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+                            width: 1,
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _currentTabIndex == 1
-                                ? 'Geen ongelees kennisgewings'
-                                : 'Geen kennisgewings',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _compactStatCard(
+                              'Totaal',
+                              '${_statistieke['totaal']}',
+                              Icons.notifications,
+                              Theme.of(context).colorScheme.primary,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _currentTabIndex == 1
-                                ? 'Alle kennisgewings is gelees'
-                                : 'Jy sal hier kennisgewings sien',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: _compactStatCard(
+                              'Ongelees',
+                              '${_statistieke['ongelees']}',
+                              Icons.notifications_active,
+                              Theme.of(context).colorScheme.secondary,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: _compactStatCard(
+                              'Gelees',
+                              '${_statistieke['gelees']}',
+                              Icons.notifications_off,
+                              Theme.of(context).colorScheme.tertiary,
                             ),
                           ),
                         ],
                       ),
-                    )
-                  : ListView.builder(
+                    ),
+
+                    // Filters section
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                       padding: const EdgeInsets.all(16),
-                      itemCount: _gefilterdeKennisgewings.length,
-                      itemBuilder: (context, index) {
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).colorScheme.shadow.withOpacity(0.05),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.filter_list,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Filter kennisgewings',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: _getFilterColor(_secondaryTab).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: _getFilterColor(_secondaryTab).withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  _getFilterLabel(_secondaryTab),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: _getFilterColor(_secondaryTab),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          DropdownButton<String>(
+                            value: _secondaryTab,
+                            isExpanded: true,
+                            underline: const SizedBox(),
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 15,
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'all',
+                                child: Text('Alle tipes'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'order',
+                                child: Text('Bestellings'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'menu',
+                                child: Text('Spyskaart'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'allowance',
+                                child: Text('Toelaag'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'algemeen',
+                                child: Text('Algemeen'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              setState(() {
+                                _secondaryTab = value ?? 'all';
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Notifications section
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        border: Border(
+                          bottom: BorderSide(
+                            color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.notifications,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Kennisgewings',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${_gefilterdeKennisgewings.length}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Notifications list
+                    _gefilterdeKennisgewings.isEmpty
+                        ? Container(
+                            height: 250,
+                            margin: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+                              ),
+                            ),
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 64,
+                                    height: 64,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                          Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                                        ],
+                                      ),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      Icons.notifications_none,
+                                      size: 32,
+                                      color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Geen kennisgewings nie',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Jy sal hier kennisgewings sien wanneer daar nuus is',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: _gefilterdeKennisgewings.length,
+                            itemBuilder: (context, index) {
                         final kennisgewing = _gefilterdeKennisgewings[index];
                         final soort = kennisgewing['_kennisgewing_soort'] ?? 'gebruiker';
                         final tipe = kennisgewing['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info';
@@ -726,164 +1110,178 @@ class _NotificationsPageState extends State<NotificationsPage>
                               ),
                             );
                           },
-                          child: Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            elevation: isGelees ? 1 : 3,
-                            shadowColor: _getTipeKleur(tipe).withOpacity(0.2),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              side: BorderSide(
-                                color: isGelees
-                                    ? Colors.transparent
-                                    : _getTipeKleur(tipe).withOpacity(0.3),
-                                width: 2,
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            child: Dismissible(
+                              key: Key(kennisgewing['kennis_id'] ?? kennisgewing['glob_kennis_id']),
+                              direction: isGelees ? DismissDirection.none : DismissDirection.endToStart,
+                              background: Container(
+                                alignment: Alignment.centerRight,
+                                padding: const EdgeInsets.only(right: 16),
+                                decoration: BoxDecoration(
+                                  color: _getTipeKleur(tipe).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.mark_email_read,
+                                  color: _getTipeKleur(tipe),
+                                  size: 20,
+                                ),
                               ),
-                            ),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(16),
-                              onTap: () => _toonKennisgewingDetail(kennisgewing),
-                              onLongPress: soort == 'gebruiker' && !isGelees
-                                  ? () => _markeerAsGelees(kennisgewing['kennis_id'])
-                                  : null,
+                              onDismissed: (direction) {
+                                if (!isGelees && soort == 'gebruiker') {
+                                  _markeerAsGelees(kennisgewing['kennis_id']);
+                                }
+                              },
                               child: Container(
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(16),
-                                  gradient: isGelees
-                                      ? null
-                                      : LinearGradient(
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                          colors: [
-                                            _getTipeKleur(tipe).withOpacity(0.02),
-                                            Colors.transparent,
-                                          ],
-                                        ),
+                                  borderRadius: BorderRadius.circular(12),
+                                  color: isGelees 
+                                      ? Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3)
+                                      : _getTipeKleur(tipe).withOpacity(0.05),
+                                  border: Border.all(
+                                    color: isGelees
+                                        ? Theme.of(context).colorScheme.outline.withOpacity(0.2)
+                                        : _getTipeKleur(tipe).withOpacity(0.2),
+                                    width: 1,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: isGelees 
+                                          ? Colors.grey.withOpacity(0.05)
+                                          : _getTipeKleur(tipe).withOpacity(0.1),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      // Ikoon
-                                      Container(
-                                        width: 52,
-                                        height: 52,
-                                        decoration: BoxDecoration(
-                                          color: _getTipeKleur(tipe).withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(14),
-                                          border: Border.all(
-                                            color: _getTipeKleur(tipe).withOpacity(0.3),
-                                            width: 2,
-                                          ),
-                                        ),
-                                        child: Icon(
-                                          _getTipeIkoon(tipe),
-                                          color: _getTipeKleur(tipe),
-                                          size: 26,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      
-                                      // Content
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(12),
+                                    onTap: () => _toonKennisgewingDetail(kennisgewing),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: Row(
+                                        children: [
+                                          // Compact icon
+                                          Container(
+                                            width: 36,
+                                            height: 36,
+                                            decoration: BoxDecoration(
+                                              color: _getTipeKleur(tipe).withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(18),
+                                              border: Border.all(
+                                                color: _getTipeKleur(tipe).withOpacity(0.3),
+                                                width: 1,
+                                              ),
+                                            ),
+                                            child: Stack(
                                               children: [
-                                                Expanded(
-                                                  child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                                    children: [
-                                                      if (titel.isNotEmpty) ...[
-                                                        Text(
-                                                          titel,
-                                                          style: TextStyle(
-                                                            fontWeight: FontWeight.bold,
-                                                            fontSize: 16,
-                                                            color: isGelees
-                                                                ? Theme.of(context).colorScheme.onSurface.withOpacity(0.6)
-                                                                : Theme.of(context).colorScheme.onSurface,
-                                                          ),
-                                                          maxLines: 1,
-                                                          overflow: TextOverflow.ellipsis,
-                                                        ),
-                                                        const SizedBox(height: 4),
-                                                      ],
-                                                      Text(
-                                                        beskrywing,
-                                                        style: TextStyle(
-                                                          fontWeight: titel.isNotEmpty && !isGelees
-                                                              ? FontWeight.w500
-                                                              : (isGelees ? FontWeight.normal : FontWeight.w600),
-                                                          fontSize: titel.isNotEmpty ? 14 : 15,
-                                                          color: isGelees
-                                                              ? Theme.of(context).colorScheme.onSurface.withOpacity(0.5)
-                                                              : Theme.of(context).colorScheme.onSurface,
-                                                        ),
-                                                        maxLines: 2,
-                                                        overflow: TextOverflow.ellipsis,
-                                                      ),
-                                                    ],
+                                                Center(
+                                                  child: Icon(
+                                                    _getTipeIkoon(tipe),
+                                                    color: _getTipeKleur(tipe),
+                                                    size: 18,
                                                   ),
                                                 ),
-                                                if (!isGelees && soort == 'gebruiker')
-                                                  Container(
-                                                    width: 10,
-                                                    height: 10,
-                                                    margin: const EdgeInsets.only(left: 8),
-                                                    decoration: BoxDecoration(
-                                                      color: _getTipeKleur(tipe),
-                                                      shape: BoxShape.circle,
+                                                if (!isGelees)
+                                                  Positioned(
+                                                    top: 4,
+                                                    right: 4,
+                                                    child: Container(
+                                                      width: 8,
+                                                      height: 8,
+                                                      decoration: BoxDecoration(
+                                                        color: _getTipeKleur(tipe),
+                                                        shape: BoxShape.circle,
+                                                      ),
                                                     ),
                                                   ),
                                               ],
                                             ),
-                                            const SizedBox(height: 8),
-                                            Row(
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
-                                                Icon(
-                                                  Icons.access_time,
-                                                  size: 14,
-                                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                                ),
-                                                const SizedBox(width: 4),
                                                 Text(
-                                                  _formatTimeAgo(datum),
+                                                  titel.isNotEmpty ? titel : beskrywing,
                                                   style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                    fontWeight: isGelees ? FontWeight.w500 : FontWeight.w600,
+                                                    fontSize: 14,
+                                                    color: isGelees
+                                                        ? Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
+                                                        : Theme.of(context).colorScheme.onSurface,
+                                                    height: 1.2,
                                                   ),
+                                                  maxLines: 2,
+                                                  overflow: TextOverflow.ellipsis,
                                                 ),
-                                                const Spacer(),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: soort == 'globaal'
-                                                        ? Colors.green.withOpacity(0.15)
-                                                        : _getTipeKleur(tipe).withOpacity(0.15),
-                                                    borderRadius: BorderRadius.circular(6),
-                                                  ),
-                                                  child: Text(
-                                                    soort == 'globaal' ? 'GLOBAAL' : tipe.toUpperCase(),
-                                                    style: TextStyle(
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: soort == 'globaal'
-                                                          ? Colors.green
-                                                          : _getTipeKleur(tipe),
+                                                const SizedBox(height: 4),
+                                                Row(
+                                                  children: [
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                      decoration: BoxDecoration(
+                                                        color: _getTipeKleur(tipe).withOpacity(0.1),
+                                                        borderRadius: BorderRadius.circular(8),
+                                                      ),
+                                                      child: Text(
+                                                        tipe.toUpperCase(),
+                                                        style: TextStyle(
+                                                          fontSize: 8,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: _getTipeKleur(tipe),
+                                                        ),
+                                                      ),
                                                     ),
-                                                  ),
+                                                    const SizedBox(width: 8),
+                                                    Icon(
+                                                      Icons.access_time,
+                                                      size: 12,
+                                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                    ),
+                                                    const SizedBox(width: 2),
+                                                    Text(
+                                                      _formatTimeAgo(datum),
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ],
+                                            ),
+                                          ),
+                                          if (!isGelees && soort == 'gebruiker') ...[
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              decoration: BoxDecoration(
+                                                color: _getTipeKleur(tipe).withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: IconButton(
+                                                onPressed: () => _markeerAsGelees(kennisgewing['kennis_id']),
+                                                icon: Icon(
+                                                  Icons.mark_email_read,
+                                                  color: _getTipeKleur(tipe),
+                                                  size: 16,
+                                                ),
+                                                tooltip: 'Markeer as gelees',
+                                                constraints: const BoxConstraints(
+                                                  minWidth: 32,
+                                                  minHeight: 32,
+                                                ),
+                                                padding: EdgeInsets.zero,
+                                              ),
                                             ),
                                           ],
-                                        ),
+                                        ],
                                       ),
-                                    ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -892,6 +1290,9 @@ class _NotificationsPageState extends State<NotificationsPage>
                         );
                       },
                     ),
+                  ],
+                ),
+              ),
             ),
     );
   }

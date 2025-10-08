@@ -8,6 +8,7 @@ import '../../../../locator.dart';
 import '../../../../shared/constants/spacing.dart';
 import '../../../app/presentation/widgets/app_bottom_nav.dart';
 import '../../../../shared/state/cart_badge.dart';
+import '../../../../shared/state/notification_badge.dart';
 import '../../../../shared/state/order_refresh_notifier.dart';
 
 class HomePage extends StatefulWidget {
@@ -616,6 +617,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                   right: -2,
                                   top: -2,
                                   child: _buildNotificationBadge(),
+                                  child: _buildNotificationBadge(),
                                 ),
                               ],
                             ),
@@ -831,13 +833,12 @@ SizedBox(
     );
   }
 
-  Widget _buildBadgeMandjie() {
-    // Subscribe to global cart badge updates for real-time count
+  Widget _buildNotificationBadge() {
+    // Subscribe to global notification badge updates for real-time count
     return ValueListenableBuilder<int>(
-      valueListenable: CartBadgeState.count,
+      valueListenable: NotificationBadgeState.unreadCount,
       builder: (context, value, _) {
-        final display = value > 0 ? value : mandjieCount;
-        if (display == 0) return const SizedBox.shrink();
+        if (value == 0) return const SizedBox.shrink();
         return Container(
           padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
@@ -846,7 +847,7 @@ SizedBox(
           ),
           constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
           child: Text(
-            '$display',
+            '$value',
             style: TextStyle(color: Theme.of(context).colorScheme.onError, fontSize: 10),
           ),
         );
