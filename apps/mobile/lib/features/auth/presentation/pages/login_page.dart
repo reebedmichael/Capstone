@@ -55,15 +55,15 @@ class LoginPage extends ConsumerWidget
                     margin: const EdgeInsets.only(bottom: 16),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
+                      color: Theme.of(context).colorScheme.errorContainer,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red.shade200, width: 1),
+                      border: Border.all(color: Theme.of(context).colorScheme.error, width: 1),
                     ),
                     child: Row(
                       children: [
                         Icon(
                           Icons.warning_rounded,
-                          color: Colors.red.shade600,
+                          color: Theme.of(context).colorScheme.onErrorContainer,
                           size: 20,
                         ),
                         const SizedBox(width: 12),
@@ -71,7 +71,7 @@ class LoginPage extends ConsumerWidget
                           child: Text(
                             authError,
                             style: TextStyle(
-                              color: Colors.red.shade700,
+                              color: Theme.of(context).colorScheme.onErrorContainer,
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),

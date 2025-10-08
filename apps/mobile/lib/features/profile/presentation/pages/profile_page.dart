@@ -214,7 +214,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                     ),
                                     child: const Text(
                                       "Ekstern",
-                                      style: TextStyle(fontSize: 12),
+                                      style: TextStyle(fontSize: 12, color: Colors.white),
                                     ),
                                   ),
                                 ],
@@ -425,6 +425,11 @@ class _DietMultiSelect extends StatelessWidget {
               final isSelected = selectedDietIds.contains(id);
               return FilterChip(
                 label: Text(naam),
+                labelStyle: TextStyle(
+                  color: isSelected
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.onSurface,
+                ),
                 selected: isSelected,
                 onSelected: (sel) {
                   final next = Set<String>.from(selectedDietIds);
