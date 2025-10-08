@@ -182,464 +182,730 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
     }).toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Gebruikers Bestuur'),
-        actions: [
-          IconButton(
-            onPressed: _loadData,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Herlaai data',
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [Tab(text: 'Gebruikers', icon: Icon(Icons.people))],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          // Users Tab only (toelae panel removed)
-          _buildUsersTab(filteredUsers),
+          // Custom header matching dashboard_header.dart style
+          _buildCustomHeader(),
+          // Tab bar
+          Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              border: Border(
+                bottom: BorderSide(color: Theme.of(context).dividerColor),
+              ),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              tabs: const [Tab(text: 'Gebruikers', icon: Icon(Icons.people))],
+            ),
+          ),
+          // Tab content
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // Users Tab only (toelae panel removed)
+                _buildUsersTab(filteredUsers),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
+  Widget _buildCustomHeader() {
+    final mediaWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = mediaWidth < 600;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).dividerColor),
+        ),
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmallScreen ? 16 : 24,
+        vertical: isSmallScreen ? 12 : 16,
+      ),
+      child: isSmallScreen
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Logo and title section
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Center(
+                        child: Text("👥", style: TextStyle(fontSize: 18)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Gebruikers Bestuur",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          Text(
+                            "Bestuur gebruikers en regte",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodySmall?.color,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Action buttons section
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Three-dot menu for Primary admins only
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final isPrimaryAsync = ref.watch(
+                          isPrimaryAdminProvider,
+                        );
+                        return isPrimaryAsync.when(
+                          data: (isPrimary) {
+                            if (!isPrimary) return const SizedBox.shrink();
+
+                            return PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert),
+                              tooltip: 'Bestuur Tipes',
+                              onSelected: (value) {
+                                switch (value) {
+                                  case 'add_gebr_tipe':
+                                    _showAddTypeDialog(context, isAdmin: false);
+                                    break;
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                const PopupMenuItem<String>(
+                                  value: 'add_gebr_tipe',
+                                  child: ListTile(
+                                    leading: Icon(Icons.group_add),
+                                    title: Text('Voeg Gebruiker Tipe'),
+                                    dense: true,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                          loading: () => const SizedBox.shrink(),
+                          error: (_, __) => const SizedBox.shrink(),
+                        );
+                      },
+                    ),
+                    OutlinedButton(
+                      onPressed: _loadData,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        "Herlaai",
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                /// Left section: logo + title + description
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(
+                        child: Text("👥", style: TextStyle(fontSize: 20)),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Gebruikers Bestuur",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        Text(
+                          "Bestuur gebruikers en regte",
+                          style: TextStyle(
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+
+                /// Right section: three-dot menu + refresh button
+                Row(
+                  children: [
+                    // Three-dot menu for Primary admins only
+                    Consumer(
+                      builder: (context, ref, child) {
+                        final isPrimaryAsync = ref.watch(
+                          isPrimaryAdminProvider,
+                        );
+                        return isPrimaryAsync.when(
+                          data: (isPrimary) {
+                            if (!isPrimary) return const SizedBox.shrink();
+
+                            return PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert),
+                              tooltip: 'Bestuur Tipes',
+                              onSelected: (value) {
+                                switch (value) {
+                                  case 'add_gebr_tipe':
+                                    _showAddTypeDialog(context, isAdmin: false);
+                                    break;
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                const PopupMenuItem<String>(
+                                  value: 'add_gebr_tipe',
+                                  child: ListTile(
+                                    leading: Icon(Icons.group_add),
+                                    title: Text('Voeg Gebruiker Tipe'),
+                                    dense: true,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                          loading: () => const SizedBox.shrink(),
+                          error: (_, __) => const SizedBox.shrink(),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton(
+                      onPressed: _loadData,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text("Herlaai"),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+    );
+  }
+
   Widget _buildUsersTab(List<Map<String, dynamic>> filteredUsers) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 🔹 Titel met kebab menu
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Center(
-                  child: Text(
-                    "Gebruikers Bestuur",
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
+          // Loading and error states with improved styling
+          if (_loading)
+            Container(
+              margin: const EdgeInsets.only(bottom: 20),
+              child: LinearProgressIndicator(
+                backgroundColor: Theme.of(context).colorScheme.surface,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Theme.of(context).colorScheme.primary,
                 ),
               ),
-              // Three-dot menu for Primary admins only
-              Consumer(
-                builder: (context, ref, child) {
-                  final isPrimaryAsync = ref.watch(isPrimaryAdminProvider);
-                  return isPrimaryAsync.when(
-                    data: (isPrimary) {
-                      if (!isPrimary) return const SizedBox.shrink();
-
-                      return PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert),
-                        tooltip: 'Bestuur Tipes',
-                        onSelected: (value) {
-                          switch (value) {
-                            case 'add_gebr_tipe':
-                              _showAddTypeDialog(context, isAdmin: false);
-                              break;
-                          }
-                        },
-                        itemBuilder: (context) => [
-                          const PopupMenuItem<String>(
-                            value: 'add_gebr_tipe',
-                            child: ListTile(
-                              leading: Icon(Icons.group_add),
-                              title: Text('Voeg Gebruiker Tipe'),
-                              dense: true,
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, __) => const SizedBox.shrink(),
-                  );
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          if (_loading) const LinearProgressIndicator(),
+            ),
           if (_error != null)
-            Text(_error!, style: const TextStyle(color: Colors.red)),
+            Container(
+              margin: const EdgeInsets.only(bottom: 20),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Theme.of(context).colorScheme.error),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
           // 🔹 Rol-oorsig blok (counts based on filtered live data) - improved UI
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final screenWidth = constraints.maxWidth;
-              final isWide = screenWidth >= 1200;
-              final isMedium = screenWidth >= 800;
-              final isSmall = screenWidth >= 600;
-
-              // More responsive grid calculations
-              int crossAxisCount;
-              double childAspectRatio;
-              double spacing;
-
-              if (isWide) {
-                crossAxisCount = 4;
-                childAspectRatio = 2.1;
-                spacing = 16;
-              } else if (isMedium) {
-                crossAxisCount = 3;
-                childAspectRatio = 2.0;
-                spacing = 12;
-              } else if (isSmall) {
-                crossAxisCount = 2;
-                childAspectRatio = 1.8;
-                spacing = 10;
-              } else {
-                crossAxisCount = 1;
-                childAspectRatio = 1.6;
-                spacing = 8;
-              }
-
-              final roleStats = [
-                {
-                  'title': 'Primêre Admins',
-                  'value': filteredUsers
-                      .where(
-                        (u) =>
-                            (u['admin_tipe']?['admin_tipe_naam'] ?? '') ==
-                            'Primary',
-                      )
-                      .length
-                      .toString(),
-                  'icon': Icons.admin_panel_settings,
-                  'color': Colors.blue,
-                },
-                {
-                  'title': 'Admins',
-                  'value': filteredUsers
-                      .where(
-                        (u) =>
-                            (u['admin_tipe']?['admin_tipe_naam'] ?? '') != '',
-                      )
-                      .length
-                      .toString(),
-                  'icon': Icons.security,
-                  'color': Colors.purple,
-                },
-                {
-                  'title': 'Studente',
-                  'value': filteredUsers
-                      .where(
-                        (u) =>
-                            (u['gebr_tipe']?['gebr_tipe_naam'] ?? '') ==
-                            'Student',
-                      )
-                      .length
-                      .toString(),
-                  'icon': Icons.school,
-                  'color': Colors.green,
-                },
-                {
-                  'title': 'Personeel',
-                  'value': filteredUsers
-                      .where(
-                        (u) =>
-                            (u['gebr_tipe']?['gebr_tipe_naam'] ?? '') ==
-                            'Personeel',
-                      )
-                      .length
-                      .toString(),
-                  'icon': Icons.work,
-                  'color': Colors.orange,
-                },
-              ];
-
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  crossAxisSpacing: spacing,
-                  mainAxisSpacing: spacing,
-                  childAspectRatio: childAspectRatio,
-                ),
-                itemCount: roleStats.length,
-                itemBuilder: (context, index) {
-                  final stat = roleStats[index];
-                  return _buildBigStat(
-                    stat['title'] as String,
-                    stat['value'] as String,
-                    small: 'Gebruiker tipe',
-                  );
-                },
-              );
-            },
-          ),
-
-          const SizedBox(height: 30),
-
-          // 🔹 Statistiek blok (live counts)
-          // improved stats card layout
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final screenWidth = constraints.maxWidth;
-              final isWide = screenWidth >= 1200;
-              final isMedium = screenWidth >= 800;
-              final isSmall = screenWidth >= 600;
-
-              // More responsive grid calculations
-              int crossAxisCount;
-              double childAspectRatio;
-              double spacing;
-
-              if (isWide) {
-                crossAxisCount = 4;
-                childAspectRatio = 2.1;
-                spacing = 16;
-              } else if (isMedium) {
-                crossAxisCount = 3;
-                childAspectRatio = 2.0;
-                spacing = 12;
-              } else if (isSmall) {
-                crossAxisCount = 2;
-                childAspectRatio = 1.8;
-                spacing = 10;
-              } else {
-                crossAxisCount = 1;
-                childAspectRatio = 1.6;
-                spacing = 8;
-              }
-
-              final stats = [
-                {
-                  'title': 'Totaal Gebruikers',
-                  'value': _rows.length.toString(),
-                  'label': 'Algeheel',
-                },
-                {
-                  'title': 'Wag Goedkeuring',
-                  'value': _rows
-                      .where(
-                        (u) =>
-                            u['is_aktief'] == false &&
-                            (u['admin_tipe_id'] != null ||
-                                (u['gebr_tipe']?['gebr_tipe_naam'] ?? '') ==
-                                    'Ekstern'),
-                      )
-                      .length
-                      .toString(),
-                  'label': 'Nie aktief',
-                },
-                {
-                  'title': 'Studente met Toelae',
-                  'value': _usersWithAllowancesCount.toString(),
-                  'label': 'Toelae per tipe',
-                },
-                {
-                  'title': 'Aktiewe Gebruikers',
-                  'value': _rows
-                      .where((u) => u['is_aktief'] == true)
-                      .length
-                      .toString(),
-                  'label': 'Huidig aktief',
-                },
-              ];
-
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  crossAxisSpacing: spacing,
-                  mainAxisSpacing: spacing,
-                  childAspectRatio: childAspectRatio,
-                ),
-                itemCount: stats.length,
-                itemBuilder: (context, index) {
-                  final s = stats[index];
-                  return _buildBigStat(
-                    s['title'] as String,
-                    s['value'] as String,
-                    small: s['label'] as String,
-                  );
-                },
-              );
-            },
-          ),
-
-          const SizedBox(height: 30),
-
-          // 🔹 Search en filter (refined layout inside a card for better visual grouping)
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final narrow = constraints.maxWidth < 700;
-              final filterControls = Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Colors.grey.shade300),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Centered search bar
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 420),
-                            child: TextField(
-                              decoration: InputDecoration(
-                                prefixIcon: const Icon(Icons.search),
-                                hintText: 'Soek naam of e-pos',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 12,
-                                ),
-                              ),
-                              onChanged: (value) =>
-                                  setState(() => searchQuery = value),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      // Filter row
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        alignment: WrapAlignment.center,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 220,
-                            child: DropdownButtonFormField<String?>(
-                              value: filterGebrTipeId,
-                              decoration: const InputDecoration(
-                                labelText: 'Gebruiker tipe',
-                                border: OutlineInputBorder(),
-                              ),
-                              items: [
-                                const DropdownMenuItem(
-                                  value: null,
-                                  child: Text('Alle'),
-                                ),
-                                ..._gebrTipes.map(
-                                  (t) => DropdownMenuItem(
-                                    value: t['gebr_tipe_id'] as String,
-                                    child: Text(t['gebr_tipe_naam']),
-                                  ),
-                                ),
-                              ],
-                              onChanged: (v) =>
-                                  setState(() => filterGebrTipeId = v),
-                            ),
-                          ),
-                          SizedBox(
-                            width: 220,
-                            child: DropdownButtonFormField<String?>(
-                              value: filterAdminTipeId,
-                              decoration: const InputDecoration(
-                                labelText: 'Admin tipe',
-                                border: OutlineInputBorder(),
-                              ),
-                              items: [
-                                const DropdownMenuItem(
-                                  value: null,
-                                  child: Text('Alle'),
-                                ),
-                                ..._adminTipes.map(
-                                  (t) => DropdownMenuItem(
-                                    value: t['admin_tipe_id'] as String,
-                                    child: Text(t['admin_tipe_naam']),
-                                  ),
-                                ),
-                              ],
-                              onChanged: (v) =>
-                                  setState(() => filterAdminTipeId = v),
-                            ),
-                          ),
-                          SizedBox(
-                            width: 220,
-                            child: DropdownButtonFormField<String?>(
-                              value: filterKampusId,
-                              decoration: const InputDecoration(
-                                labelText: 'Kampus',
-                                border: OutlineInputBorder(),
-                              ),
-                              items: [
-                                const DropdownMenuItem(
-                                  value: null,
-                                  child: Text('Alle'),
-                                ),
-                                ..._kampusse.map(
-                                  (t) => DropdownMenuItem(
-                                    value: t['kampus_id'] as String,
-                                    child: Text(t['kampus_naam']),
-                                  ),
-                                ),
-                              ],
-                              onChanged: (v) =>
-                                  setState(() => filterKampusId = v),
-                            ),
-                          ),
-                          SizedBox(
-                            width: 220,
-                            child: DropdownButtonFormField<bool?>(
-                              value: filterAktief,
-                              decoration: const InputDecoration(
-                                labelText: 'Status',
-                                border: OutlineInputBorder(),
-                              ),
-                              items: const [
-                                DropdownMenuItem<bool?>(
-                                  value: null,
-                                  child: Text('Alle'),
-                                ),
-                                DropdownMenuItem<bool?>(
-                                  value: true,
-                                  child: Text('Aktief'),
-                                ),
-                                DropdownMenuItem<bool?>(
-                                  value: false,
-                                  child: Text('Nie aktief'),
-                                ),
-                              ],
-                              onChanged: (v) =>
-                                  setState(() => filterAktief = v),
-                            ),
-                          ),
-                          TextButton.icon(
-                            onPressed: () => setState(() {
-                              searchQuery = '';
-                              filterGebrTipeId = null;
-                              filterAdminTipeId = null;
-                              filterKampusId = null;
-                              filterAktief = null;
-                            }),
-                            icon: const Icon(Icons.restart_alt),
-                            label: const Text('Herstel filters'),
-                          ),
-                        ],
-                      ),
-                    ],
+          Container(
+            margin: const EdgeInsets.only(bottom: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 16),
+                  child: Text(
+                    'Rol Oorsig',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                   ),
                 ),
-              );
-              if (narrow) {
-                return ExpansionTile(
-                  title: const Text('Filters'),
-                  children: [filterControls],
-                );
-              }
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: filterControls,
-              );
-            },
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final screenWidth = constraints.maxWidth;
+                    final isWide = screenWidth >= 1200;
+                    final isMedium = screenWidth >= 800;
+                    final isSmall = screenWidth >= 600;
+
+                    // More responsive grid calculations
+                    int crossAxisCount;
+                    double childAspectRatio;
+                    double spacing;
+
+                    if (isWide) {
+                      crossAxisCount = 4;
+                      childAspectRatio = 1.9;
+                      spacing = 16;
+                    } else if (isMedium) {
+                      crossAxisCount = 3;
+                      childAspectRatio = 1.7;
+                      spacing = 12;
+                    } else if (isSmall) {
+                      crossAxisCount = 2;
+                      childAspectRatio = 1.5;
+                      spacing = 10;
+                    } else {
+                      crossAxisCount = 1;
+                      childAspectRatio = 1.3;
+                      spacing = 8;
+                    }
+
+                    final roleStats = [
+                      {
+                        'title': 'Primêre Admins',
+                        'value': filteredUsers
+                            .where(
+                              (u) =>
+                                  (u['admin_tipe']?['admin_tipe_naam'] ?? '') ==
+                                  'Primary',
+                            )
+                            .length
+                            .toString(),
+                        'icon': Icons.admin_panel_settings,
+                        'color': Theme.of(context).colorScheme.primary,
+                      },
+                      {
+                        'title': 'Admins',
+                        'value': filteredUsers
+                            .where(
+                              (u) =>
+                                  (u['admin_tipe']?['admin_tipe_naam'] ?? '') !=
+                                  '',
+                            )
+                            .length
+                            .toString(),
+                        'icon': Icons.security,
+                        'color': Theme.of(context).colorScheme.secondary,
+                      },
+                      {
+                        'title': 'Studente',
+                        'value': filteredUsers
+                            .where(
+                              (u) =>
+                                  (u['gebr_tipe']?['gebr_tipe_naam'] ?? '') ==
+                                  'Student',
+                            )
+                            .length
+                            .toString(),
+                        'icon': Icons.school,
+                        'color': Theme.of(context).colorScheme.tertiary,
+                      },
+                      {
+                        'title': 'Personeel',
+                        'value': filteredUsers
+                            .where(
+                              (u) =>
+                                  (u['gebr_tipe']?['gebr_tipe_naam'] ?? '') ==
+                                  'Personeel',
+                            )
+                            .length
+                            .toString(),
+                        'icon': Icons.work,
+                        'color': Theme.of(context).colorScheme.outline,
+                      },
+                    ];
+
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: spacing,
+                        mainAxisSpacing: spacing,
+                        childAspectRatio: childAspectRatio,
+                      ),
+                      itemCount: roleStats.length,
+                      itemBuilder: (context, index) {
+                        final stat = roleStats[index];
+                        return _buildEnhancedStatCard(
+                          stat['title'] as String,
+                          stat['value'] as String,
+                          stat['icon'] as IconData,
+                          stat['color'] as Color,
+                          small: 'Gebruiker tipe',
+                        );
+                      },
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          // 🔹 Statistiek blok (live counts) - improved UI
+          Container(
+            margin: const EdgeInsets.only(bottom: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 16),
+                  child: Text(
+                    'Gebruiker Statistieke',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final screenWidth = constraints.maxWidth;
+                    final isWide = screenWidth >= 1200;
+                    final isMedium = screenWidth >= 800;
+                    final isSmall = screenWidth >= 600;
+
+                    // More responsive grid calculations
+                    int crossAxisCount;
+                    double childAspectRatio;
+                    double spacing;
+
+                    if (isWide) {
+                      crossAxisCount = 4;
+                      childAspectRatio = 1.9;
+                      spacing = 16;
+                    } else if (isMedium) {
+                      crossAxisCount = 3;
+                      childAspectRatio = 1.7;
+                      spacing = 12;
+                    } else if (isSmall) {
+                      crossAxisCount = 2;
+                      childAspectRatio = 1.5;
+                      spacing = 10;
+                    } else {
+                      crossAxisCount = 1;
+                      childAspectRatio = 1.3;
+                      spacing = 8;
+                    }
+
+                    final stats = [
+                      {
+                        'title': 'Totaal Gebruikers',
+                        'value': _rows.length.toString(),
+                        'label': 'Algeheel',
+                        'icon': Icons.people,
+                        'color': Theme.of(context).colorScheme.primary,
+                      },
+                      {
+                        'title': 'Wag Goedkeuring',
+                        'value': _rows
+                            .where(
+                              (u) =>
+                                  u['is_aktief'] == false &&
+                                  (u['admin_tipe_id'] != null ||
+                                      (u['gebr_tipe']?['gebr_tipe_naam'] ??
+                                              '') ==
+                                          'Ekstern'),
+                            )
+                            .length
+                            .toString(),
+                        'label': 'Nie aktief',
+                        'icon': Icons.pending_actions,
+                        'color': Theme.of(context).colorScheme.secondary,
+                      },
+                      {
+                        'title': 'Studente met Toelae',
+                        'value': _usersWithAllowancesCount.toString(),
+                        'label': 'Toelae per tipe',
+                        'icon': Icons.account_balance_wallet,
+                        'color': Theme.of(context).colorScheme.tertiary,
+                      },
+                      {
+                        'title': 'Aktiewe Gebruikers',
+                        'value': _rows
+                            .where((u) => u['is_aktief'] == true)
+                            .length
+                            .toString(),
+                        'label': 'Huidig aktief',
+                        'icon': Icons.check_circle,
+                        'color': Theme.of(context).colorScheme.outline,
+                      },
+                    ];
+
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: spacing,
+                        mainAxisSpacing: spacing,
+                        childAspectRatio: childAspectRatio,
+                      ),
+                      itemCount: stats.length,
+                      itemBuilder: (context, index) {
+                        final s = stats[index];
+                        return _buildEnhancedStatCard(
+                          s['title'] as String,
+                          s['value'] as String,
+                          s['icon'] as IconData,
+                          s['color'] as Color,
+                          small: s['label'] as String,
+                        );
+                      },
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 30),
+
+          // 🔹 Search en filter (enhanced UI)
+          Container(
+            margin: const EdgeInsets.only(bottom: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 16),
+                  child: Text(
+                    'Soek en Filter',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final narrow = constraints.maxWidth < 700;
+                    final filterControls = Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Theme.of(
+                            context,
+                          ).dividerColor.withOpacity(0.5),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Enhanced search bar
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                color: Theme.of(context).colorScheme.surface,
+                              ),
+                              child: TextField(
+                                decoration: InputDecoration(
+                                  prefixIcon: Icon(
+                                    Icons.search,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
+                                  hintText: 'Soek naam of e-pos',
+                                  hintStyle: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface.withOpacity(0.6),
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  filled: true,
+                                  fillColor: Theme.of(
+                                    context,
+                                  ).colorScheme.surface,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 16,
+                                  ),
+                                ),
+                                onChanged: (value) =>
+                                    setState(() => searchQuery = value),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            // Enhanced filter row
+                            Wrap(
+                              spacing: 16,
+                              runSpacing: 16,
+                              alignment: WrapAlignment.center,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                _buildFilterDropdown(
+                                  'Gebruiker Tipe',
+                                  filterGebrTipeId,
+                                  _gebrTipes
+                                      .map(
+                                        (t) => MapEntry(
+                                          t['gebr_tipe_id'] as String,
+                                          t['gebr_tipe_naam'] as String,
+                                        ),
+                                      )
+                                      .toList(),
+                                  (v) => setState(() => filterGebrTipeId = v),
+                                ),
+                                _buildFilterDropdown(
+                                  'Admin Tipe',
+                                  filterAdminTipeId,
+                                  _adminTipes
+                                      .map(
+                                        (t) => MapEntry(
+                                          t['admin_tipe_id'] as String,
+                                          t['admin_tipe_naam'] as String,
+                                        ),
+                                      )
+                                      .toList(),
+                                  (v) => setState(() => filterAdminTipeId = v),
+                                ),
+                                _buildFilterDropdown(
+                                  'Kampus',
+                                  filterKampusId,
+                                  _kampusse
+                                      .map(
+                                        (t) => MapEntry(
+                                          t['kampus_id'] as String,
+                                          t['kampus_naam'] as String,
+                                        ),
+                                      )
+                                      .toList(),
+                                  (v) => setState(() => filterKampusId = v),
+                                ),
+                                _buildStatusDropdown(),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(8),
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primaryContainer,
+                                  ),
+                                  child: TextButton.icon(
+                                    onPressed: () => setState(() {
+                                      searchQuery = '';
+                                      filterGebrTipeId = null;
+                                      filterAdminTipeId = null;
+                                      filterKampusId = null;
+                                      filterAktief = null;
+                                    }),
+                                    icon: Icon(
+                                      Icons.restart_alt,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onPrimaryContainer,
+                                    ),
+                                    label: Text(
+                                      'Herstel',
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onPrimaryContainer,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                    if (narrow) {
+                      return ExpansionTile(
+                        title: const Text('Filters'),
+                        children: [filterControls],
+                      );
+                    }
+                    return filterControls;
+                  },
+                ),
+              ],
+            ),
           ),
 
           // Active filter chips with specific values
@@ -655,7 +921,12 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                     InputChip(
                       label: Text('Soek: "$searchQuery"'),
                       onDeleted: () => setState(() => searchQuery = ''),
-                      backgroundColor: Colors.blue.shade50,
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.primaryContainer,
+                      labelStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
                     ),
                   if (filterGebrTipeId != null)
                     InputChip(
@@ -663,7 +934,14 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                         'Gebruiker: ${_getGebrTipeName(filterGebrTipeId!)}',
                       ),
                       onDeleted: () => setState(() => filterGebrTipeId = null),
-                      backgroundColor: Colors.green.shade50,
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.secondaryContainer,
+                      labelStyle: TextStyle(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSecondaryContainer,
+                      ),
                     ),
                   if (filterAdminTipeId != null)
                     InputChip(
@@ -671,13 +949,25 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                         'Admin: ${_getAdminTipeName(filterAdminTipeId!)}',
                       ),
                       onDeleted: () => setState(() => filterAdminTipeId = null),
-                      backgroundColor: Colors.orange.shade50,
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.tertiaryContainer,
+                      labelStyle: TextStyle(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onTertiaryContainer,
+                      ),
                     ),
                   if (filterKampusId != null)
                     InputChip(
                       label: Text('Kampus: ${_getKampusName(filterKampusId!)}'),
                       onDeleted: () => setState(() => filterKampusId = null),
-                      backgroundColor: Colors.purple.shade50,
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.surfaceVariant,
+                      labelStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   if (filterAktief != null)
                     InputChip(
@@ -686,20 +976,105 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                       ),
                       onDeleted: () => setState(() => filterAktief = null),
                       backgroundColor: filterAktief == true
-                          ? Colors.green.shade50
-                          : Colors.red.shade50,
+                          ? Theme.of(context).colorScheme.primaryContainer
+                          : Theme.of(context).colorScheme.errorContainer,
+                      labelStyle: TextStyle(
+                        color: filterAktief == true
+                            ? Theme.of(context).colorScheme.onPrimaryContainer
+                            : Theme.of(context).colorScheme.onErrorContainer,
+                      ),
                     ),
                 ],
               ),
             ),
 
-          const SizedBox(height: 20),
-
-          // 🔹 Gebruiker lys as cards
-          Column(
-            children: filteredUsers
-                .map((user) => _buildUserCard(user))
-                .toList(),
+          // 🔹 Gebruiker lys as cards - enhanced UI
+          Container(
+            margin: const EdgeInsets.only(bottom: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 16),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Gebruikers Lys',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          '${filteredUsers.length} gebruikers',
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (filteredUsers.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(40),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Theme.of(context).dividerColor.withOpacity(0.5),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 48,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withOpacity(0.5),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Geen gebruikers gevind',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withOpacity(0.7),
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Probeer jou soekterme of filters te verander',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withOpacity(0.5),
+                              ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  ...filteredUsers.map((user) => _buildEnhancedUserCard(user)),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
 
@@ -717,41 +1092,178 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
     );
   }
 
-  Widget _buildBigStat(String title, String count, {String? small}) {
+  Widget _buildFilterDropdown(
+    String label,
+    String? value,
+    List<MapEntry<String, String>> items,
+    Function(String?) onChanged,
+  ) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 200, maxWidth: 250),
+      child: DropdownButtonFormField<String?>(
+        value: value,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surface,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
+          ),
+        ),
+        items: [
+          DropdownMenuItem<String?>(
+            value: null,
+            child: Text(
+              'Alle',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+          ),
+          ...items.map(
+            (item) => DropdownMenuItem<String>(
+              value: item.key,
+              child: Text(item.value),
+            ),
+          ),
+        ],
+        onChanged: onChanged,
+      ),
+    );
+  }
+
+  Widget _buildStatusDropdown() {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 200, maxWidth: 250),
+      child: DropdownButtonFormField<bool?>(
+        value: filterAktief,
+        decoration: InputDecoration(
+          labelText: 'Status',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          filled: true,
+          fillColor: Theme.of(context).colorScheme.surface,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
+          ),
+        ),
+        items: [
+          DropdownMenuItem<bool?>(
+            value: null,
+            child: Text(
+              'Alle',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+          ),
+          DropdownMenuItem<bool?>(
+            value: true,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.check_circle,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                const Text('Aktief'),
+              ],
+            ),
+          ),
+          DropdownMenuItem<bool?>(
+            value: false,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.cancel,
+                  color: Theme.of(context).colorScheme.error,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                const Text('Nie aktief'),
+              ],
+            ),
+          ),
+        ],
+        onChanged: (v) => setState(() => filterAktief = v),
+      ),
+    );
+  }
+
+  Widget _buildEnhancedStatCard(
+    String title,
+    String count,
+    IconData icon,
+    Color color, {
+    String? small,
+  }) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isVerySmall = screenWidth < 350;
     final isSmall = screenWidth < 500;
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Theme.of(context).colorScheme.surface,
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(isVerySmall ? 8 : (isSmall ? 12 : 16)),
+        padding: EdgeInsets.all(isVerySmall ? 12 : (isSmall ? 16 : 20)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: isVerySmall ? 11 : (isSmall ? 12 : 13),
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                height: 1.2,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            // Icon and title row
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: isVerySmall ? 16 : (isSmall ? 18 : 20),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: isVerySmall ? 11 : (isSmall ? 12 : 13),
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
+                      height: 1.2,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
 
-            SizedBox(height: isVerySmall ? 6 : (isSmall ? 8 : 10)),
+            SizedBox(height: isVerySmall ? 8 : (isSmall ? 12 : 16)),
 
             // Count
             Text(
               count,
               style: TextStyle(
-                fontSize: isVerySmall ? 20 : (isSmall ? 24 : 28),
+                fontSize: isVerySmall ? 24 : (isSmall ? 28 : 32),
                 fontWeight: FontWeight.bold,
                 color: Theme.of(context).colorScheme.onSurface,
                 height: 1.1,
@@ -769,7 +1281,7 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                   fontSize: isVerySmall ? 10 : (isSmall ? 11 : 12),
                   color: Theme.of(
                     context,
-                  ).colorScheme.onSurface.withOpacity(0.6),
+                  ).colorScheme.onSurface.withOpacity(0.7),
                   height: 1.2,
                 ),
                 maxLines: 1,
@@ -782,7 +1294,7 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
     );
   }
 
-  Widget _buildUserCard(Map<String, dynamic> u) {
+  Widget _buildEnhancedUserCard(Map<String, dynamic> u) {
     final name = ((u['gebr_naam'] ?? '') + ' ' + (u['gebr_van'] ?? '')).trim();
     final email = (u['gebr_epos'] ?? '').toString();
     final phone = (u['gebr_selfoon'] ?? '').toString();
@@ -794,474 +1306,448 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
     final aktief = (u['is_aktief'] == true);
     final isPending = AdminPermissions.isPendingApproval(u);
 
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
+    // Determine status color using theme colors
+    Color statusColor;
+    IconData statusIcon;
+    String statusText;
+
+    if (isPending) {
+      statusColor = Theme.of(context).colorScheme.secondary;
+      statusIcon = Icons.pending;
+      statusText = 'Wag';
+    } else if (aktief) {
+      statusColor = Theme.of(context).colorScheme.primary;
+      statusIcon = Icons.check_circle;
+      statusText = 'Aktief';
+    } else {
+      statusColor = Theme.of(context).colorScheme.error;
+      statusIcon = Icons.cancel;
+      statusText = 'Nie aktief';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Naam en rol bo
+            // Header with avatar and basic info
             Row(
               children: [
-                const CircleAvatar(child: Icon(Icons.person)),
-                const SizedBox(width: 12),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: statusColor.withOpacity(0.3)),
+                  ),
+                  child: Center(
+                    child: Text(
+                      name.isNotEmpty ? name[0].toUpperCase() : '?',
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         name.isEmpty ? '(Geen naam)' : name,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
                           fontSize: 16,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
+                      const SizedBox(height: 4),
                       if (role.isNotEmpty)
-                        Text(
-                          role,
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 14,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            role,
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimaryContainer,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                     ],
                   ),
                 ),
+                // Status indicator
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: statusColor.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(statusIcon, color: statusColor, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        statusText,
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 8),
-            // Ander info
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  if (email.isNotEmpty) _infoColumn("E-pos", email),
-                  if (phone.isNotEmpty) _infoColumn("Selfoon", phone),
-                  if (admin.isNotEmpty) _infoColumn("Admin", admin),
-                  if (requestedAdmin.isNotEmpty && isPending)
-                    _infoColumn("Versoek", requestedAdmin, color: Colors.blue),
-                  if (kampus.isNotEmpty) _infoColumn("Kampus", kampus),
-                  _infoColumn(
-                    "Status",
-                    aktief ? 'Aktief' : 'Nie aktief',
-                    color: aktief ? Colors.green : Colors.orange,
-                  ),
-                  // User action buttons with role restrictions
-                  Consumer(
-                    builder: (context, ref, child) {
-                      final isPrimaryAsync = ref.watch(isPrimaryAdminProvider);
-                      final adminTypeAsync = ref.watch(
-                        currentAdminTypeProvider,
-                      );
+            const SizedBox(height: 16),
 
-                      return isPrimaryAsync.when(
-                        data: (isPrimary) {
-                          return adminTypeAsync.when(
-                            data: (adminTypeName) {
-                              final userId = u['gebr_id'].toString();
-                              final isSelf = userId == currentUserId;
+            // Details layout - responsive row/column
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isLargeScreen = constraints.maxWidth > 600;
 
-                              // Disable actions for self-modification
-                              if (isSelf) {
-                                return const Tooltip(
-                                  message:
-                                      'Jy kan nie jou eie status verander nie',
-                                  child: Icon(Icons.lock, color: Colors.grey),
-                                );
-                              }
-
-                              // Primary admins have full access to everything
-                              if (isPrimary) {
-                                // Primary admin - show all buttons
-                                if (isPending) {
-                                  // This is a pending user - show approve/decline buttons
-                                  return Row(
-                                    children: [
-                                      ElevatedButton.icon(
-                                        icon: const Icon(
-                                          Icons.check_circle,
-                                          size: 16,
-                                        ),
-                                        label: const Text('Keur Goed'),
-                                        onPressed: () {
-                                          // Use async pattern with watchdog
-                                          AsyncUtils.executeWithWatchdog(
-                                            operation: () async =>
-                                                _showAcceptUserDialog(u),
-                                            onSuccess: (result) {},
-                                            onError: (error) {},
-                                            context: context,
-                                            successMessage:
-                                                'Goedkeur dialoog oopgemaak',
-                                            errorMessage:
-                                                'Kon nie goedkeur dialoog oopmaak nie',
-                                          );
-                                        },
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.green,
-                                          foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      ElevatedButton.icon(
-                                        icon: const Icon(
-                                          Icons.cancel,
-                                          size: 16,
-                                        ),
-                                        label: const Text('Verwerp'),
-                                        onPressed: () =>
-                                            _showDeclineUserDialog(u),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.red,
-                                          foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                } else {
-                                  // This is an active user - show all management buttons
-                                  return Row(
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.person_off,
-                                          color: Colors.orange,
-                                        ),
-                                        onPressed: () {
-                                          // Use async pattern with watchdog
-                                          AsyncUtils.executeWithWatchdog(
-                                            operation: () async =>
-                                                _setUserActive(userId, false),
-                                            onSuccess: (result) async {
-                                              // Data will be refreshed manually via refresh button
-                                            },
-                                            onError: (error) {},
-                                            context: context,
-                                            successMessage:
-                                                'Gebruiker status opgedateer',
-                                            errorMessage:
-                                                'Kon nie gebruiker status opdateer nie',
-                                          );
-                                        },
-                                        tooltip: 'Deaktiveer gebruiker',
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.admin_panel_settings,
-                                          color: Colors.blue,
-                                        ),
-                                        onPressed: () {
-                                          // Use async pattern with watchdog
-                                          AsyncUtils.executeWithWatchdog(
-                                            operation: () async =>
-                                                _showChangeAdminTypeDialog(u),
-                                            onSuccess: (result) {},
-                                            onError: (error) {},
-                                            context: context,
-                                            successMessage:
-                                                'Admin tipe dialoog oopgemaak',
-                                            errorMessage:
-                                                'Kon nie admin tipe dialoog oopmaak nie',
-                                          );
-                                        },
-                                        tooltip: 'Verander Admin Tipe',
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.person,
-                                          color: Colors.purple,
-                                        ),
-                                        onPressed: () {
-                                          // fixed: enforce Secondary cannot edit admin targets
-                                          final adminTipeId =
-                                              (u['admin_tipe_id'] ?? '')
-                                                  .toString();
-                                          final isAdminTarget =
-                                              adminTipeId.isNotEmpty &&
-                                              adminTipeId !=
-                                                  '902397b6-c835-44c2-80cb-d6ad93407048';
-                                          if (!isPrimary && isAdminTarget) {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                  'Sekondêr kan nie admin gebruikers wysig nie',
-                                                ),
-                                              ),
-                                            );
-                                            return;
-                                          }
-                                          // Use async pattern with watchdog
-                                          AsyncUtils.executeWithWatchdog(
-                                            operation: () async =>
-                                                _showChangeUserTypeDialog(u),
-                                            onSuccess: (result) {},
-                                            onError: (error) {},
-                                            context: context,
-                                            successMessage:
-                                                'Gebruiker tipe dialoog oopgemaak',
-                                            errorMessage:
-                                                'Kon nie gebruiker tipe dialoog oopmaak nie',
-                                          );
-                                        },
-                                        tooltip: 'Verander Gebruiker Tipe',
-                                      ),
-                                    ],
-                                  );
-                                }
-                              } else {
-                                // Non-primary admins - show limited buttons based on role
-                                final canManageUsers =
-                                    AdminPermissions.canAcceptUsers(
-                                      adminTypeName,
-                                    );
-                                final canChangeAdminTypes =
-                                    AdminPermissions.canChangeAdminTypes(
-                                      adminTypeName,
-                                    );
-                                final canModifyUserTypes =
-                                    AdminPermissions.canModifyUserTypes(
-                                      adminTypeName,
-                                    );
-
-                                if (!canManageUsers &&
-                                    !canChangeAdminTypes &&
-                                    !canModifyUserTypes) {
-                                  return const Tooltip(
-                                    message:
-                                        'Jy het nie die regte om gebruikers te bestuur nie',
-                                    child: Icon(Icons.lock, color: Colors.grey),
-                                  );
-                                }
-
-                                if (isPending) {
-                                  // This is a pending user - show approve/decline buttons (if allowed)
-                                  if (canManageUsers) {
-                                    return Row(
-                                      children: [
-                                        ElevatedButton.icon(
-                                          icon: const Icon(
-                                            Icons.check_circle,
-                                            size: 16,
-                                          ),
-                                          label: const Text('Keur Goed'),
-                                          onPressed: () {
-                                            // Use async pattern with watchdog
-                                            AsyncUtils.executeWithWatchdog(
-                                              operation: () async =>
-                                                  _showAcceptUserDialog(u),
-                                              onSuccess: (result) {},
-                                              onError: (error) {},
-                                              context: context,
-                                              successMessage:
-                                                  'Goedkeur dialoog oopgemaak',
-                                              errorMessage:
-                                                  'Kon nie goedkeur dialoog oopmaak nie',
-                                            );
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.green,
-                                            foregroundColor: Colors.white,
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        ElevatedButton.icon(
-                                          icon: const Icon(
-                                            Icons.cancel,
-                                            size: 16,
-                                          ),
-                                          label: const Text('Verwerp'),
-                                          onPressed: () =>
-                                              _showDeclineUserDialog(u),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.red,
-                                            foregroundColor: Colors.white,
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  } else {
-                                    return const Tooltip(
-                                      message:
-                                          'Slegs Primêre Admins kan gebruikers goedkeur',
-                                      child: Icon(
-                                        Icons.lock,
-                                        color: Colors.grey,
-                                      ),
-                                    );
-                                  }
-                                } else {
-                                  // This is an active user - show management buttons based on role
-                                  final buttons = <Widget>[];
-
-                                  if (canManageUsers) {
-                                    buttons.add(
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.person_off,
-                                          color: Colors.orange,
-                                        ),
-                                        onPressed: () {
-                                          // Use async pattern with watchdog
-                                          AsyncUtils.executeWithWatchdog(
-                                            operation: () async =>
-                                                _setUserActive(userId, false),
-                                            onSuccess: (result) async {
-                                              // Data will be refreshed manually via refresh button
-                                            },
-                                            onError: (error) {},
-                                            context: context,
-                                            successMessage:
-                                                'Gebruiker status opgedateer',
-                                            errorMessage:
-                                                'Kon nie gebruiker status opdateer nie',
-                                          );
-                                        },
-                                        tooltip: 'Deaktiveer gebruiker',
-                                      ),
-                                    );
-                                  }
-
-                                  if (canChangeAdminTypes) {
-                                    buttons.add(
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.admin_panel_settings,
-                                          color: Colors.blue,
-                                        ),
-                                        onPressed: () {
-                                          // Use async pattern with watchdog
-                                          AsyncUtils.executeWithWatchdog(
-                                            operation: () async =>
-                                                _showChangeAdminTypeDialog(u),
-                                            onSuccess: (result) {},
-                                            onError: (error) {},
-                                            context: context,
-                                            successMessage:
-                                                'Admin tipe dialoog oopgemaak',
-                                            errorMessage:
-                                                'Kon nie admin tipe dialoog oopmaak nie',
-                                          );
-                                        },
-                                        tooltip: 'Verander Admin Tipe',
-                                      ),
-                                    );
-                                  }
-
-                                  if (canModifyUserTypes) {
-                                    buttons.add(
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.person,
-                                          color: Colors.purple,
-                                        ),
-                                        onPressed: () =>
-                                            _showChangeUserTypeDialog(u),
-                                        tooltip: 'Verander Gebruiker Tipe',
-                                      ),
-                                    );
-                                  }
-
-                                  if (buttons.isEmpty) {
-                                    return const Tooltip(
-                                      message:
-                                          'Jy het nie die regte om hierdie gebruiker te bestuur nie',
-                                      child: Icon(
-                                        Icons.lock,
-                                        color: Colors.grey,
-                                      ),
-                                    );
-                                  }
-
-                                  return Row(children: buttons);
-                                }
-                              }
-                            },
-                            loading: () => const SizedBox.shrink(),
-                            error: (_, __) => const SizedBox.shrink(),
-                          );
-                        },
-                        loading: () => const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                if (isLargeScreen) {
+                  // Large screens: horizontal layout
+                  return Row(
+                    children: [
+                      if (email.isNotEmpty) ...[
+                        _buildSimpleInfo("E-pos", email, Icons.email),
+                        const SizedBox(width: 16),
+                      ],
+                      if (phone.isNotEmpty) ...[
+                        _buildSimpleInfo("Selfoon", phone, Icons.phone),
+                        const SizedBox(width: 16),
+                      ],
+                      if (admin.isNotEmpty) ...[
+                        _buildSimpleInfo(
+                          "Admin",
+                          admin,
+                          Icons.admin_panel_settings,
                         ),
-                        error: (_, __) =>
-                            const Icon(Icons.error, color: Colors.grey),
-                      );
-                    },
-                  ),
-                  // Allowance management button (Primary admin only, for students)
-                  Consumer(
-                    builder: (context, ref, child) {
-                      final isPrimaryAsync = ref.watch(isPrimaryAdminProvider);
-                      return isPrimaryAsync.when(
-                        data: (isPrimary) {
-                          if (!isPrimary) return const SizedBox.shrink();
+                        const SizedBox(width: 16),
+                      ],
+                      if (requestedAdmin.isNotEmpty && isPending) ...[
+                        _buildSimpleInfo(
+                          "Versoek",
+                          requestedAdmin,
+                          Icons.pending_actions,
+                        ),
+                        const SizedBox(width: 16),
+                      ],
+                      if (kampus.isNotEmpty) ...[
+                        _buildSimpleInfo("Kampus", kampus, Icons.location_on),
+                      ],
+                    ],
+                  );
+                } else {
+                  // Small screens: vertical layout
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (email.isNotEmpty) ...[
+                        _buildSimpleInfo("E-pos", email, Icons.email),
+                        const SizedBox(height: 8),
+                      ],
+                      if (phone.isNotEmpty) ...[
+                        _buildSimpleInfo("Selfoon", phone, Icons.phone),
+                        const SizedBox(height: 8),
+                      ],
+                      if (admin.isNotEmpty) ...[
+                        _buildSimpleInfo(
+                          "Admin",
+                          admin,
+                          Icons.admin_panel_settings,
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      if (requestedAdmin.isNotEmpty && isPending) ...[
+                        _buildSimpleInfo(
+                          "Versoek",
+                          requestedAdmin,
+                          Icons.pending_actions,
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      if (kampus.isNotEmpty) ...[
+                        _buildSimpleInfo("Kampus", kampus, Icons.location_on),
+                      ],
+                    ],
+                  );
+                }
+              },
+            ),
 
-                          // Show allowance management for all user types (not just students)
-                          final userType =
-                              (u['gebr_tipe']?['gebr_tipe_naam'] ?? '');
-                          if (userType.isEmpty || userType == 'Ekstern')
-                            return const SizedBox.shrink();
+            const SizedBox(height: 16),
 
-                          return IconButton(
-                            icon: const Icon(
-                              Icons.account_balance_wallet,
-                              color: Colors.blue,
+            // Action buttons
+            Consumer(
+              builder: (context, ref, child) {
+                final isPrimaryAsync = ref.watch(isPrimaryAdminProvider);
+                final adminTypeAsync = ref.watch(currentAdminTypeProvider);
+
+                return isPrimaryAsync.when(
+                  data: (isPrimary) {
+                    return adminTypeAsync.when(
+                      data: (adminTypeName) {
+                        final userId = u['gebr_id'].toString();
+                        final isSelf = userId == currentUserId;
+
+                        // Disable actions for self-modification
+                        if (isSelf) {
+                          return Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.surfaceVariant,
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            onPressed: () => _showAllowanceDialog(u),
-                            tooltip: 'Bestuur Toelae',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.lock,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Jy kan nie jou eie status verander nie',
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
                           );
-                        },
-                        loading: () => const SizedBox.shrink(),
-                        error: (_, __) => const SizedBox.shrink(),
-                      );
-                    },
+                        }
+
+                        // Primary admins have full access to everything
+                        if (isPrimary) {
+                          if (isPending) {
+                            return _buildActionButtons([
+                              _buildActionButton(
+                                'Keur Goed',
+                                Icons.check_circle,
+                                Colors.green,
+                                () => _showAcceptUserDialog(u),
+                              ),
+                              _buildActionButton(
+                                'Verwerp',
+                                Icons.cancel,
+                                Colors.red,
+                                () => _showDeclineUserDialog(u),
+                              ),
+                            ]);
+                          } else {
+                            return _buildActionButtons([
+                              _buildActionButton(
+                                'Deaktiveer',
+                                Icons.person_off,
+                                Colors.orange,
+                                () => _setUserActive(userId, false),
+                              ),
+                              _buildActionButton(
+                                'Admin Tipe',
+                                Icons.admin_panel_settings,
+                                Colors.blue,
+                                () => _showChangeAdminTypeDialog(u),
+                              ),
+                              _buildActionButton(
+                                'Gebruiker Tipe',
+                                Icons.person,
+                                Colors.purple,
+                                () => _showChangeUserTypeDialog(u),
+                              ),
+                            ]);
+                          }
+                        } else {
+                          // Non-primary admins - show limited buttons based on role
+                          final canManageUsers =
+                              AdminPermissions.canAcceptUsers(adminTypeName);
+                          final canChangeAdminTypes =
+                              AdminPermissions.canChangeAdminTypes(
+                                adminTypeName,
+                              );
+                          final canModifyUserTypes =
+                              AdminPermissions.canModifyUserTypes(
+                                adminTypeName,
+                              );
+
+                          if (!canManageUsers &&
+                              !canChangeAdminTypes &&
+                              !canModifyUserTypes) {
+                            return Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.surfaceVariant,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.lock,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Jy het nie die regte om gebruikers te bestuur nie',
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          final buttons = <Widget>[];
+                          if (isPending && canManageUsers) {
+                            buttons.addAll([
+                              _buildActionButton(
+                                'Keur Goed',
+                                Icons.check_circle,
+                                Colors.green,
+                                () => _showAcceptUserDialog(u),
+                              ),
+                              _buildActionButton(
+                                'Verwerp',
+                                Icons.cancel,
+                                Colors.red,
+                                () => _showDeclineUserDialog(u),
+                              ),
+                            ]);
+                          } else if (!isPending) {
+                            if (canManageUsers) {
+                              buttons.add(
+                                _buildActionButton(
+                                  'Deaktiveer',
+                                  Icons.person_off,
+                                  Colors.orange,
+                                  () => _setUserActive(userId, false),
+                                ),
+                              );
+                            }
+                            if (canChangeAdminTypes) {
+                              buttons.add(
+                                _buildActionButton(
+                                  'Admin Tipe',
+                                  Icons.admin_panel_settings,
+                                  Colors.blue,
+                                  () => _showChangeAdminTypeDialog(u),
+                                ),
+                              );
+                            }
+                            if (canModifyUserTypes) {
+                              buttons.add(
+                                _buildActionButton(
+                                  'Gebruiker Tipe',
+                                  Icons.person,
+                                  Colors.purple,
+                                  () => _showChangeUserTypeDialog(u),
+                                ),
+                              );
+                            }
+                          }
+
+                          if (buttons.isEmpty) {
+                            return Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.surfaceVariant,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.lock,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Jy het nie die regte om hierdie gebruiker te bestuur nie',
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          return _buildActionButtons(buttons);
+                        }
+                      },
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
+                    );
+                  },
+                  loading: () => const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   ),
-                  // User type change button (Primary admin only)
-                  Consumer(
-                    builder: (context, ref, child) {
-                      final isPrimaryAsync = ref.watch(isPrimaryAdminProvider);
-                      return isPrimaryAsync.when(
-                        data: (isPrimary) {
-                          if (!isPrimary) return const SizedBox.shrink();
-
-                          final userId = u['gebr_id'].toString();
-                          final isSelf = userId == currentUserId;
-
-                          // Don't show for self
-                          if (isSelf) return const SizedBox.shrink();
-
-                          // Removed duplicate "Verander Gebruiker Tipe" button
-                          // This functionality is already available in the main action buttons
-                          return const SizedBox.shrink();
-                        },
-                        loading: () => const SizedBox.shrink(),
-                        error: (_, __) => const SizedBox.shrink(),
-                      );
-                    },
-                  ),
-                ],
-              ),
+                  error: (_, __) => const Icon(Icons.error, color: Colors.grey),
+                );
+              },
             ),
           ],
         ),
@@ -1269,25 +1755,82 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
     );
   }
 
-  Widget _infoColumn(String title, String value, {Color? color}) {
+  Widget _buildSimpleInfo(String label, String value, IconData icon) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          icon,
+          size: 16,
+          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          '$label: ',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButton(
+    String label,
+    IconData icon,
+    Color color,
+    VoidCallback onPressed,
+  ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        color: color.withOpacity(0.1),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: TextButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 16, color: color),
+        label: Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(fontSize: 14, color: color ?? Colors.black),
-          ),
-        ],
+        ),
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
       ),
     );
   }
+
+  Widget _buildActionButtons(List<Widget> buttons) {
+    return Row(
+      children: buttons
+          .expand(
+            (button) => [
+              button,
+              if (button != buttons.last) const SizedBox(width: 8),
+            ],
+          )
+          .toList(),
+    );
+  }
+
+  // Removed old _buildUserCard method - replaced with _buildEnhancedUserCard
+
+  // Removed _infoColumn method - replaced with _buildInfoChip in enhanced user cards
 
   Future<void> _setUserActive(String gebrId, bool active) async {
     // TODO: SERVER-SIDE ENFORCEMENT REQUIRED
@@ -1319,99 +1862,7 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
 
   // Old simple _showAddTypeDialog method removed - using comprehensive version below
 
-  Future<void> _showAllowanceDialog(Map<String, dynamic> user) async {
-    final userName = '${user['gebr_naam'] ?? ''} ${user['gebr_van'] ?? ''}'
-        .trim();
-    final userTypeName = user['gebr_tipe']?['gebr_tipe_naam'] ?? 'Unknown';
-    final typeAllowance = user['gebr_tipe']?['gebr_toelaag']?.toDouble() ?? 0.0;
-
-    await showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Toelae vir: $userName'),
-          content: SizedBox(
-            width: 400,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Current allowance info
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Toelae vir $userName ($userTypeName):',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Maandelikse toelae: R${typeAllowance.toStringAsFixed(2)}',
-                      ),
-                      Text(
-                        'Bron: Van gebruiker tipe',
-                        style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Info message
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange.shade200),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: Colors.orange.shade700,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Toelae Bestuur',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Individuele toelae oorskryf is nie beskikbaar nie. '
-                        'Om toelae te verander, gaan na die "Toelae" tab om die '
-                        'standaard bedrag vir hierdie gebruiker tipe te wysig.',
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Sluit'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+  // Removed _showAllowanceDialog method - allowance management moved to separate page
 
   // NOTE: Removed _showAddUserDialog method - users now register via mobile app
   // and appear as pending Ekstern users for Primary admin approval.
@@ -1451,7 +1902,9 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primaryContainer.withOpacity(0.3),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Column(
@@ -1542,7 +1995,9 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.green.shade50,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primaryContainer.withOpacity(0.3),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Column(
@@ -1563,8 +2018,10 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                                     Icon(
                                       entry.value ? Icons.check : Icons.close,
                                       color: entry.value
-                                          ? Colors.green
-                                          : Colors.red,
+                                          ? Theme.of(
+                                              context,
+                                            ).colorScheme.primary
+                                          : Theme.of(context).colorScheme.error,
                                       size: 16,
                                     ),
                                     const SizedBox(width: 4),
