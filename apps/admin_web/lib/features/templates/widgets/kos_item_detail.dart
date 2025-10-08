@@ -181,7 +181,7 @@ class KositemDetailDialog extends StatelessWidget {
               // Edit button (only shown if onEdit callback is provided)
               if (onEdit != null)
                 Align(
-                  alignment: Alignment.bottomLeft,
+                  alignment: Alignment.bottomRight,
                   child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.of(context).pop(); // Close detail dialog

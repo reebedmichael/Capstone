@@ -275,103 +275,243 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kositem Templates'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: ElevatedButton.icon(
-              onPressed: () {
-                resetVorm();
-                setState(() => toonVormModal = true);
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Skep Templaat'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+      body: Column(
+        children: [
+          // Styled Header
+          Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              border: Border(
+                bottom: BorderSide(color: Theme.of(context).dividerColor),
               ),
             ),
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // **NEW**: Replaces the old search and filter buttons
-            _buildFilterControls(),
-            const SizedBox(height: 16),
-
-            if (suksesBoodskap.isNotEmpty)
-              _buildFeedbackMessage(
-                suksesBoodskap,
-                Colors.green,
-                Icons.check_circle,
-              ),
-            if (foutBoodskap.isNotEmpty)
-              _buildFeedbackMessage(foutBoodskap, Colors.red, Icons.error),
-
-            Expanded(
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : templates.isEmpty
-                  ? KositemEmptyState(
-                      onCreate: () {
-                        resetVorm();
-                        setState(() => toonVormModal = true);
-                      },
-                    )
-                  : GridView.builder(
-                      gridDelegate:
-                          const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 250,
-                            mainAxisSpacing: 10,
-                            crossAxisSpacing: 10,
-                            childAspectRatio: 0.65,
+            padding: EdgeInsets.symmetric(
+              horizontal: MediaQuery.of(context).size.width < 600 ? 16 : 24,
+              vertical: MediaQuery.of(context).size.width < 600 ? 12 : 16,
+            ),
+            child: MediaQuery.of(context).size.width < 600
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Logo and title section
+                      Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Center(
+                              child: Text(
+                                "🍽️",
+                                style: TextStyle(fontSize: 18),
+                              ),
+                            ),
                           ),
-                      itemCount: filteredTemplates.length,
-                      itemBuilder: (context, index) {
-                        final template = filteredTemplates[index];
-                        return KositemTemplateCard(
-                          template: template,
-                          onEdit: () {
-                            laaiTemplateInVorm(template);
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Kositems",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
+                                ),
+                                Text(
+                                  "Bestuur en skep kositems vir die spyskaart",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall?.color,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Action button section
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            resetVorm();
                             setState(() => toonVormModal = true);
                           },
-                          onView: () {
-                            showDialog(
-                              context: context,
-                              builder: (_) => KositemDetailDialog(
-                                item: template,
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text(
+                            'Skep Templaat',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Left section: logo + title + description
+                      Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Center(
+                              child: Text(
+                                "🍽️",
+                                style: TextStyle(fontSize: 20),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Kositems",
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                              Text(
+                                "Bestuur en skep kositems vir die spyskaart",
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).textTheme.bodySmall?.color,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      // Right section: create button
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          resetVorm();
+                          setState(() => toonVormModal = true);
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('Skep Templaat'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+          // Main content
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  // **NEW**: Replaces the old search and filter buttons
+                  _buildFilterControls(),
+                  const SizedBox(height: 16),
+
+                  if (suksesBoodskap.isNotEmpty)
+                    _buildFeedbackMessage(
+                      suksesBoodskap,
+                      Colors.green,
+                      Icons.check_circle,
+                    ),
+                  if (foutBoodskap.isNotEmpty)
+                    _buildFeedbackMessage(
+                      foutBoodskap,
+                      Colors.red,
+                      Icons.error,
+                    ),
+
+                  Expanded(
+                    child: isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : templates.isEmpty
+                        ? KositemEmptyState(
+                            onCreate: () {
+                              resetVorm();
+                              setState(() => toonVormModal = true);
+                            },
+                          )
+                        : GridView.builder(
+                            gridDelegate:
+                                const SliverGridDelegateWithMaxCrossAxisExtent(
+                                  maxCrossAxisExtent: 250,
+                                  mainAxisSpacing: 10,
+                                  crossAxisSpacing: 10,
+                                  childAspectRatio: 0.65,
+                                ),
+                            itemCount: filteredTemplates.length,
+                            itemBuilder: (context, index) {
+                              final template = filteredTemplates[index];
+                              return KositemTemplateCard(
+                                template: template,
                                 onEdit: () {
                                   laaiTemplateInVorm(template);
                                   setState(() => toonVormModal = true);
                                 },
-                              ),
-                            );
-                          },
-                          onDelete: () async {
-                            final bevestig = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => DeleteModal(
-                                onCancel: () => Navigator.pop(context, false),
-                                onConfirm: () => Navigator.pop(context, true),
-                              ),
-                            );
-                            if (bevestig == true) {
-                              verwyderTemplate(template);
-                            }
-                          },
-                          showLikes: true,
-                        );
-                      },
-                    ),
+                                onView: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (_) => KositemDetailDialog(
+                                      item: template,
+                                      onEdit: () {
+                                        laaiTemplateInVorm(template);
+                                        setState(() => toonVormModal = true);
+                                      },
+                                    ),
+                                  );
+                                },
+                                onDelete: () async {
+                                  final bevestig = await showDialog<bool>(
+                                    context: context,
+                                    builder: (context) => DeleteModal(
+                                      onCancel: () =>
+                                          Navigator.pop(context, false),
+                                      onConfirm: () =>
+                                          Navigator.pop(context, true),
+                                    ),
+                                  );
+                                  if (bevestig == true) {
+                                    verwyderTemplate(template);
+                                  }
+                                },
+                                showLikes: true,
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
       bottomSheet: toonVormModal
           ? KositemFormModal(

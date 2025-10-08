@@ -441,29 +441,171 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
     // Build scaffold with CustomScrollView
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: AppBar(
-        title: const Text('Week Templates'),
-        actions: [
-          OutlinedButton.icon(
-            icon: const Icon(Icons.refresh),
-            label: const Text('Herlaai'),
-            onPressed: _loadAll,
+      body: Column(
+        children: [
+          // Styled Header
+          Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              border: Border(
+                bottom: BorderSide(color: Theme.of(context).dividerColor),
+              ),
+            ),
+            padding: EdgeInsets.symmetric(
+              horizontal: MediaQuery.of(context).size.width < 600 ? 16 : 24,
+              vertical: MediaQuery.of(context).size.width < 600 ? 12 : 16,
+            ),
+            child: MediaQuery.of(context).size.width < 600
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Logo and title section
+                      Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Center(
+                              child: Text("📅", style: TextStyle(fontSize: 18)),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Spyskaart Templaaie",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
+                                ),
+                                Text(
+                                  "Bestuur en skep templaat spyskaarte",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall?.color,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Action buttons section
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.refresh, size: 18),
+                              label: const Text(
+                                'Herlaai',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              onPressed: _loadAll,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: FilledButton.icon(
+                              icon: const Icon(Icons.add, size: 18),
+                              label: const Text(
+                                'Skep Templaat',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              onPressed: () {
+                                resetForm();
+                                setState(() => showFormModal = true);
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Left section: logo + title + description
+                      Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Center(
+                              child: Text("📅", style: TextStyle(fontSize: 20)),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Spyskaart Templaaie",
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                              Text(
+                                "Bestuur en skep templaat spyskaarte",
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).textTheme.bodySmall?.color,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      // Right section: action buttons
+                      Row(
+                        children: [
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Herlaai'),
+                            onPressed: _loadAll,
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton.icon(
+                            icon: const Icon(Icons.add),
+                            label: const Text('Skep Nuwe Templaat'),
+                            onPressed: () {
+                              resetForm();
+                              setState(() => showFormModal = true);
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
           ),
-          const SizedBox(width: 8),
-          FilledButton.icon(
-            icon: const Icon(Icons.add),
-            label: const Text('Skep Nuwe Templaat'),
-            onPressed: () {
-              resetForm();
-              setState(() => showFormModal = true);
-            },
+          // Main content
+          Expanded(
+            child: CustomScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              slivers: slivers,
+            ),
           ),
-          const SizedBox(width: 12),
         ],
-      ),
-      body: CustomScrollView(
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        slivers: slivers,
       ),
       floatingActionButton: showFormModal
           ? FormModal(

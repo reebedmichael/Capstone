@@ -556,152 +556,284 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Text(
-              "Bestelling Bestuur",
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
+      body: Column(
+        children: [
+          // Styled Header
+          Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              border: Border(
+                bottom: BorderSide(color: Theme.of(context).dividerColor),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              "Bestuur en volg al jou restaurantbestellings doeltreffend.",
-              style: Theme.of(context).textTheme.bodyMedium,
+            padding: EdgeInsets.symmetric(
+              horizontal: MediaQuery.of(context).size.width < 600 ? 16 : 24,
+              vertical: MediaQuery.of(context).size.width < 600 ? 12 : 16,
             ),
-
-            const SizedBox(height: 16),
-
-            // Loading / Error
-            LoadingErrorWidget(
-              isLoading: _isLoading,
-              error: _error,
-              child: const SizedBox.shrink(),
-            ),
-
-            // Search
-            Row(
-              children: [
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isMobile = MediaQuery.of(context).size.width < 600;
-
-                      return Align(
-                        alignment: Alignment.centerLeft,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: isMobile
-                                ? double.infinity
-                                : 400, // 400px cap on bigger screens
-                          ),
-                          child: SearchBarWidget(
-                            value: searchQuery,
-                            onChange: (val) =>
-                                setState(() => searchQuery = val),
-                            placeholder: OrderConstants.getUiString(
-                              'searchPlaceholder',
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
-            ),
-
-            //Day Filter
-            const SizedBox(height: 12),
-            DayFilters(selectedDay: selectedDay, onDayChange: handleDayChange),
-
-            const SizedBox(height: 16),
-            KampusFilter(
-              selectedKampus: selectedKampus,
-              onKampusChange: (val) => setState(() => selectedKampus = val),
-              kampusList: kampusList,
-              // orderCounts: _buildKampusOrderCounts(),
-            ),
-            const SizedBox(height: 16),
-
-            DayItemsSummary(
-              orders: filteredOrders,
-              selectedDay: selectedDay,
-              selectedFoodItem: selectedFoodItem,
-              onFoodItemClick: handleFoodItemClick,
-            ),
-            const SizedBox(height: 32),
-            filteredOrders.isEmpty
-                ? Center(
-                    child: Text(
-                      OrderConstants.getUiString('noOrdersFound'),
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                  )
-                : Column(
+            child: MediaQuery.of(context).size.width < 600
+                ? Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Logo and title section
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Expanded(
-                            child: Text(
-                              selectedDay == "Geskiedenis"
-                                  ? "${OrderConstants.getUiString('orderHistory')} (${filteredOrders.length})"
-                                  : "${OrderConstants.getUiString('ordersForDay')} $selectedDay (${filteredOrders.length})",
-                              style: Theme.of(context).textTheme.titleLarge,
-                              overflow: TextOverflow.ellipsis,
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Center(
+                              child: Text("📦", style: TextStyle(fontSize: 18)),
                             ),
                           ),
-                          if (selectedDay != "Geskiedenis")
-                            Row(
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                ElevatedButton.icon(
-                                  onPressed: _handleCleanupUnclaimedOrders,
-                                  icon: const Icon(
-                                    Icons.cleaning_services_outlined,
-                                  ),
-                                  label: const Text('Opruim Onopgehaalde'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.orange.shade100,
-                                    foregroundColor: Colors.orange.shade800,
+                                Text(
+                                  "Bestelling Bestuur",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                BulkActions(
-                                  orders: filteredOrders,
-                                  onBulkUpdate: handleBulkUpdate,
+                                Text(
+                                  "Bestuur en volg al jou bestellings doeltreffend",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall?.color,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ],
                             ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 5),
-
-                      // Orders list
-                      for (var order in filteredOrders)
-                        OrderCard(
-                          order: order,
-                          selectedDay: selectedDay != "Geskiedenis"
-                              ? selectedDay
-                              : null,
-                          isPastOrder: selectedDay == "Geskiedenis",
-                          onViewDetails: (order) =>
-                              _showOrderDetails(context, order),
-                          onUpdateStatus: handleUpdateOrderStatus,
-                          onCancelOrder: handleCancelOrder,
+                      const SizedBox(height: 12),
+                      // Action button section
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text(
+                            'Herlaai',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          onPressed: _loadOrders,
                         ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Left section: logo + title + description
+                      Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Center(
+                              child: Text("📦", style: TextStyle(fontSize: 20)),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Bestelling Bestuur",
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                              Text(
+                                "Bestuur en volg al jou bestellings doeltreffend",
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).textTheme.bodySmall?.color,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      // Right section: action buttons (if needed)
+                      Row(
+                        children: [
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Herlaai'),
+                            onPressed: _loadOrders,
+                          ),
+                        ],
+                      ),
                     ],
                   ),
-          ],
-        ),
+          ),
+          // Main content
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Loading / Error
+                  LoadingErrorWidget(
+                    isLoading: _isLoading,
+                    error: _error,
+                    child: const SizedBox.shrink(),
+                  ),
+
+                  // Search
+                  Row(
+                    children: [
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final isMobile =
+                                MediaQuery.of(context).size.width < 600;
+
+                            return Align(
+                              alignment: Alignment.centerLeft,
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth: isMobile
+                                      ? double.infinity
+                                      : 400, // 400px cap on bigger screens
+                                ),
+                                child: SearchBarWidget(
+                                  value: searchQuery,
+                                  onChange: (val) =>
+                                      setState(() => searchQuery = val),
+                                  placeholder: OrderConstants.getUiString(
+                                    'searchPlaceholder',
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                  ),
+
+                  //Day Filter
+                  const SizedBox(height: 12),
+                  DayFilters(
+                    selectedDay: selectedDay,
+                    onDayChange: handleDayChange,
+                  ),
+
+                  const SizedBox(height: 16),
+                  KampusFilter(
+                    selectedKampus: selectedKampus,
+                    onKampusChange: (val) =>
+                        setState(() => selectedKampus = val),
+                    kampusList: kampusList,
+                    // orderCounts: _buildKampusOrderCounts(),
+                  ),
+                  const SizedBox(height: 16),
+
+                  DayItemsSummary(
+                    orders: filteredOrders,
+                    selectedDay: selectedDay,
+                    selectedFoodItem: selectedFoodItem,
+                    onFoodItemClick: handleFoodItemClick,
+                  ),
+                  const SizedBox(height: 32),
+                  filteredOrders.isEmpty
+                      ? Center(
+                          child: Text(
+                            OrderConstants.getUiString('noOrdersFound'),
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    selectedDay == "Geskiedenis"
+                                        ? "${OrderConstants.getUiString('orderHistory')} (${filteredOrders.length})"
+                                        : "${OrderConstants.getUiString('ordersForDay')} $selectedDay (${filteredOrders.length})",
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.titleLarge,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (selectedDay != "Geskiedenis")
+                                  Row(
+                                    children: [
+                                      ElevatedButton.icon(
+                                        onPressed:
+                                            _handleCleanupUnclaimedOrders,
+                                        icon: const Icon(
+                                          Icons.cleaning_services_outlined,
+                                        ),
+                                        label: const Text(
+                                          'Opruim Onopgehaalde',
+                                        ),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor:
+                                              Colors.orange.shade100,
+                                          foregroundColor:
+                                              Colors.orange.shade800,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      BulkActions(
+                                        orders: filteredOrders,
+                                        onBulkUpdate: handleBulkUpdate,
+                                      ),
+                                    ],
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 5),
+
+                            // Orders list
+                            for (var order in filteredOrders)
+                              OrderCard(
+                                order: order,
+                                selectedDay: selectedDay != "Geskiedenis"
+                                    ? selectedDay
+                                    : null,
+                                isPastOrder: selectedDay == "Geskiedenis",
+                                onViewDetails: (order) =>
+                                    _showOrderDetails(context, order),
+                                onUpdateStatus: handleUpdateOrderStatus,
+                                onCancelOrder: handleCancelOrder,
+                              ),
+                          ],
+                        ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -134,7 +134,7 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
 
   Future<void> _loadSpyskaarte() async {
     final now = DateTime.now();
-    
+
     // Determine if we should use next week as current week
     // This happens if:
     // 1. It's Saturday 17:00 or later, OR
@@ -142,20 +142,26 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
     final isSaturdayAfter17 = now.weekday == 6 && now.hour >= 17;
     final isPastWeekend = now.weekday == 7; // Sunday
     final shouldUseNextWeek = isSaturdayAfter17 || isPastWeekend;
-    
+
     // Calculate the actual week starts
     final currentWeekStart = _weekStartFor('huidige');
     final nextWeekStart = _weekStartFor('volgende');
-    
+
     // Determine which week to show as "current" and which as "next"
-    final actualCurrentWeekStart = shouldUseNextWeek ? nextWeekStart : currentWeekStart;
-    final actualNextWeekStart = shouldUseNextWeek 
-        ? nextWeekStart.add(const Duration(days: 7)) 
+    final actualCurrentWeekStart = shouldUseNextWeek
+        ? nextWeekStart
+        : currentWeekStart;
+    final actualNextWeekStart = shouldUseNextWeek
+        ? nextWeekStart.add(const Duration(days: 7))
         : nextWeekStart;
 
     // Fetch or create the spyskaart data
-    final currentRaw = await weekRepo.getOrCreateSpyskaartForDate(actualCurrentWeekStart);
-    final nextRaw = await weekRepo.getOrCreateSpyskaartForDate(actualNextWeekStart);
+    final currentRaw = await weekRepo.getOrCreateSpyskaartForDate(
+      actualCurrentWeekStart,
+    );
+    final nextRaw = await weekRepo.getOrCreateSpyskaartForDate(
+      actualNextWeekStart,
+    );
 
     // Map to WeekSpyskaart objects
     final huidige = _mapRawToWeekSpyskaart(
@@ -163,7 +169,7 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
       weekStart: actualCurrentWeekStart,
       status: 'aktief',
     );
-    
+
     final volgende = _mapRawToWeekSpyskaart(
       nextRaw,
       weekStart: actualNextWeekStart,
@@ -577,12 +583,172 @@ class _WeekSpyskaartPageState extends State<WeekSpyskaartPage> {
       body: SafeArea(
         child: Column(
           children: [
-            HeaderWidget(
-              aktieweWeek: aktieweWeek,
-              volgendeWeek: volgendeWeek,
-              onOpenTemplate: () => setState(() => toonTemplaatModal = true),
-              onSaveTemplate: stoorAsTemplaat,
-              onOpenSend: () => setState(() => toonStuurModal = true),
+            // Styled Header
+            Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                border: Border(
+                  bottom: BorderSide(color: Theme.of(context).dividerColor),
+                ),
+              ),
+              padding: EdgeInsets.symmetric(
+                horizontal: MediaQuery.of(context).size.width < 600 ? 16 : 24,
+                vertical: MediaQuery.of(context).size.width < 600 ? 12 : 16,
+              ),
+              child: MediaQuery.of(context).size.width < 600
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Logo and title section
+                        Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  "📋",
+                                  style: TextStyle(fontSize: 18),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Week Spyskaart",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                    ),
+                                  ),
+                                  Text(
+                                    "Bestuur aktiewe en volgende week se spyskaarte",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall?.color,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // Action buttons section
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(
+                                  Icons.menu_book_outlined,
+                                  size: 18,
+                                ),
+                                label: const Text(
+                                  'Laai templaat',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                onPressed: aktieweWeek == 'volgende'
+                                    ? () => setState(
+                                        () => toonTemplaatModal = true,
+                                      )
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                icon: const Icon(Icons.save, size: 18),
+                                label: const Text(
+                                  'Stoor as templaat',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                onPressed: stoorAsTemplaat,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Left section: logo + title + description
+                        Row(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.primary,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  "📋",
+                                  style: TextStyle(fontSize: 20),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Week Spyskaart",
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.primary,
+                                  ),
+                                ),
+                                Text(
+                                  "Bestuur aktiewe en volgende week se spyskaarte",
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall?.color,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        // Right section: action buttons
+                        Row(
+                          children: [
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.menu_book_outlined),
+                              label: const Text('Laai templaat'),
+                              onPressed: aktieweWeek == 'volgende'
+                                  ? () =>
+                                        setState(() => toonTemplaatModal = true)
+                                  : null,
+                            ),
+                            const SizedBox(width: 8),
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.save),
+                              label: const Text('Stoor as templaat'),
+                              onPressed: stoorAsTemplaat,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
             ),
             Expanded(
               child: SingleChildScrollView(
