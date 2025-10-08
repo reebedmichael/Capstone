@@ -8,6 +8,7 @@ import '../../../../locator.dart';
 import '../../../../shared/constants/spacing.dart';
 import '../../../app/presentation/widgets/app_bottom_nav.dart';
 import '../../../../shared/state/cart_badge.dart';
+import '../../../../shared/state/notification_badge.dart';
 import '../../../../shared/state/order_refresh_notifier.dart';
 
 class HomePage extends StatefulWidget {
@@ -143,12 +144,14 @@ void initState() {
   _loadGebrNaam();
   _loadDietTypes();
   _fetchMenu();
+  _loadNotificationCount();
   _startCartCleanupTimer();
   _setupUserDataListener();
   _setupGlobalRefreshListener();
   Supabase.instance.client.auth.onAuthStateChange.listen((_) {
     _loadGebrNaam();
     _loadMandjieCount();
+    _loadNotificationCount();
   });
 }
 
@@ -182,6 +185,7 @@ void _setupGlobalRefreshListener() {
     debugPrint('Global refresh triggered, updating user data...');
     _loadGebrNaam();
     _loadMandjieCount();
+    _loadNotificationCount();
   });
 }
 
@@ -256,6 +260,34 @@ Future<void> _checkAndCleanExpiredCartItems() async {
       if (mounted) {
         setState(() => mandjieCount = 0);
       }
+    }
+  }
+
+  Future<void> _loadNotificationCount() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        NotificationBadgeState.unreadCount.value = 0;
+        return;
+      }
+
+      final kennisgewingRepo = KennisgewingRepository(
+        SupabaseDb(Supabase.instance.client),
+      );
+
+      // Get user notifications
+      final userNotifications = await kennisgewingRepo.kryKennisgewings(user.id);
+      final unreadUserCount = userNotifications.where((n) => !(n['kennis_gelees'] ?? false)).length;
+
+      // Get global notifications
+      final globalNotifications = await kennisgewingRepo.kryGlobaleKennisgewings();
+      final unreadGlobalCount = globalNotifications.where((n) => !(n['glob_kennis_gelees'] ?? false)).length;
+
+      final totalUnread = unreadUserCount + unreadGlobalCount;
+      NotificationBadgeState.unreadCount.value = totalUnread;
+    } catch (e) {
+      debugPrint('Kon nie notification count kry nie: $e');
+      NotificationBadgeState.unreadCount.value = 0;
     }
   }
 
@@ -597,7 +629,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                 Positioned(
                                   right: -2,
                                   top: -2,
-                                  child: _buildBadge('3'),
+                                  child: _buildNotificationBadge(),
                                 ),
                               ],
                             ),
@@ -796,20 +828,6 @@ SizedBox(
     );
   }
 
-  Widget _buildBadge(String count) {
-    return Container(
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.error,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-      child: Text(
-        count,
-        style: TextStyle(color: Theme.of(context).colorScheme.onError, fontSize: 10),
-      ),
-    );
-  }
 
   Widget _buildBadgeMandjie() {
     // Subscribe to global cart badge updates for real-time count
@@ -827,6 +845,28 @@ SizedBox(
           constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
           child: Text(
             '$display',
+            style: TextStyle(color: Theme.of(context).colorScheme.onError, fontSize: 10),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildNotificationBadge() {
+    // Subscribe to global notification badge updates for real-time count
+    return ValueListenableBuilder<int>(
+      valueListenable: NotificationBadgeState.unreadCount,
+      builder: (context, value, _) {
+        if (value == 0) return const SizedBox.shrink();
+        return Container(
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.error,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+          child: Text(
+            '$value',
             style: TextStyle(color: Theme.of(context).colorScheme.onError, fontSize: 10),
           ),
         );
