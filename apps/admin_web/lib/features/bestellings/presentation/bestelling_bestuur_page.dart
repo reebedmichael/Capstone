@@ -383,7 +383,14 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
 
       // Update in database
       final statusName = getDatabaseStatusName(status);
-      await _repo.updateStatus(bestKosId: itemId, statusNaam: statusName);
+      await _repo.updateStatus(
+        bestKosId: itemId, 
+        statusNaam: statusName,
+        gebrId: originalOrder.customerId,
+        refundAmount: status == OrderStatus.cancelled 
+            ? targetItem.price * targetItem.quantity 
+            : null,
+      );
 
       // Update local state after successful database update
       setState(() {
@@ -517,6 +524,10 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
             await _repo.updateStatus(
               bestKosId: item.id,
               statusNaam: statusName,
+              gebrId: order.customerId,
+              refundAmount: status == OrderStatus.cancelled 
+                  ? item.price * item.quantity 
+                  : null,
             );
           }
         }

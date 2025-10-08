@@ -25,23 +25,24 @@ class RegistreerAdminPage extends ConsumerWidget {
     final authError = ref.watch(authErrorProvider);
 
     return Scaffold(
-      body: Center(
-          child: Container(
-          width: 600.0,
-          height: double.infinity,
-          padding: const EdgeInsets.all(Spacing.screenHPad),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.primary.withValues(alpha: 0.05),
-                AppColors.secondary.withValues(alpha: 0.05),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.primary.withValues(alpha: 0.05),
+              AppColors.secondary.withValues(alpha: 0.05),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
+        ),
+        child: SingleChildScrollView(
           child: Center(
-            child: SingleChildScrollView(
+            child: Container(
+              width: 600.0,
+              padding: const EdgeInsets.all(Spacing.screenHPad),
               child: Card(
                 elevation: 8,
                 shadowColor: AppColors.shadow,
@@ -72,7 +73,9 @@ class RegistreerAdminPage extends ConsumerWidget {
                           color: AppColors.secondary.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Center(child: Text("👤", style: TextStyle(fontSize: 32))),
+                        child: const Center(
+                          child: Text("👤", style: TextStyle(fontSize: 32)),
+                        ),
                       ),
 
                       Spacing.vGap16,
@@ -80,7 +83,9 @@ class RegistreerAdminPage extends ConsumerWidget {
                       // Title
                       Text(
                         'Registreer as Admin',
-                        style: AppTypography.headlineMedium.copyWith(color: AppColors.secondary),
+                        style: AppTypography.headlineMedium.copyWith(
+                          color: AppColors.secondary,
+                        ),
                         textAlign: TextAlign.center,
                       ),
 
@@ -88,7 +93,9 @@ class RegistreerAdminPage extends ConsumerWidget {
 
                       Text(
                         "Vul alle besonderhede in om 'n admin rekening aan te vra",
-                        style: AppTypography.bodyMedium.copyWith(color: AppColors.onSurfaceVariant),
+                        style: AppTypography.bodyMedium.copyWith(
+                          color: AppColors.onSurfaceVariant,
+                        ),
                         textAlign: TextAlign.center,
                       ),
 
@@ -106,7 +113,7 @@ class RegistreerAdminPage extends ConsumerWidget {
                       const PasswordField(isConfirmPassword: true),
 
                       Spacing.vGap16,
-                      
+
                       // Error message
                       if (authError != null)
                         Container(
@@ -132,140 +139,182 @@ class RegistreerAdminPage extends ConsumerWidget {
                       SpysPrimaryButton(
                         text: "Registreer",
                         isLoading: isLoading,
-                        onPressed: isFormValid ? () async {
-                          final firstName = ref.read(firstNameProvider);
-                          final lastName = ref.read(lastNameProvider);
-                          final email = ref.read(emailProvider);
-                          final cellphone = ref.read(cellphoneProvider);
-                          final password = ref.read(passwordProvider);
-                          final confirmPassword = ref.read(confirmPasswordProvider);
-                           
-                          // Validate passwords match
-                          if (password != confirmPassword) {
-                            ref.read(authErrorProvider.notifier).state = 'Wagwoorde stem nie ooreen nie';
-                            return;
-                          }
-                          
-                          // Clear any previous errors
-                          ref.read(authErrorProvider.notifier).state = null;
-                          ref.read(authLoadingProvider.notifier).state = true;
-
-                          // Pre-check: abort if email already exists in gebruikers BEFORE signup
-                          final preClient = Supabase.instance.client;
-                          final existingBefore = await preClient
-                            .from('gebruikers')
-                            .select('gebr_id')
-                            .ilike('gebr_epos', email)
-                            .limit(1)
-                            .maybeSingle();
-                          if (existingBefore != null) {
-                            ref.read(authErrorProvider.notifier).state = 'E-pos adres bestaan reeds in die stelsel';
-                            ref.read(authLoadingProvider.notifier).state = false;
-                            return;
-                          }
-
-                          try {
-                            final client = Supabase.instance.client;
-
-                            final authService = ref.read(authServiceProvider);
-                            final response = await authService.signUpWithEmail(
-                              email: email,
-                              password: password,
-                              firstName: firstName,
-                              lastName: lastName,
-                              cellphone: cellphone,
-                              createInDatabase: false, // We'll create the user manually with correct values
-                            );
-                            
-                            if (response.user != null) {
-                              // Prevent duplicate email in gebruikers
-                              final existingEmail = await client
-                                .from('gebruikers')
-                                .select('gebr_id')
-                                .ilike('gebr_epos', email)
-                                .limit(1)
-                                .maybeSingle();
-                              if (existingEmail != null) {
-                                ref.read(authErrorProvider.notifier).state = 'E-pos adres bestaan reeds in die stelsel';
-                                return;
-                              }
-
-                              // Resolve defaults (IDs) once
-                              final ekstern = await client
-                                .from('gebruiker_tipes')
-                                .select('gebr_tipe_id')
-                                .ilike('gebr_tipe_naam', 'Ekstern')
-                                .limit(1)
-                                .maybeSingle();
-                              final adminNone = await client
-                                .from('admin_tipes')
-                                .select('admin_tipe_id')
-                                .ilike('admin_tipe_naam', 'None')
-                                .limit(1)
-                                .maybeSingle();
-                              final firstKampus = await client
-                                .from('kampus')
-                                .select('kampus_id')
-                                .order('kampus_naam', ascending: true)
-                                .limit(1)
-                                .maybeSingle();
-
-                              if (ekstern == null || adminNone == null || firstKampus == null) {
-                                throw Exception('Kon nie verstekwaardes laai nie (gebruiker_tipes/admin_tipes/kampus)');
-                              }
-
-                              // Upsert gebruiker record with same defaults as mobile register_page
-                              await client
-                                .from('gebruikers')
-                                .upsert({
-                                  'gebr_id': response.user!.id,
-                                  'gebr_epos': email,
-                                  'gebr_naam': firstName,
-                                  'gebr_van': lastName,
-                                  'gebr_selfoon': cellphone,
-                                  'is_aktief': true,
-                                  'beursie_balans': 0,
-                                  'gebr_tipe_id': ekstern['gebr_tipe_id'],
-                                  'admin_tipe_id': adminNone['admin_tipe_id'],
-                                  'kampus_id': firstKampus['kampus_id'],
-                                }, onConflict: 'gebr_id')
-                                .select()
-                                .single();
-
-                              if (context.mounted) {
-                                // Show success message and redirect to pending approval
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Registrasie suksesvol! Teken nou in om voort te gaan.'),
-                                    backgroundColor: Colors.orange,
-                                  ),
+                        onPressed: isFormValid
+                            ? () async {
+                                final firstName = ref.read(firstNameProvider);
+                                final lastName = ref.read(lastNameProvider);
+                                final email = ref.read(emailProvider);
+                                final cellphone = ref.read(cellphoneProvider);
+                                final password = ref.read(passwordProvider);
+                                final confirmPassword = ref.read(
+                                  confirmPasswordProvider,
                                 );
-                                context.go('/teken_in');
+
+                                // Validate passwords match
+                                if (password != confirmPassword) {
+                                  ref.read(authErrorProvider.notifier).state =
+                                      'Wagwoorde stem nie ooreen nie';
+                                  return;
+                                }
+
+                                // Clear any previous errors
+                                ref.read(authErrorProvider.notifier).state =
+                                    null;
+                                ref.read(authLoadingProvider.notifier).state =
+                                    true;
+
+                                // Pre-check: abort if email already exists in gebruikers BEFORE signup
+                                final preClient = Supabase.instance.client;
+                                final existingBefore = await preClient
+                                    .from('gebruikers')
+                                    .select('gebr_id')
+                                    .ilike('gebr_epos', email)
+                                    .limit(1)
+                                    .maybeSingle();
+                                if (existingBefore != null) {
+                                  ref.read(authErrorProvider.notifier).state =
+                                      'E-pos adres bestaan reeds in die stelsel';
+                                  ref.read(authLoadingProvider.notifier).state =
+                                      false;
+                                  return;
+                                }
+
+                                try {
+                                  final client = Supabase.instance.client;
+
+                                  final authService = ref.read(
+                                    authServiceProvider,
+                                  );
+                                  final response = await authService
+                                      .signUpWithEmail(
+                                        email: email,
+                                        password: password,
+                                        firstName: firstName,
+                                        lastName: lastName,
+                                        cellphone: cellphone,
+                                        createInDatabase:
+                                            false, // We'll create the user manually with correct values
+                                      );
+
+                                  if (response.user != null) {
+                                    // Prevent duplicate email in gebruikers
+                                    final existingEmail = await client
+                                        .from('gebruikers')
+                                        .select('gebr_id')
+                                        .ilike('gebr_epos', email)
+                                        .limit(1)
+                                        .maybeSingle();
+                                    if (existingEmail != null) {
+                                      ref
+                                              .read(authErrorProvider.notifier)
+                                              .state =
+                                          'E-pos adres bestaan reeds in die stelsel';
+                                      return;
+                                    }
+
+                                    // Resolve defaults (IDs) once
+                                    final ekstern = await client
+                                        .from('gebruiker_tipes')
+                                        .select('gebr_tipe_id')
+                                        .ilike('gebr_tipe_naam', 'Ekstern')
+                                        .limit(1)
+                                        .maybeSingle();
+                                    final adminNone = await client
+                                        .from('admin_tipes')
+                                        .select('admin_tipe_id')
+                                        .ilike('admin_tipe_naam', 'None')
+                                        .limit(1)
+                                        .maybeSingle();
+                                    final firstKampus = await client
+                                        .from('kampus')
+                                        .select('kampus_id')
+                                        .order('kampus_naam', ascending: true)
+                                        .limit(1)
+                                        .maybeSingle();
+
+                                    if (ekstern == null ||
+                                        adminNone == null ||
+                                        firstKampus == null) {
+                                      throw Exception(
+                                        'Kon nie verstekwaardes laai nie (gebruiker_tipes/admin_tipes/kampus)',
+                                      );
+                                    }
+
+                                    // Upsert gebruiker record with same defaults as mobile register_page
+                                    await client
+                                        .from('gebruikers')
+                                        .upsert({
+                                          'gebr_id': response.user!.id,
+                                          'gebr_epos': email,
+                                          'gebr_naam': firstName,
+                                          'gebr_van': lastName,
+                                          'gebr_selfoon': cellphone,
+                                          'is_aktief': true,
+                                          'beursie_balans': 0,
+                                          'gebr_tipe_id':
+                                              ekstern['gebr_tipe_id'],
+                                          'admin_tipe_id':
+                                              adminNone['admin_tipe_id'],
+                                          'kampus_id': firstKampus['kampus_id'],
+                                        }, onConflict: 'gebr_id')
+                                        .select()
+                                        .single();
+
+                                    if (context.mounted) {
+                                      // Show success message and redirect to pending approval
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Registrasie suksesvol! Teken nou in om voort te gaan.',
+                                          ),
+                                          backgroundColor: Colors.orange,
+                                        ),
+                                      );
+                                      context.go('/teken_in');
+                                    }
+                                  }
+                                } catch (e) {
+                                  String errorMessage =
+                                      'Registrasie het gefaal';
+                                  if (e.toString().contains(
+                                    'User already registered',
+                                  )) {
+                                    errorMessage =
+                                        'E-pos adres is reeds geregistreer';
+                                  } else if (e.toString().contains(
+                                    'Password should be at least',
+                                  )) {
+                                    errorMessage =
+                                        'Wagwoord moet ten minste 6 karakters wees';
+                                  } else if (e.toString().contains(
+                                    'Invalid email',
+                                  )) {
+                                    errorMessage = 'Ongeldige e-pos adres';
+                                  } else if (e is PostgrestException) {
+                                    errorMessage =
+                                        'Data stoor het gefaal: ${e.message}';
+                                  }
+
+                                  ref.read(authErrorProvider.notifier).state =
+                                      errorMessage;
+                                } finally {
+                                  ref.read(authLoadingProvider.notifier).state =
+                                      false;
+                                }
                               }
-                            }
-                          } catch (e) {
-                            String errorMessage = 'Registrasie het gefaal';
-                            if (e.toString().contains('User already registered')) {
-                              errorMessage = 'E-pos adres is reeds geregistreer';
-                            } else if (e.toString().contains('Password should be at least')) {
-                              errorMessage = 'Wagwoord moet ten minste 6 karakters wees';
-                            } else if (e.toString().contains('Invalid email')) {
-                              errorMessage = 'Ongeldige e-pos adres';
-                            } else if (e is PostgrestException) {
-                              errorMessage = 'Data stoor het gefaal: ${e.message}';
-                            }
-                            
-                            ref.read(authErrorProvider.notifier).state = errorMessage;
-                          } finally {
-                            ref.read(authLoadingProvider.notifier).state = false;
-                          }
-                        } : null,
+                            : null,
                       ),
 
                       Spacing.vGap24,
 
                       // Divider
-                      Divider(color: AppColors.onSurfaceVariant.withValues(alpha: 0.2)),
+                      Divider(
+                        color: AppColors.onSurfaceVariant.withValues(
+                          alpha: 0.2,
+                        ),
+                      ),
 
                       Spacing.vGap16,
 
@@ -274,14 +323,18 @@ class RegistreerAdminPage extends ConsumerWidget {
                         children: [
                           Text(
                             "Het jy reeds 'n rekening?",
-                            style: AppTypography.bodyMedium.copyWith(color: AppColors.onSurfaceVariant),
+                            style: AppTypography.bodyMedium.copyWith(
+                              color: AppColors.onSurfaceVariant,
+                            ),
                           ),
                           Spacing.vGap8,
                           TextButton(
                             onPressed: () => context.go('/teken_in'),
                             child: Text(
                               StringsAfAdmin.goLogin,
-                              style: AppTypography.linkText.copyWith(color: AppColors.secondary),
+                              style: AppTypography.linkText.copyWith(
+                                color: AppColors.secondary,
+                              ),
                             ),
                           ),
                         ],
@@ -292,8 +345,8 @@ class RegistreerAdminPage extends ConsumerWidget {
               ),
             ),
           ),
-        )
-      )
+        ),
+      ),
     );
   }
 }

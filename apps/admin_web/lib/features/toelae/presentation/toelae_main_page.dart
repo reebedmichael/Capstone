@@ -9,7 +9,8 @@ class ToelaeMainPage extends StatefulWidget {
   State<ToelaeMainPage> createState() => _ToelaeMainPageState();
 }
 
-class _ToelaeMainPageState extends State<ToelaeMainPage> with SingleTickerProviderStateMixin {
+class _ToelaeMainPageState extends State<ToelaeMainPage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -32,25 +33,15 @@ class _ToelaeMainPageState extends State<ToelaeMainPage> with SingleTickerProvid
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(
-              icon: Icon(Icons.person_add_alt_1),
-              text: 'Individueel',
-            ),
-            Tab(
-              icon: Icon(Icons.group_work),
-              text: 'Gebruiker Tipes',
-            ),
+            Tab(icon: Icon(Icons.person_add_alt_1), text: 'Individueel'),
+            Tab(icon: Icon(Icons.group_work), text: 'Gebruiker Tipes'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          ToelaeBestuurPage(),
-          GebruikerTipesToelaePage(),
-        ],
+        children: const [ToelaeBestuurPage(), GebruikerTipesToelaePage()],
       ),
     );
   }
 }
-

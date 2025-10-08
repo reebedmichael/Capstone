@@ -64,371 +64,384 @@ class TekenInPage extends ConsumerWidget {
     final authError = ref.watch(authErrorProvider);
 
     return Scaffold(
-      body: Center(
-        child: Container(
-          width: 600.0,
-          height: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                AppColors.primary.withValues(alpha: 0.05),
-                AppColors.secondary.withValues(alpha: 0.05),
-              ],
-            ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.primary.withValues(alpha: 0.05),
+              AppColors.secondary.withValues(alpha: 0.05),
+            ],
           ),
-          child: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(Spacing.screenHPad),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Spacing.vGap40,
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            child: Center(
+              child: Container(
+                width: 600.0,
+                padding: const EdgeInsets.all(Spacing.screenHPad),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Spacing.vGap40,
 
-                  // Header with Logo and Brand
-                  const AuthHeader(
-                    title: StringsAfAdmin.loginTitle,
-                    subtitle: StringsAfAdmin.appTitle,
-                  ),
-
-                  // Login Form Card
-                  Card(
-                    elevation: 8,
-                    shadowColor: AppColors.shadow,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                    // Header with Logo and Brand
+                    const AuthHeader(
+                      title: StringsAfAdmin.loginTitle,
+                      subtitle: StringsAfAdmin.appTitle,
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Form Title
-                          Text(
-                            'Teken In Met Jou Rekening',
-                            style: AppTypography.headlineMedium,
-                            textAlign: TextAlign.center,
-                          ),
-                          Spacing.vGap8,
-                          Text(
-                            'Voer jou besonderhede in om toegang te kry',
-                            style: AppTypography.bodySmall,
-                            textAlign: TextAlign.center,
-                          ),
-                          Spacing.vGap24,
 
-                          // Email field
-                          const EmailField(),
-                          Spacing.vGap16,
+                    // Login Form Card
+                    Card(
+                      elevation: 8,
+                      shadowColor: AppColors.shadow,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Form Title
+                            Text(
+                              'Teken In Met Jou Rekening',
+                              style: AppTypography.headlineMedium,
+                              textAlign: TextAlign.center,
+                            ),
+                            Spacing.vGap8,
+                            Text(
+                              'Voer jou besonderhede in om toegang te kry',
+                              style: AppTypography.bodySmall,
+                              textAlign: TextAlign.center,
+                            ),
+                            Spacing.vGap24,
 
-                          // Password field
-                          const PasswordField(),
-                          Spacing.vGap8,
+                            // Email field
+                            const EmailField(),
+                            Spacing.vGap16,
 
-                          // Error message
-                          if (authError != null)
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              margin: const EdgeInsets.only(bottom: 16),
-                              decoration: BoxDecoration(
-                                color: AppColors.error.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: AppColors.error),
-                              ),
-                              child: Text(
-                                authError,
-                                style: AppTypography.bodySmall.copyWith(
-                                  color: AppColors.error,
+                            // Password field
+                            const PasswordField(),
+                            Spacing.vGap8,
+
+                            // Error message
+                            if (authError != null)
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                margin: const EdgeInsets.only(bottom: 16),
+                                decoration: BoxDecoration(
+                                  color: AppColors.error.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppColors.error),
                                 ),
-                                textAlign: TextAlign.center,
+                                child: Text(
+                                  authError,
+                                  style: AppTypography.bodySmall.copyWith(
+                                    color: AppColors.error,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+
+                            // Forgot password link
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) =>
+                                        const EmailInputDialog(),
+                                  );
+                                },
+                                child: Text(
+                                  StringsAfAdmin.forgotPassword,
+                                  style: AppTypography.linkText,
+                                ),
                               ),
                             ),
+                            Spacing.vGap24,
 
-                          // Forgot password link
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) =>
-                                      const EmailInputDialog(),
-                                );
-                              },
-                              child: Text(
-                                StringsAfAdmin.forgotPassword,
-                                style: AppTypography.linkText,
-                              ),
-                            ),
-                          ),
-                          Spacing.vGap24,
-
-                          // Sign in button
-                          SpysPrimaryButton(
-                            text: StringsAfAdmin.signInCta,
-                            isLoading: isLoading,
-                            onPressed: isFormValid
-                                ? () async {
-                                    final email = ref.read(emailProvider);
-                                    final password = ref.read(passwordProvider);
-
-                                    // Clear any previous errors
-                                    ref.read(authErrorProvider.notifier).state =
-                                        null;
-                                    ref
-                                            .read(authLoadingProvider.notifier)
-                                            .state =
-                                        true;
-
-                                    try {
-                                      final authService = ref.read(
-                                        authServiceProvider,
-                                      );
-                                      await authService.signInWithEmail(
-                                        email: email,
-                                        password: password,
+                            // Sign in button
+                            SpysPrimaryButton(
+                              text: StringsAfAdmin.signInCta,
+                              isLoading: isLoading,
+                              onPressed: isFormValid
+                                  ? () async {
+                                      final email = ref.read(emailProvider);
+                                      final password = ref.read(
+                                        passwordProvider,
                                       );
 
-                                      // User data is now managed by Supabase authentication
-                                      // No need for manual SharedPreferences storage
-
-                                      if (context.mounted) {
-                                        // Check admin type directly after login
-                                        await _checkAdminTypeAndRedirect(
-                                          context,
-                                          ref,
-                                        );
-                                      }
-                                    } catch (e) {
-                                      String errorMessage =
-                                          'Teken in het gefaal';
-                                      if (e.toString().contains(
-                                        'Invalid login credentials',
-                                      )) {
-                                        errorMessage =
-                                            'Verkeerde e-pos of wagwoord';
-                                      } else if (e.toString().contains(
-                                        'Email not confirmed',
-                                      )) {
-                                        errorMessage =
-                                            'E-pos nog nie bevestig nie';
-                                      }
-
+                                      // Clear any previous errors
                                       ref
                                               .read(authErrorProvider.notifier)
                                               .state =
-                                          errorMessage;
-                                    } finally {
+                                          null;
                                       ref
                                               .read(
                                                 authLoadingProvider.notifier,
                                               )
                                               .state =
-                                          false;
+                                          true;
+
+                                      try {
+                                        final authService = ref.read(
+                                          authServiceProvider,
+                                        );
+                                        await authService.signInWithEmail(
+                                          email: email,
+                                          password: password,
+                                        );
+
+                                        // User data is now managed by Supabase authentication
+                                        // No need for manual SharedPreferences storage
+
+                                        if (context.mounted) {
+                                          // Check admin type directly after login
+                                          await _checkAdminTypeAndRedirect(
+                                            context,
+                                            ref,
+                                          );
+                                        }
+                                      } catch (e) {
+                                        String errorMessage =
+                                            'Teken in het gefaal';
+                                        if (e.toString().contains(
+                                          'Invalid login credentials',
+                                        )) {
+                                          errorMessage =
+                                              'Verkeerde e-pos of wagwoord';
+                                        } else if (e.toString().contains(
+                                          'Email not confirmed',
+                                        )) {
+                                          errorMessage =
+                                              'E-pos nog nie bevestig nie';
+                                        }
+
+                                        ref
+                                                .read(
+                                                  authErrorProvider.notifier,
+                                                )
+                                                .state =
+                                            errorMessage;
+                                      } finally {
+                                        ref
+                                                .read(
+                                                  authLoadingProvider.notifier,
+                                                )
+                                                .state =
+                                            false;
+                                      }
                                     }
+                                  : null,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Register section
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        children: [
+                          // Quick Login Button (Demo)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            child: SpysPrimaryButton(
+                              text: 'Vinnige Teken In (Phillip)',
+                              isLoading: isLoading,
+                              onPressed: () async {
+                                // Auto-fill demo credentials
+                                ref.read(emailProvider.notifier).state =
+                                    'prvanstaden.phillip@gmail.com';
+                                ref.read(passwordProvider.notifier).state =
+                                    'Qwerty12345';
+
+                                // Clear any previous errors
+                                ref.read(authErrorProvider.notifier).state =
+                                    null;
+                                ref.read(authLoadingProvider.notifier).state =
+                                    true;
+
+                                try {
+                                  final authService = ref.read(
+                                    authServiceProvider,
+                                  );
+
+                                  await authService.signInWithEmail(
+                                    email: 'prvanstaden.phillip@gmail.com',
+                                    password: 'Qwerty12345',
+                                  );
+
+                                  // User data is now managed by Supabase authentication
+                                  // No need for manual SharedPreferences storage
+
+                                  if (context.mounted) {
+                                    // Check admin type directly after login
+                                    await _checkAdminTypeAndRedirect(
+                                      context,
+                                      ref,
+                                    );
                                   }
-                                : null,
+                                } catch (e) {
+                                  String errorMessage =
+                                      'Demo teken in het gefaal';
+                                  if (e.toString().contains(
+                                    'Invalid login credentials',
+                                  )) {
+                                    errorMessage =
+                                        'Demo rekening bestaan nie - registreer eers';
+                                  }
+
+                                  ref.read(authErrorProvider.notifier).state =
+                                      errorMessage;
+                                } finally {
+                                  ref.read(authLoadingProvider.notifier).state =
+                                      false;
+                                }
+                              },
+                            ),
+                          ),
+
+                          // Quick Login Button (Jacques)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 24),
+                            child: SpysPrimaryButton(
+                              text: 'Vinnige Teken In (Bob)',
+                              isLoading: isLoading,
+                              onPressed: () async {
+                                // Auto-fill Jacques credentials
+                                ref.read(emailProvider.notifier).state =
+                                    'swanepoel.jacques.za@gmail.com';
+                                ref.read(passwordProvider.notifier).state =
+                                    'Game4sloop';
+
+                                // Clear any previous errors
+                                ref.read(authErrorProvider.notifier).state =
+                                    null;
+                                ref.read(authLoadingProvider.notifier).state =
+                                    true;
+
+                                try {
+                                  final authService = ref.read(
+                                    authServiceProvider,
+                                  );
+
+                                  await authService.signInWithEmail(
+                                    email: 'swanepoel.jacques.za@gmail.com',
+                                    password: 'Game4sloop',
+                                  );
+
+                                  // User data is now managed by Supabase authentication
+                                  // No need for manual SharedPreferences storage
+
+                                  if (context.mounted) {
+                                    // Check admin type directly after login
+                                    await _checkAdminTypeAndRedirect(
+                                      context,
+                                      ref,
+                                    );
+                                  }
+                                } catch (e) {
+                                  String errorMessage =
+                                      'Jacques teken in het gefaal';
+                                  if (e.toString().contains(
+                                    'Invalid login credentials',
+                                  )) {
+                                    errorMessage =
+                                        'Jacques rekening bestaan nie - registreer eers';
+                                  }
+
+                                  ref.read(authErrorProvider.notifier).state =
+                                      errorMessage;
+                                } finally {
+                                  ref.read(authLoadingProvider.notifier).state =
+                                      false;
+                                }
+                              },
+                            ),
+                          ),
+
+                          // Divider
+                          Row(
+                            children: [
+                              const Expanded(child: Divider()),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                child: Text(
+                                  StringsAfAdmin.orDivider,
+                                  style: AppTypography.caption.copyWith(
+                                    color: AppColors.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                              const Expanded(child: Divider()),
+                            ],
+                          ),
+
+                          Spacing.vGap16,
+
+                          // Register text and button
+                          Text(
+                            StringsAfAdmin.noAccountQ,
+                            style: AppTypography.bodyMedium,
+                            textAlign: TextAlign.center,
+                          ),
+                          Spacing.vGap12,
+
+                          OutlinedButton(
+                            onPressed: () => context.go('/registreer_admin'),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: AppColors.primary),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 16,
+                              ),
+                              minimumSize: const Size(double.infinity, 48),
+                            ),
+                            child: Text(
+                              'Registreer As Admin',
+                              style: AppTypography.labelLarge.copyWith(
+                                color: AppColors.primary,
+                              ),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ),
 
-                  // Register section
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        // Quick Login Button (Demo)
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          child: SpysPrimaryButton(
-                            text: 'Vinnige Teken In (Phillip)',
-                            isLoading: isLoading,
-                            onPressed: () async {
-                              // Auto-fill demo credentials
-                              ref.read(emailProvider.notifier).state =
-                                  'prvanstaden.phillip@gmail.com';
-                              ref.read(passwordProvider.notifier).state =
-                                  'Qwerty12345';
-
-                              // Clear any previous errors
-                              ref.read(authErrorProvider.notifier).state = null;
-                              ref.read(authLoadingProvider.notifier).state =
-                                  true;
-
-                              try {
-                                final authService = ref.read(
-                                  authServiceProvider,
-                                );
-
-                                await authService.signInWithEmail(
-                                  email: 'prvanstaden.phillip@gmail.com',
-                                  password: 'Qwerty12345',
-                                );
-
-                                // User data is now managed by Supabase authentication
-                                // No need for manual SharedPreferences storage
-
-                                if (context.mounted) {
-                                  // Check admin type directly after login
-                                  await _checkAdminTypeAndRedirect(
-                                    context,
-                                    ref,
-                                  );
-                                }
-                              } catch (e) {
-                                String errorMessage =
-                                    'Demo teken in het gefaal';
-                                if (e.toString().contains(
-                                  'Invalid login credentials',
-                                )) {
-                                  errorMessage =
-                                      'Demo rekening bestaan nie - registreer eers';
-                                }
-
-                                ref.read(authErrorProvider.notifier).state =
-                                    errorMessage;
-                              } finally {
-                                ref.read(authLoadingProvider.notifier).state =
-                                    false;
-                              }
-                            },
+                    // Footer
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        children: [
+                          Text(
+                            '© 2025 Spys - Universiteit Voedsel App',
+                            style: AppTypography.caption,
+                            textAlign: TextAlign.center,
                           ),
-                        ),
-
-                        // Quick Login Button (Jacques)
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 24),
-                          child: SpysPrimaryButton(
-                            text: 'Vinnige Teken In (Bob)',
-                            isLoading: isLoading,
-                            onPressed: () async {
-                              // Auto-fill Jacques credentials
-                              ref.read(emailProvider.notifier).state =
-                                  'swanepoel.jacques.za@gmail.com';
-                              ref.read(passwordProvider.notifier).state =
-                                  'Game4sloop';
-
-                              // Clear any previous errors
-                              ref.read(authErrorProvider.notifier).state = null;
-                              ref.read(authLoadingProvider.notifier).state =
-                                  true;
-
-                              try {
-                                final authService = ref.read(
-                                  authServiceProvider,
-                                );
-
-                                await authService.signInWithEmail(
-                                  email: 'swanepoel.jacques.za@gmail.com',
-                                  password: 'Game4sloop',
-                                );
-
-                                // User data is now managed by Supabase authentication
-                                // No need for manual SharedPreferences storage
-
-                                if (context.mounted) {
-                                  // Check admin type directly after login
-                                  await _checkAdminTypeAndRedirect(
-                                    context,
-                                    ref,
-                                  );
-                                }
-                              } catch (e) {
-                                String errorMessage =
-                                    'Jacques teken in het gefaal';
-                                if (e.toString().contains(
-                                  'Invalid login credentials',
-                                )) {
-                                  errorMessage =
-                                      'Jacques rekening bestaan nie - registreer eers';
-                                }
-
-                                ref.read(authErrorProvider.notifier).state =
-                                    errorMessage;
-                              } finally {
-                                ref.read(authLoadingProvider.notifier).state =
-                                    false;
-                              }
-                            },
+                          Spacing.vGap4,
+                          Text(
+                            'Veilig • Maklik • Vinnig',
+                            style: AppTypography.caption,
+                            textAlign: TextAlign.center,
                           ),
-                        ),
-
-                        // Divider
-                        Row(
-                          children: [
-                            const Expanded(child: Divider()),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                              ),
-                              child: Text(
-                                StringsAfAdmin.orDivider,
-                                style: AppTypography.caption.copyWith(
-                                  color: AppColors.onSurfaceVariant,
-                                ),
-                              ),
-                            ),
-                            const Expanded(child: Divider()),
-                          ],
-                        ),
-
-                        Spacing.vGap16,
-
-                        // Register text and button
-                        Text(
-                          StringsAfAdmin.noAccountQ,
-                          style: AppTypography.bodyMedium,
-                          textAlign: TextAlign.center,
-                        ),
-                        Spacing.vGap12,
-
-                        OutlinedButton(
-                          onPressed: () => context.go('/registreer_admin'),
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: AppColors.primary),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 16,
-                            ),
-                            minimumSize: const Size(double.infinity, 48),
-                          ),
-                          child: Text(
-                            'Registreer As Admin',
-                            style: AppTypography.labelLarge.copyWith(
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-
-                  // Footer
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        Text(
-                          '© 2025 Spys - Universiteit Voedsel App',
-                          style: AppTypography.caption,
-                          textAlign: TextAlign.center,
-                        ),
-                        Spacing.vGap4,
-                        Text(
-                          'Veilig • Maklik • Vinnig',
-                          style: AppTypography.caption,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

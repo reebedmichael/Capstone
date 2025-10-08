@@ -7,7 +7,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../locator.dart';
 import '../../../../shared/constants/spacing.dart';
 import '../../../app/presentation/widgets/app_bottom_nav.dart';
-import '../../../../shared/state/cart_badge.dart';
+import '../../../../shared/state/notification_badge.dart';
 import '../../../../shared/state/order_refresh_notifier.dart';
 
 class HomePage extends StatefulWidget {
@@ -21,6 +21,7 @@ String? gebrNaam;
 bool gebrNaamLoading = false;
 
 int mandjieCount = 0;
+int unreadNotificationsCount = 0;
 
 class _HomePageState extends State<HomePage> {
   String selectedDay = 'Alle';
@@ -143,12 +144,14 @@ void initState() {
   _loadGebrNaam();
   _loadDietTypes();
   _fetchMenu();
+  _loadUnreadNotificationsCount();
   _startCartCleanupTimer();
   _setupUserDataListener();
   _setupGlobalRefreshListener();
   Supabase.instance.client.auth.onAuthStateChange.listen((_) {
     _loadGebrNaam();
     _loadMandjieCount();
+    _loadUnreadNotificationsCount();
   });
 }
 
@@ -173,6 +176,7 @@ void _setupUserDataListener() {
     debugPrint('User data changed, refreshing...');
     _loadGebrNaam();
     _loadMandjieCount();
+    _loadUnreadNotificationsCount();
   });
 }
 
@@ -182,6 +186,7 @@ void _setupGlobalRefreshListener() {
     debugPrint('Global refresh triggered, updating user data...');
     _loadGebrNaam();
     _loadMandjieCount();
+    _loadUnreadNotificationsCount();
   });
 }
 
@@ -255,6 +260,27 @@ Future<void> _checkAndCleanExpiredCartItems() async {
       debugPrint('Kon nie mandjie count kry nie: $e');
       if (mounted) {
         setState(() => mandjieCount = 0);
+      }
+    }
+  }
+
+  Future<void> _loadUnreadNotificationsCount() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+
+      final kennisgewingRepo = KennisgewingRepository(
+        SupabaseDb(Supabase.instance.client),
+      );
+      
+      final stats = await kennisgewingRepo.kryKennisgewingStatistieke(user.id);
+      if (mounted) {
+        setState(() => unreadNotificationsCount = stats['ongelees'] ?? 0);
+      }
+    } catch (e) {
+      debugPrint('Kon nie ongelees kennisgewings tel nie: $e');
+      if (mounted) {
+        setState(() => unreadNotificationsCount = 0);
       }
     }
   }
@@ -578,14 +604,6 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                       Row(
                         children: [
                           IconButton(
-                            onPressed: () => context.go('/db-test'),
-                            icon: Icon(
-                              Icons.storage_rounded,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                            tooltip: 'DB Test',
-                          ),
-                          IconButton(
                             onPressed: () => context.go('/notifications'),
                             icon: Stack(
                               clipBehavior: Clip.none,
@@ -597,7 +615,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                 Positioned(
                                   right: -2,
                                   top: -2,
-                                  child: _buildBadge('3'),
+                                  child: _buildNotificationBadge(),
                                 ),
                               ],
                             ),
@@ -796,28 +814,13 @@ SizedBox(
     );
   }
 
-  Widget _buildBadge(String count) {
-    return Container(
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.error,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-      child: Text(
-        count,
-        style: TextStyle(color: Theme.of(context).colorScheme.onError, fontSize: 10),
-      ),
-    );
-  }
 
-  Widget _buildBadgeMandjie() {
-    // Subscribe to global cart badge updates for real-time count
+  Widget _buildNotificationBadge() {
+    // Subscribe to global notification badge updates for real-time count
     return ValueListenableBuilder<int>(
-      valueListenable: CartBadgeState.count,
+      valueListenable: NotificationBadgeState.unreadCount,
       builder: (context, value, _) {
-        final display = value > 0 ? value : mandjieCount;
-        if (display == 0) return const SizedBox.shrink();
+        if (value == 0) return const SizedBox.shrink();
         return Container(
           padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
@@ -826,11 +829,27 @@ SizedBox(
           ),
           constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
           child: Text(
-            '$display',
+            '$value',
             style: TextStyle(color: Theme.of(context).colorScheme.onError, fontSize: 10),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildBadgeMandjie() {
+    if (mandjieCount == 0) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.error,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+      child: Text(
+        '$mandjieCount',
+        style: TextStyle(color: Theme.of(context).colorScheme.onError, fontSize: 10),
+      ),
     );
   }
 
