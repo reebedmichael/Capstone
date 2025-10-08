@@ -7,7 +7,6 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../locator.dart';
 import '../../../../shared/constants/spacing.dart';
 import '../../../app/presentation/widgets/app_bottom_nav.dart';
-import '../../../../shared/state/cart_badge.dart';
 import '../../../../shared/state/notification_badge.dart';
 import '../../../../shared/state/order_refresh_notifier.dart';
 
@@ -617,7 +616,6 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                   right: -2,
                                   top: -2,
                                   child: _buildNotificationBadge(),
-                                  child: _buildNotificationBadge(),
                                 ),
                               ],
                             ),
@@ -816,22 +814,6 @@ SizedBox(
     );
   }
 
-  Widget _buildNotificationBadge() {
-    if (unreadNotificationsCount == 0) return const SizedBox.shrink();
-    return Container(
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.error,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-      child: Text(
-        '$unreadNotificationsCount',
-        style: TextStyle(color: Theme.of(context).colorScheme.onError, fontSize: 10),
-        textAlign: TextAlign.center,
-      ),
-    );
-  }
 
   Widget _buildNotificationBadge() {
     // Subscribe to global notification badge updates for real-time count
@@ -852,6 +834,22 @@ SizedBox(
           ),
         );
       },
+    );
+  }
+
+  Widget _buildBadgeMandjie() {
+    if (mandjieCount == 0) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.error,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+      child: Text(
+        '$mandjieCount',
+        style: TextStyle(color: Theme.of(context).colorScheme.onError, fontSize: 10),
+      ),
     );
   }
 
