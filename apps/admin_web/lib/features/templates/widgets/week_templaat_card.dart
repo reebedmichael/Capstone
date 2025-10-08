@@ -76,6 +76,8 @@ class _WeekTemplateCardState extends State<WeekTemplateCard>
                   onEdit: () {},
                   onDelete: () {},
                   showEditDeleteButtons: false,
+                  showEditButton: false,
+                  showDeleteButton: false,
                 ),
               );
             }).toList(),
