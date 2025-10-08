@@ -16,7 +16,8 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
 
   // Filters
   String _soortFilter = 'alles'; // alles | gebruiker | globaal
-  String _tipeFilter = 'alle_tipes'; // alle_tipes | info | waarskuwing | fout | sukses
+  String _tipeFilter =
+      'alle_tipes'; // alle_tipes | info | waarskuwing | fout | sukses
   String? _selectedGebruikerId;
   DateTimeRange? _dateRange;
 
@@ -29,17 +30,20 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
   Future<void> _laaiData() async {
     setState(() => _isLoading = true);
     try {
-      final kennisgewingRepo = KennisgewingRepository(SupabaseDb(Supabase.instance.client));
-      
+      final kennisgewingRepo = KennisgewingRepository(
+        SupabaseDb(Supabase.instance.client),
+      );
+
       // Laai ALLE kennisgewings (gebruiker + globaal)
-      final kennisgewings = await kennisgewingRepo.kryAlleKennisgewingsVirAdmin();
-      
+      final kennisgewings = await kennisgewingRepo
+          .kryAlleKennisgewingsVirAdmin();
+
       // Laai alle gebruikers vir die filter
       final gebruikersData = await Supabase.instance.client
           .from('gebruikers')
           .select('gebr_id, gebr_naam, gebr_van, gebr_epos')
           .order('gebr_naam');
-      
+
       setState(() {
         _all = kennisgewings;
         _gebruikers = List<Map<String, dynamic>>.from(gebruikersData);
@@ -55,73 +59,96 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
 
   List<Map<String, dynamic>> get _gefilterde {
     return _all.where((final Map<String, dynamic> k) {
-    final soort = k['_kennisgewing_soort'] ?? 'globaal';
-    final bool matchSoort = _soortFilter == 'alles' || soort == _soortFilter;
-    
-    final bool matchTipe = _tipeFilter == 'alle_tipes' || 
-        (k['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info') == _tipeFilter;
-    
+      final soort = k['_kennisgewing_soort'] ?? 'globaal';
+      final bool matchSoort = _soortFilter == 'alles' || soort == _soortFilter;
+
+      final bool matchTipe =
+          _tipeFilter == 'alle_tipes' ||
+          (k['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info') ==
+              _tipeFilter;
+
       // Filter op gebruiker
       bool matchGebruiker = true;
       if (_selectedGebruikerId != null) {
         if (soort == 'gebruiker') {
           matchGebruiker = k['gebr_id'] == _selectedGebruikerId;
         } else {
-          matchGebruiker = false; // Globale kennisgewings het nie 'n spesifieke gebruiker nie
+          matchGebruiker =
+              false; // Globale kennisgewings het nie 'n spesifieke gebruiker nie
         }
       }
-      
+
       // Filter op datum
       bool matchDatum = true;
       if (_dateRange != null) {
         final datum = DateTime.parse(
-          k['kennis_geskep_datum'] ?? k['glob_kennis_geskep_datum']
+          k['kennis_geskep_datum'] ?? k['glob_kennis_geskep_datum'],
         );
-        matchDatum = datum.isAfter(_dateRange!.start.subtract(const Duration(days: 1))) &&
+        matchDatum =
+            datum.isAfter(
+              _dateRange!.start.subtract(const Duration(days: 1)),
+            ) &&
             datum.isBefore(_dateRange!.end.add(const Duration(days: 1)));
       }
-      
+
       return matchSoort && matchTipe && matchGebruiker && matchDatum;
-  }).toList();
+    }).toList();
   }
 
   // Groepeer kennisgewings op titel, beskrywing en datum (om batch kennisgewings saam te groepeer)
   Map<String, List<Map<String, dynamic>>> get _gegroepeerdeKennisgewings {
     final Map<String, List<Map<String, dynamic>>> groepe = {};
-    
+
     for (var k in _gefilterde) {
       final titel = k['kennis_titel'] ?? k['glob_kennis_titel'] ?? '';
-      final beskrywing = k['kennis_beskrywing'] ?? k['glob_kennis_beskrywing'] ?? '';
+      final beskrywing =
+          k['kennis_beskrywing'] ?? k['glob_kennis_beskrywing'] ?? '';
       final datum = DateTime.parse(
-        k['kennis_geskep_datum'] ?? k['glob_kennis_geskep_datum']
+        k['kennis_geskep_datum'] ?? k['glob_kennis_geskep_datum'],
       );
       final tipe = k['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info';
       final soort = k['_kennisgewing_soort'];
-      
+
       // Skep 'n unieke sleutel vir groepe (titel + beskrywing + datum tot op minuut + tipe + soort)
       final datumString = DateFormat('yyyy-MM-dd HH:mm').format(datum);
       final sleutel = '$titel|$beskrywing|$datumString|$tipe|$soort';
-      
+
       if (!groepe.containsKey(sleutel)) {
         groepe[sleutel] = [];
       }
       groepe[sleutel]!.add(k);
     }
-    
+
     return groepe;
   }
 
-  int get _gebruikerKennisgewings => _all.where((k) => k['_kennisgewing_soort'] == 'gebruiker').length;
-  int get _globaleKennisgewings => _all.where((k) => k['_kennisgewing_soort'] == 'globaal').length;
-  int get _waarskuwings => _all.where((k) => (k['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info') == 'waarskuwing').length;
-  int get _kritiek => _all.where((k) => (k['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info') == 'kritiek').length;
+  int get _gebruikerKennisgewings =>
+      _all.where((k) => k['_kennisgewing_soort'] == 'gebruiker').length;
+  int get _globaleKennisgewings =>
+      _all.where((k) => k['_kennisgewing_soort'] == 'globaal').length;
+  int get _waarskuwings => _all
+      .where(
+        (k) =>
+            (k['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info') ==
+            'waarskuwing',
+      )
+      .length;
+  int get _kritiek => _all
+      .where(
+        (k) =>
+            (k['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info') ==
+            'kritiek',
+      )
+      .length;
 
   Future<void> _verwyder(Map<String, dynamic> k) async {
     final bevestig = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Bevestig Verwydering'),
-        content: const Text('Is jy seker jy wil hierdie kennisgewing verwyder?'),
+        content: const Text(
+          'Is jy seker jy wil hierdie kennisgewing verwyder?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -135,36 +162,40 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
         ],
       ),
     );
-    
+
     if (bevestig != true) return;
 
-              try {
-                final kennisgewingRepo = KennisgewingRepository(SupabaseDb(Supabase.instance.client));
+    try {
+      final kennisgewingRepo = KennisgewingRepository(
+        SupabaseDb(Supabase.instance.client),
+      );
       final soort = k['_kennisgewing_soort'];
-                
-                bool sukses = false;
+
+      bool sukses = false;
       if (soort == 'globaal') {
-        sukses = await kennisgewingRepo.verwyderGlobaleKennisgewing(k['glob_kennis_id']);
+        sukses = await kennisgewingRepo.verwyderGlobaleKennisgewing(
+          k['glob_kennis_id'],
+        );
       } else {
         sukses = await kennisgewingRepo.verwyderKennisgewing(k['kennis_id']);
-                }
+      }
 
-                if (sukses) {
+      if (sukses) {
         await _laaiData();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Kennisgewing suksesvol verwyder!')),
-                    );
-                  }
-                }
-              } catch (e) {
+          );
+        }
+      }
+    } catch (e) {
       print('Fout met verwyder: $e');
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Fout: $e')),
-                  );
-                }
-              }
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fout: $e')));
+      }
+    }
   }
 
   Future<void> _openSkepDialog() async {
@@ -172,7 +203,7 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
       context: context,
       builder: (context) => _SkepRedigeerDialog(gebruikers: _gebruikers),
     );
-    
+
     if (result == true) {
       await _laaiData();
     }
@@ -181,9 +212,10 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
   Future<void> _openRedigeerDialog(Map<String, dynamic> k) async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => _SkepRedigeerDialog(kennisgewing: k, gebruikers: _gebruikers),
+      builder: (context) =>
+          _SkepRedigeerDialog(kennisgewing: k, gebruikers: _gebruikers),
     );
-    
+
     if (result == true) {
       await _laaiData();
     }
@@ -206,7 +238,7 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
         );
       },
     );
-    
+
     if (picked != null) {
       setState(() {
         _dateRange = picked;
@@ -223,9 +255,7 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final groepe = _gegroepeerdeKennisgewings;
@@ -320,9 +350,8 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                       Expanded(
                         child: Text(
                           'Filters',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ),
                       FilledButton.icon(
@@ -340,7 +369,10 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                     children: <Widget>[
                       // Soort Filter
                       ConstrainedBox(
-                        constraints: const BoxConstraints(minWidth: 180, maxWidth: 220),
+                        constraints: const BoxConstraints(
+                          minWidth: 180,
+                          maxWidth: 220,
+                        ),
                         child: DropdownButtonFormField<String>(
                           value: _soortFilter,
                           isExpanded: true,
@@ -348,31 +380,46 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                             labelText: 'Soort',
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.category),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                             isDense: true,
                           ),
                           items: const <DropdownMenuItem<String>>[
                             DropdownMenuItem(
                               value: 'alles',
-                              child: Text('Alle', overflow: TextOverflow.ellipsis),
+                              child: Text(
+                                'Alle',
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             DropdownMenuItem(
                               value: 'gebruiker',
-                              child: Text('Gebruiker', overflow: TextOverflow.ellipsis),
+                              child: Text(
+                                'Gebruiker',
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             DropdownMenuItem(
                               value: 'globaal',
-                              child: Text('Globaal', overflow: TextOverflow.ellipsis),
+                              child: Text(
+                                'Globaal',
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                           onChanged: (String? v) =>
                               setState(() => _soortFilter = v ?? 'alles'),
                         ),
                       ),
-                      
+
                       // Tipe Filter
                       ConstrainedBox(
-                        constraints: const BoxConstraints(minWidth: 180, maxWidth: 220),
+                        constraints: const BoxConstraints(
+                          minWidth: 180,
+                          maxWidth: 220,
+                        ),
                         child: DropdownButtonFormField<String>(
                           value: _tipeFilter,
                           isExpanded: true,
@@ -380,36 +427,60 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                             labelText: 'Tipe',
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.label),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                             isDense: true,
                           ),
                           items: const <DropdownMenuItem<String>>[
                             DropdownMenuItem(
                               value: 'alle_tipes',
-                              child: Text('Alle tipes', overflow: TextOverflow.ellipsis),
+                              child: Text(
+                                'Alle tipes',
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             DropdownMenuItem(
                               value: 'info',
-                              child: Text('Inligting', overflow: TextOverflow.ellipsis),
+                              child: Text(
+                                'Inligting',
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             DropdownMenuItem(
                               value: 'waarskuwing',
-                              child: Text('Waarskuwing', overflow: TextOverflow.ellipsis),
+                              child: Text(
+                                'Waarskuwing',
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            DropdownMenuItem(value: 'fout', child: Text('Fout', overflow: TextOverflow.ellipsis)),
+                            DropdownMenuItem(
+                              value: 'fout',
+                              child: Text(
+                                'Fout',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
                             DropdownMenuItem(
                               value: 'sukses',
-                              child: Text('Sukses', overflow: TextOverflow.ellipsis),
+                              child: Text(
+                                'Sukses',
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                           onChanged: (String? v) =>
                               setState(() => _tipeFilter = v ?? 'alle_tipes'),
                         ),
                       ),
-                      
+
                       // Gebruiker Filter
                       ConstrainedBox(
-                        constraints: const BoxConstraints(minWidth: 200, maxWidth: 280),
+                        constraints: const BoxConstraints(
+                          minWidth: 200,
+                          maxWidth: 280,
+                        ),
                         child: DropdownButtonFormField<String?>(
                           value: _selectedGebruikerId,
                           isExpanded: true,
@@ -417,27 +488,35 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                             labelText: 'Gebruiker',
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.person),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                             isDense: true,
                           ),
                           items: [
                             const DropdownMenuItem<String?>(
                               value: null,
-                              child: Text('Alle Gebruikers', overflow: TextOverflow.ellipsis),
-                            ),
-                            ..._gebruikers.map((g) => DropdownMenuItem<String?>(
-                              value: g['gebr_id'],
                               child: Text(
-                                '${g['gebr_naam']} ${g['gebr_van']}',
+                                'Alle Gebruikers',
                                 overflow: TextOverflow.ellipsis,
                               ),
-                            )),
+                            ),
+                            ..._gebruikers.map(
+                              (g) => DropdownMenuItem<String?>(
+                                value: g['gebr_id'],
+                                child: Text(
+                                  '${g['gebr_naam']} ${g['gebr_van']}',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
                           ],
                           onChanged: (String? v) =>
                               setState(() => _selectedGebruikerId = v),
                         ),
                       ),
-                      
+
                       // Datum Reeks Filter
                       OutlinedButton.icon(
                         onPressed: _selectDateRange,
@@ -448,7 +527,7 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                               : '${DateFormat('dd MMM yyyy').format(_dateRange!.start)} - ${DateFormat('dd MMM yyyy').format(_dateRange!.end)}',
                         ),
                       ),
-                      
+
                       if (_dateRange != null)
                         IconButton(
                           onPressed: _clearDateRange,
@@ -474,8 +553,8 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                 children: <Widget>[
                   Row(
                     children: [
-                  Text(
-                    'Kennisgewings',
+                      Text(
+                        'Kennisgewings',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -487,7 +566,9 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primary.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
@@ -504,12 +585,12 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                   const SizedBox(height: 8),
                   Text(
                     '${_gefilterde.length} van ${_all.length} kennisgewings',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 20),
-                  
+
                   if (groepe.isEmpty)
                     Center(
                       child: Padding(
@@ -539,7 +620,7 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                       children: groepe.entries.map((entry) {
                         final kennisgewings = entry.value;
                         final eerstKennisgewing = kennisgewings.first;
-                        
+
                         return AnnouncementGroupCard(
                           kennisgewings: kennisgewings,
                           eerstKennisgewing: eerstKennisgewing,
@@ -565,7 +646,7 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
         content: Text(
           kennisgewings.length > 1
               ? 'Is jy seker jy wil hierdie ${kennisgewings.length} kennisgewings verwyder?'
-              : 'Is jy seker jy wil hierdie kennisgewing verwyder?'
+              : 'Is jy seker jy wil hierdie kennisgewing verwyder?',
         ),
         actions: [
           TextButton(
@@ -580,16 +661,20 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
         ],
       ),
     );
-    
+
     if (bevestig != true) return;
 
     try {
-      final kennisgewingRepo = KennisgewingRepository(SupabaseDb(Supabase.instance.client));
-      
+      final kennisgewingRepo = KennisgewingRepository(
+        SupabaseDb(Supabase.instance.client),
+      );
+
       for (var k in kennisgewings) {
         final soort = k['_kennisgewing_soort'];
         if (soort == 'globaal') {
-          await kennisgewingRepo.verwyderGlobaleKennisgewing(k['glob_kennis_id']);
+          await kennisgewingRepo.verwyderGlobaleKennisgewing(
+            k['glob_kennis_id'],
+          );
         } else {
           await kennisgewingRepo.verwyderKennisgewing(k['kennis_id']);
         }
@@ -602,7 +687,7 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
             content: Text(
               kennisgewings.length > 1
                   ? '${kennisgewings.length} kennisgewings suksesvol verwyder!'
-                  : 'Kennisgewing suksesvol verwyder!'
+                  : 'Kennisgewing suksesvol verwyder!',
             ),
           ),
         );
@@ -610,9 +695,9 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
     } catch (e) {
       print('Fout met verwyder: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fout: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Fout: $e')));
       }
     }
   }
@@ -640,10 +725,10 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
                   Text(
-                    title, 
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                    title,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -711,95 +796,101 @@ class AnnouncementGroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final soort = eerstKennisgewing['_kennisgewing_soort'] ?? 'globaal';
-    final tipe = eerstKennisgewing['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info';
-                        final datum = DateTime.parse(
-      eerstKennisgewing['kennis_geskep_datum'] ?? eerstKennisgewing['glob_kennis_geskep_datum']
-                        );
-    final titel = eerstKennisgewing['kennis_titel'] ?? 
-        eerstKennisgewing['glob_kennis_titel'] ?? '';
-    final beskrywing = eerstKennisgewing['kennis_beskrywing'] ?? 
-        eerstKennisgewing['glob_kennis_beskrywing'] ?? 'Kennisgewing';
-                        
-                        // Kry ontvanger inligting
-                        String ontvanger = 'Alle gebruikers';
-                        if (soort == 'gebruiker') {
+    final tipe =
+        eerstKennisgewing['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info';
+    final datum = DateTime.parse(
+      eerstKennisgewing['kennis_geskep_datum'] ??
+          eerstKennisgewing['glob_kennis_geskep_datum'],
+    );
+    final titel =
+        eerstKennisgewing['kennis_titel'] ??
+        eerstKennisgewing['glob_kennis_titel'] ??
+        '';
+    final beskrywing =
+        eerstKennisgewing['kennis_beskrywing'] ??
+        eerstKennisgewing['glob_kennis_beskrywing'] ??
+        'Kennisgewing';
+
+    // Kry ontvanger inligting
+    String ontvanger = 'Alle gebruikers';
+    if (soort == 'gebruiker') {
       if (kennisgewings.length > 1) {
         ontvanger = '${kennisgewings.length} gebruikers';
       } else {
         final gebruiker = eerstKennisgewing['gebruikers'];
-                          if (gebruiker != null) {
+        if (gebruiker != null) {
           ontvanger = '${gebruiker['gebr_naam']} ${gebruiker['gebr_van']}';
         }
-                          }
-                        }
-                        
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
+      }
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
         color: _typeColor(tipe).withOpacity(0.03),
-                            border: Border.all(
+        border: Border.all(
           color: _typeColor(tipe).withOpacity(0.2),
           width: 1.5,
-                            ),
+        ),
         borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
+        boxShadow: [
+          BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Material(
         color: Colors.transparent,
-                          child: InkWell(
+        child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: kennisgewings.length > 1
               ? () => _toonGroepDetails(context)
               : () => _toonKennisgewingDetail(context, eerstKennisgewing),
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
-                          child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: <Widget>[
-                                      Container(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Container(
                       width: 56,
                       height: 56,
-                                        decoration: BoxDecoration(
+                      decoration: BoxDecoration(
                         color: _typeColor(tipe).withOpacity(0.15),
                         borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(
-                                            color: _typeColor(tipe).withOpacity(0.3),
-                                            width: 2,
-                                          ),
-                                        ),
-                                        child: Icon(
-                                          _typeIcon(tipe),
-                                          color: _typeColor(tipe),
+                        border: Border.all(
+                          color: _typeColor(tipe).withOpacity(0.3),
+                          width: 2,
+                        ),
+                      ),
+                      child: Icon(
+                        _typeIcon(tipe),
+                        color: _typeColor(tipe),
                         size: 28,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                  Expanded(
-                      child:                       Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: <Widget>[
-                                        Row(
-                                          children: <Widget>[
-                                                Expanded(
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Row(
+                            children: <Widget>[
+                              Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     if (titel.isNotEmpty) ...[
                                       Text(
                                         titel,
-                                                    style: const TextStyle(
+                                        style: const TextStyle(
                                           fontSize: 19,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: Colors.black87,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87,
                                         ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -810,102 +901,106 @@ class AnnouncementGroupCard extends StatelessWidget {
                                       beskrywing,
                                       style: TextStyle(
                                         fontSize: titel.isNotEmpty ? 14 : 17,
-                                        fontWeight: titel.isNotEmpty ? FontWeight.normal : FontWeight.bold,
-                                        color: titel.isNotEmpty ? Colors.grey[700] : Colors.black87,
-                                                    ),
-                                                    maxLines: 2,
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
+                                        fontWeight: titel.isNotEmpty
+                                            ? FontWeight.normal
+                                            : FontWeight.bold,
+                                        color: titel.isNotEmpty
+                                            ? Colors.grey[700]
+                                            : Colors.black87,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ],
-                                                ),
+                                ),
                               ),
                               const SizedBox(width: 8),
-                                                  Container(
-                                                  padding: const EdgeInsets.symmetric(
+                              Container(
+                                padding: const EdgeInsets.symmetric(
                                   horizontal: 10,
                                   vertical: 5,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                    color: soort == 'globaal' 
-                                    ? Colors.green.withOpacity(0.15)
-                                    : Colors.blue.withOpacity(0.15),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: soort == 'globaal'
+                                      ? Colors.green.withOpacity(0.15)
+                                      : Colors.blue.withOpacity(0.15),
                                   borderRadius: BorderRadius.circular(8),
-                                                    border: Border.all(
-                                                      color: soort == 'globaal'
-                                                        ? Colors.green
-                                                        : Colors.blue,
-                                                    ),
-                                                  ),
-                                                  child: Text(
-                                                    soort == 'globaal' ? 'GLOBAAL' : 'GEBRUIKER',
-                                                    style: TextStyle(
+                                  border: Border.all(
+                                    color: soort == 'globaal'
+                                        ? Colors.green
+                                        : Colors.blue,
+                                  ),
+                                ),
+                                child: Text(
+                                  soort == 'globaal' ? 'GLOBAAL' : 'GEBRUIKER',
+                                  style: TextStyle(
                                     fontSize: 11,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: soort == 'globaal'
-                                                        ? Colors.green
-                                                        : Colors.blue,
-                                                    ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                    fontWeight: FontWeight.bold,
+                                    color: soort == 'globaal'
+                                        ? Colors.green
+                                        : Colors.blue,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: 12),
-                                            Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.person_outline,
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.person_outline,
                                 size: 16,
-                                                  color: Colors.grey[600],
-                                                ),
+                                color: Colors.grey[600],
+                              ),
                               const SizedBox(width: 6),
-                                                Expanded(
-                                                  child: Text(
-                                                    ontvanger,
-                                                    style: TextStyle(
+                              Expanded(
+                                child: Text(
+                                  ontvanger,
+                                  style: TextStyle(
                                     fontSize: 13,
                                     color: Colors.grey[700],
                                     fontWeight: FontWeight.w500,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                           const SizedBox(height: 6),
-                                            Row(
-                                              children: [
-                                                Icon(
-                                              Icons.access_time,
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.access_time,
                                 size: 16,
-                                                  color: Colors.grey[600],
-                                            ),
+                                color: Colors.grey[600],
+                              ),
                               const SizedBox(width: 6),
-                                            Text(
-                                                  _formatDate(datum),
-                                                  style: TextStyle(
+                              Text(
+                                _formatDate(datum),
+                                style: TextStyle(
                                   fontSize: 13,
                                   color: Colors.grey[700],
                                   fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 12),
-                                            Container(
-                                                  padding: const EdgeInsets.symmetric(
-                                                    horizontal: 8,
-                                                    vertical: 4,
-                                                  ),
-                                              decoration: BoxDecoration(
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
                                   color: _typeColor(tipe).withOpacity(0.15),
                                   borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              child: Text(
-                                                    tipe.toUpperCase(),
-                                                    style: TextStyle(
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: _typeColor(tipe),
-                                                    ),
+                                ),
+                                child: Text(
+                                  tipe.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: _typeColor(tipe),
+                                  ),
                                 ),
                               ),
                               if (kennisgewings.length > 1) ...[
@@ -933,25 +1028,25 @@ class AnnouncementGroupCard extends StatelessWidget {
                                           fontSize: 10,
                                           fontWeight: FontWeight.bold,
                                           color: Colors.purple,
-                                              ),
-                                            ),
-                                          ],
-                                  ),
                                         ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ],
                             ],
                           ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                                  const SizedBox(height: 16),
-                              Row(
-                                    mainAxisAlignment: MainAxisAlignment.end,
-                                children: <Widget>[
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: <Widget>[
                     if (kennisgewings.length > 1)
-                                        OutlinedButton.icon(
+                      OutlinedButton.icon(
                         onPressed: () => _toonGroepDetails(context),
                         icon: const Icon(Icons.visibility_outlined, size: 16),
                         label: const Text('Bekyk Groep'),
@@ -963,40 +1058,38 @@ class AnnouncementGroupCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     OutlinedButton.icon(
                       onPressed: onEdit,
-                                        icon: const Icon(Icons.edit_outlined, size: 16),
-                                        label: const Text('Redigeer'),
-                                          style: OutlinedButton.styleFrom(
-                                          foregroundColor: Colors.blue,
-                                          side: const BorderSide(color: Colors.blue),
-                                          ),
-                                        ),
-                                      const SizedBox(width: 8),
-                                      OutlinedButton.icon(
+                      icon: const Icon(Icons.edit_outlined, size: 16),
+                      label: const Text('Redigeer'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.blue,
+                        side: const BorderSide(color: Colors.blue),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
                       onPressed: onDelete,
-                                        icon: const Icon(Icons.delete_outline, size: 16),
-                                        label: const Text('Verwyder'),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: Colors.red,
-                                          side: const BorderSide(color: Colors.red),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                      icon: const Icon(Icons.delete_outline, size: 16),
+                      label: const Text('Verwyder'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-                          ),
-                            ),
-                          ),
-                        );
+          ),
+        ),
+      ),
+    );
   }
 
   void _toonGroepDetails(BuildContext context) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 700, maxHeight: 600),
           child: Column(
@@ -1005,11 +1098,7 @@ class AnnouncementGroupCard extends StatelessWidget {
                 padding: const EdgeInsets.all(24),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.group,
-                      color: Colors.purple,
-                      size: 28,
-                    ),
+                    Icon(Icons.group, color: Colors.purple, size: 28),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -1029,63 +1118,65 @@ class AnnouncementGroupCard extends StatelessWidget {
                               fontSize: 14,
                               color: Colors.grey[600],
                             ),
+                          ),
+                        ],
+                      ),
                     ),
-                ],
-              ),
-            ),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.close),
-          ),
-        ],
-      ),
+                    ),
+                  ],
+                ),
               ),
               const Divider(height: 1),
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.all(24),
                   itemCount: kennisgewings.length,
-                  separatorBuilder: (context, index) => const Divider(height: 24),
+                  separatorBuilder: (context, index) =>
+                      const Divider(height: 24),
                   itemBuilder: (context, index) {
                     final k = kennisgewings[index];
                     final soort = k['_kennisgewing_soort'] ?? 'globaal';
-                    
+
                     String ontvanger = 'Alle gebruikers';
                     if (soort == 'gebruiker') {
                       final gebruiker = k['gebruikers'];
                       if (gebruiker != null) {
-                        ontvanger = '${gebruiker['gebr_naam']} ${gebruiker['gebr_van']} (${gebruiker['gebr_epos']})';
+                        ontvanger =
+                            '${gebruiker['gebr_naam']} ${gebruiker['gebr_van']} (${gebruiker['gebr_epos']})';
                       }
                     }
-                    
+
                     return InkWell(
                       borderRadius: BorderRadius.circular(12),
                       onTap: () {
                         Navigator.pop(context);
                         _toonKennisgewingDetail(context, k);
                       },
-      child: Padding(
+                      child: Padding(
                         padding: const EdgeInsets.all(12),
-        child: Row(
+                        child: Row(
                           children: [
-            Container(
+                            Container(
                               width: 12,
                               height: 12,
-              decoration: BoxDecoration(
-                                color: soort == 'globaal' 
-                                  ? Colors.green 
-                                  : Colors.blue,
+                              decoration: BoxDecoration(
+                                color: soort == 'globaal'
+                                    ? Colors.green
+                                    : Colors.blue,
                                 shape: BoxShape.circle,
                               ),
-            ),
-            const SizedBox(width: 12),
+                            ),
+                            const SizedBox(width: 12),
                             Icon(
                               Icons.person_outline,
                               size: 20,
                               color: Colors.grey[600],
                             ),
                             const SizedBox(width: 8),
-            Expanded(
+                            Expanded(
                               child: Text(
                                 ontvanger,
                                 style: const TextStyle(
@@ -1104,9 +1195,9 @@ class AnnouncementGroupCard extends StatelessWidget {
                       ),
                     );
                   },
+                ),
               ),
-            ),
-          ],
+            ],
           ),
         ),
       ),
@@ -1117,25 +1208,25 @@ class AnnouncementGroupCard extends StatelessWidget {
     final soort = k['_kennisgewing_soort'] ?? 'globaal';
     final tipe = k['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info';
     final datum = DateTime.parse(
-      k['kennis_geskep_datum'] ?? k['glob_kennis_geskep_datum']
+      k['kennis_geskep_datum'] ?? k['glob_kennis_geskep_datum'],
     );
     final titel = k['kennis_titel'] ?? k['glob_kennis_titel'] ?? '';
-    final beskrywing = k['kennis_beskrywing'] ?? k['glob_kennis_beskrywing'] ?? 'Kennisgewing';
-    
+    final beskrywing =
+        k['kennis_beskrywing'] ?? k['glob_kennis_beskrywing'] ?? 'Kennisgewing';
+
     String ontvanger = 'Alle gebruikers';
     if (soort == 'gebruiker') {
       final gebruiker = k['gebruikers'];
       if (gebruiker != null) {
-        ontvanger = '${gebruiker['gebr_naam']} ${gebruiker['gebr_van']} (${gebruiker['gebr_epos']})';
+        ontvanger =
+            '${gebruiker['gebr_naam']} ${gebruiker['gebr_van']} (${gebruiker['gebr_epos']})';
       }
     }
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
             Container(
@@ -1149,11 +1240,7 @@ class AnnouncementGroupCard extends StatelessWidget {
                   width: 2,
                 ),
               ),
-              child: Icon(
-                _typeIcon(tipe),
-                color: _typeColor(tipe),
-                size: 24,
-              ),
+              child: Icon(_typeIcon(tipe), color: _typeColor(tipe), size: 24),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -1170,10 +1257,7 @@ class AnnouncementGroupCard extends StatelessWidget {
                   ),
                   Text(
                     _formatDate(datum),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
                 ],
               ),
@@ -1215,20 +1299,20 @@ class AnnouncementGroupCard extends StatelessWidget {
                           ),
                         ),
                         const Spacer(),
-                          Container(
+                        Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
                             vertical: 4,
                           ),
-                            decoration: BoxDecoration(
-                            color: soort == 'globaal' 
-                              ? Colors.green.withOpacity(0.1)
-                              : Colors.blue.withOpacity(0.1),
+                          decoration: BoxDecoration(
+                            color: soort == 'globaal'
+                                ? Colors.green.withOpacity(0.1)
+                                : Colors.blue.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: soort == 'globaal'
-                                ? Colors.green
-                                : Colors.blue,
+                                  ? Colors.green
+                                  : Colors.blue,
                             ),
                           ),
                           child: Text(
@@ -1237,18 +1321,18 @@ class AnnouncementGroupCard extends StatelessWidget {
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                               color: soort == 'globaal'
-                                ? Colors.green
-                                : Colors.blue,
-                            ),
+                                  ? Colors.green
+                                  : Colors.blue,
                             ),
                           ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
                     if (titel.isNotEmpty) ...[
-                    Text(
+                      Text(
                         titel,
-                      style: const TextStyle(
+                        style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                           height: 1.3,
@@ -1260,7 +1344,9 @@ class AnnouncementGroupCard extends StatelessWidget {
                       beskrywing,
                       style: TextStyle(
                         fontSize: titel.isNotEmpty ? 16 : 18,
-                        fontWeight: titel.isNotEmpty ? FontWeight.normal : FontWeight.w600,
+                        fontWeight: titel.isNotEmpty
+                            ? FontWeight.normal
+                            : FontWeight.w600,
                         height: 1.5,
                       ),
                     ),
@@ -1270,19 +1356,12 @@ class AnnouncementGroupCard extends StatelessWidget {
               const SizedBox(height: 20),
               Row(
                 children: [
-                  Icon(
-                    Icons.person_outline,
-                    size: 20,
-                    color: Colors.grey[600],
-                  ),
+                  Icon(Icons.person_outline, size: 20, color: Colors.grey[600]),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       'Ontvanger: $ontvanger',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                     ),
                   ),
                 ],
@@ -1290,18 +1369,11 @@ class AnnouncementGroupCard extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(
-                    Icons.access_time,
-                    size: 20,
-                    color: Colors.grey[600],
-                  ),
+                  Icon(Icons.access_time, size: 20, color: Colors.grey[600]),
                   const SizedBox(width: 12),
                   Text(
                     'Gestuur op: ${_formatDate(datum)}',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   ),
                 ],
               ),
@@ -1323,7 +1395,7 @@ class AnnouncementGroupCard extends StatelessWidget {
 class _SkepRedigeerDialog extends StatefulWidget {
   final Map<String, dynamic>? kennisgewing;
   final List<Map<String, dynamic>> gebruikers;
-  
+
   const _SkepRedigeerDialog({this.kennisgewing, required this.gebruikers});
 
   @override
@@ -1337,21 +1409,24 @@ class _SkepRedigeerDialogState extends State<_SkepRedigeerDialog> {
   String _nuweDoelgroep = 'alle';
   List<String> _selectedGebruikerIds = [];
   bool _isRedigeer = false;
-  
+
   @override
   void initState() {
     super.initState();
-    
+
     if (widget.kennisgewing != null) {
       _isRedigeer = true;
       final k = widget.kennisgewing!;
       _titelCtrl.text = k['kennis_titel'] ?? k['glob_kennis_titel'] ?? '';
-      _kortCtrl.text = k['kennis_beskrywing'] ?? k['glob_kennis_beskrywing'] ?? '';
+      _kortCtrl.text =
+          k['kennis_beskrywing'] ?? k['glob_kennis_beskrywing'] ?? '';
       _nuweTipe = k['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info';
-      _nuweDoelgroep = k['_kennisgewing_soort'] == 'globaal' ? 'alle' : 'spesifiek';
+      _nuweDoelgroep = k['_kennisgewing_soort'] == 'globaal'
+          ? 'alle'
+          : 'spesifiek';
     }
   }
-  
+
   @override
   void dispose() {
     _titelCtrl.dispose();
@@ -1362,9 +1437,7 @@ class _SkepRedigeerDialogState extends State<_SkepRedigeerDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Row(
         children: [
           Icon(
@@ -1373,7 +1446,9 @@ class _SkepRedigeerDialogState extends State<_SkepRedigeerDialog> {
             size: 28,
           ),
           const SizedBox(width: 12),
-          Text(_isRedigeer ? 'Redigeer Kennisgewing' : 'Skep Nuwe Kennisgewing'),
+          Text(
+            _isRedigeer ? 'Redigeer Kennisgewing' : 'Skep Nuwe Kennisgewing',
+          ),
         ],
       ),
       content: ConstrainedBox(
@@ -1429,7 +1504,11 @@ class _SkepRedigeerDialogState extends State<_SkepRedigeerDialog> {
                     value: 'waarskuwing',
                     child: Row(
                       children: [
-                        Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
+                        Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.orange,
+                          size: 20,
+                        ),
                         SizedBox(width: 8),
                         Text('Waarskuwing'),
                       ],
@@ -1439,7 +1518,11 @@ class _SkepRedigeerDialogState extends State<_SkepRedigeerDialog> {
                     value: 'sukses',
                     child: Row(
                       children: [
-                        Icon(Icons.check_circle_outline, color: Colors.green, size: 20),
+                        Icon(
+                          Icons.check_circle_outline,
+                          color: Colors.green,
+                          size: 20,
+                        ),
                         SizedBox(width: 8),
                         Text('Sukses'),
                       ],
@@ -1483,7 +1566,11 @@ class _SkepRedigeerDialogState extends State<_SkepRedigeerDialog> {
                       value: 'admins',
                       child: Row(
                         children: [
-                          Icon(Icons.admin_panel_settings, color: Colors.purple, size: 20),
+                          Icon(
+                            Icons.admin_panel_settings,
+                            color: Colors.purple,
+                            size: 20,
+                          ),
                           SizedBox(width: 8),
                           Text('Slegs Admins'),
                         ],
@@ -1520,9 +1607,10 @@ class _SkepRedigeerDialogState extends State<_SkepRedigeerDialog> {
                       ),
                     ),
                   ],
-                  onChanged: (v) => setState(() => _nuweDoelgroep = v ?? 'alle'),
+                  onChanged: (v) =>
+                      setState(() => _nuweDoelgroep = v ?? 'alle'),
                 ),
-                
+
                 if (_nuweDoelgroep == 'spesifiek') ...[
                   const SizedBox(height: 16),
                   Container(
@@ -1537,7 +1625,11 @@ class _SkepRedigeerDialogState extends State<_SkepRedigeerDialog> {
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.people, size: 20, color: Colors.blue),
+                            const Icon(
+                              Icons.people,
+                              size: 20,
+                              color: Colors.blue,
+                            ),
                             const SizedBox(width: 8),
                             Text(
                               'Kies Gebruikers (${_selectedGebruikerIds.length} gekies)',
@@ -1556,19 +1648,27 @@ class _SkepRedigeerDialogState extends State<_SkepRedigeerDialog> {
                             itemCount: widget.gebruikers.length,
                             itemBuilder: (context, index) {
                               final gebruiker = widget.gebruikers[index];
-                              final isSelected = _selectedGebruikerIds.contains(gebruiker['gebr_id']);
-                              
+                              final isSelected = _selectedGebruikerIds.contains(
+                                gebruiker['gebr_id'],
+                              );
+
                               return CheckboxListTile(
                                 dense: true,
                                 value: isSelected,
-                                title: Text('${gebruiker['gebr_naam']} ${gebruiker['gebr_van']}'),
+                                title: Text(
+                                  '${gebruiker['gebr_naam']} ${gebruiker['gebr_van']}',
+                                ),
                                 subtitle: Text(gebruiker['gebr_epos'] ?? ''),
                                 onChanged: (bool? value) {
                                   setState(() {
                                     if (value == true) {
-                                      _selectedGebruikerIds.add(gebruiker['gebr_id']);
+                                      _selectedGebruikerIds.add(
+                                        gebruiker['gebr_id'],
+                                      );
                                     } else {
-                                      _selectedGebruikerIds.remove(gebruiker['gebr_id']);
+                                      _selectedGebruikerIds.remove(
+                                        gebruiker['gebr_id'],
+                                      );
                                     }
                                   });
                                 },
@@ -1600,138 +1700,164 @@ class _SkepRedigeerDialogState extends State<_SkepRedigeerDialog> {
   }
 
   Future<void> _stuurKennisgewing() async {
-            if (_kortCtrl.text.trim().isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Vul asseblief die boodskap in')),
-              );
-              return;
-            }
-    
-    if (!_isRedigeer && _nuweDoelgroep == 'spesifiek' && _selectedGebruikerIds.isEmpty) {
+    if (_kortCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kies asseblief ten minste een gebruiker')),
+        const SnackBar(content: Text('Vul asseblief die boodskap in')),
       );
       return;
     }
 
-            try {
-              final kennisgewingRepo = KennisgewingRepository(
-                SupabaseDb(Supabase.instance.client)
-              );
-              
-              bool sukses = false;
-              
-              if (_isRedigeer) {
-                // Redigeer bestaande kennisgewing
-                final k = widget.kennisgewing!;
-                final soort = k['_kennisgewing_soort'];
-                
-                if (soort == 'globaal') {
-                  sukses = await kennisgewingRepo.opdateerGlobaleKennisgewing(
-                    globKennisId: k['glob_kennis_id'],
-            titel: _titelCtrl.text.trim().isNotEmpty ? _titelCtrl.text.trim() : '',
-                    beskrywing: _kortCtrl.text.trim(),
-                    tipeNaam: _nuweTipe,
-                  );
-                } else {
-                  sukses = await kennisgewingRepo.opdateerKennisgewing(
-                    kennisId: k['kennis_id'],
-            titel: _titelCtrl.text.trim().isNotEmpty ? _titelCtrl.text.trim() : '',
-                    beskrywing: _kortCtrl.text.trim(),
-                    tipeNaam: _nuweTipe,
-                  );
-                }
-              } else {
-                // Skep nuwe kennisgewing
-                switch (_nuweDoelgroep) {
-                  case 'alle':
-                    sukses = await kennisgewingRepo.stuurAanAlleGebruikers(
-              titel: _titelCtrl.text.trim().isNotEmpty ? _titelCtrl.text.trim() : null,
-                      beskrywing: _kortCtrl.text.trim(),
-                      tipeNaam: _nuweTipe,
-                    );
-                    break;
-                  case 'admins':
-                    final admins = await Supabase.instance.client
-                        .from('gebruikers')
-                        .select('gebr_id')
-                        .not('admin_tipe_id', 'is', null);
-                    final adminIds = admins.map((a) => a['gebr_id'].toString()).toList();
-                    
-                    sukses = await kennisgewingRepo.stuurAanSpesifiekeGebruikers(
-              titel: _titelCtrl.text.trim().isNotEmpty ? _titelCtrl.text.trim() : null,
-                      gebrIds: adminIds,
-                      beskrywing: _kortCtrl.text.trim(),
-                      tipeNaam: _nuweTipe,
-                    );
-                    break;
-                  case 'studente':
-                    final studente = await Supabase.instance.client
-                        .from('gebruikers')
-                        .select('gebr_id')
-                        .eq('gebr_tipe_id', 'student');
-                    final studentIds = studente.map((s) => s['gebr_id'].toString()).toList();
-                    
-                    sukses = await kennisgewingRepo.stuurAanSpesifiekeGebruikers(
-              titel: _titelCtrl.text.trim().isNotEmpty ? _titelCtrl.text.trim() : null,
-                      gebrIds: studentIds,
-                      beskrywing: _kortCtrl.text.trim(),
-                      tipeNaam: _nuweTipe,
-                    );
-                    break;
-                  case 'personeel':
-                    final personeel = await Supabase.instance.client
-                        .from('gebruikers')
-                        .select('gebr_id')
-                        .eq('gebr_tipe_id', 'personeel');
-                    final personeelIds = personeel.map((p) => p['gebr_id'].toString()).toList();
-                    
-                    sukses = await kennisgewingRepo.stuurAanSpesifiekeGebruikers(
-              titel: _titelCtrl.text.trim().isNotEmpty ? _titelCtrl.text.trim() : null,
-                      gebrIds: personeelIds,
-                      beskrywing: _kortCtrl.text.trim(),
-                      tipeNaam: _nuweTipe,
-                    );
-                    break;
+    if (!_isRedigeer &&
+        _nuweDoelgroep == 'spesifiek' &&
+        _selectedGebruikerIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Kies asseblief ten minste een gebruiker'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final kennisgewingRepo = KennisgewingRepository(
+        SupabaseDb(Supabase.instance.client),
+      );
+
+      bool sukses = false;
+
+      if (_isRedigeer) {
+        // Redigeer bestaande kennisgewing
+        final k = widget.kennisgewing!;
+        final soort = k['_kennisgewing_soort'];
+
+        if (soort == 'globaal') {
+          sukses = await kennisgewingRepo.opdateerGlobaleKennisgewing(
+            globKennisId: k['glob_kennis_id'],
+            titel: _titelCtrl.text.trim().isNotEmpty
+                ? _titelCtrl.text.trim()
+                : '',
+            beskrywing: _kortCtrl.text.trim(),
+            tipeNaam: _nuweTipe,
+          );
+        } else {
+          sukses = await kennisgewingRepo.opdateerKennisgewing(
+            kennisId: k['kennis_id'],
+            titel: _titelCtrl.text.trim().isNotEmpty
+                ? _titelCtrl.text.trim()
+                : '',
+            beskrywing: _kortCtrl.text.trim(),
+            tipeNaam: _nuweTipe,
+          );
+        }
+      } else {
+        // Skep nuwe kennisgewing
+        switch (_nuweDoelgroep) {
+          case 'alle':
+            sukses = await kennisgewingRepo.stuurAanAlleGebruikers(
+              titel: _titelCtrl.text.trim().isNotEmpty
+                  ? _titelCtrl.text.trim()
+                  : null,
+              beskrywing: _kortCtrl.text.trim(),
+              tipeNaam: _nuweTipe,
+            );
+            break;
+          case 'admins':
+            final admins = await Supabase.instance.client
+                .from('gebruikers')
+                .select('gebr_id')
+                .not('admin_tipe_id', 'is', null);
+            final adminIds = admins
+                .map((a) => a['gebr_id'].toString())
+                .toList();
+
+            sukses = await kennisgewingRepo.stuurAanSpesifiekeGebruikers(
+              titel: _titelCtrl.text.trim().isNotEmpty
+                  ? _titelCtrl.text.trim()
+                  : null,
+              gebrIds: adminIds,
+              beskrywing: _kortCtrl.text.trim(),
+              tipeNaam: _nuweTipe,
+            );
+            break;
+          case 'studente':
+            final studente = await Supabase.instance.client
+                .from('gebruikers')
+                .select('gebr_id')
+                .eq('gebr_tipe_id', 'student');
+            final studentIds = studente
+                .map((s) => s['gebr_id'].toString())
+                .toList();
+
+            sukses = await kennisgewingRepo.stuurAanSpesifiekeGebruikers(
+              titel: _titelCtrl.text.trim().isNotEmpty
+                  ? _titelCtrl.text.trim()
+                  : null,
+              gebrIds: studentIds,
+              beskrywing: _kortCtrl.text.trim(),
+              tipeNaam: _nuweTipe,
+            );
+            break;
+          case 'personeel':
+            final personeel = await Supabase.instance.client
+                .from('gebruikers')
+                .select('gebr_id')
+                .eq('gebr_tipe_id', 'personeel');
+            final personeelIds = personeel
+                .map((p) => p['gebr_id'].toString())
+                .toList();
+
+            sukses = await kennisgewingRepo.stuurAanSpesifiekeGebruikers(
+              titel: _titelCtrl.text.trim().isNotEmpty
+                  ? _titelCtrl.text.trim()
+                  : null,
+              gebrIds: personeelIds,
+              beskrywing: _kortCtrl.text.trim(),
+              tipeNaam: _nuweTipe,
+            );
+            break;
           case 'spesifiek':
             sukses = await kennisgewingRepo.stuurAanSpesifiekeGebruikers(
-              titel: _titelCtrl.text.trim().isNotEmpty ? _titelCtrl.text.trim() : null,
+              titel: _titelCtrl.text.trim().isNotEmpty
+                  ? _titelCtrl.text.trim()
+                  : null,
               gebrIds: _selectedGebruikerIds,
               beskrywing: _kortCtrl.text.trim(),
               tipeNaam: _nuweTipe,
             );
             break;
-                }
-              }
+        }
+      }
 
-              if (sukses && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(_isRedigeer 
-                      ? 'Kennisgewing suksesvol opgedateer!' 
-                      : 'Kennisgewing suksesvol gestuur!'
+      if (sukses && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _isRedigeer
+                  ? 'Kennisgewing suksesvol opgedateer!'
+                  : 'Kennisgewing suksesvol gestuur!',
             ),
             backgroundColor: Colors.green,
-                  ),
-                );
-                Navigator.pop(context, true);
-              } else if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(_isRedigeer 
-                      ? 'Fout met opdateer kennisgewing!' 
-                      : 'Fout met stuur kennisgewing!'
+          ),
+        );
+        Navigator.pop(context, true);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _isRedigeer
+                  ? 'Fout met opdateer kennisgewing!'
+                  : 'Fout met stuur kennisgewing!',
             ),
             backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            } catch (e) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Fout: $e'), backgroundColor: Colors.red),
-                );
-              }
-            }
+        );
+      }
+    }
   }
 }
