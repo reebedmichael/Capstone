@@ -344,8 +344,13 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
                           onView: () {
                             showDialog(
                               context: context,
-                              builder: (_) =>
-                                  KositemDetailDialog(item: template),
+                              builder: (_) => KositemDetailDialog(
+                                item: template,
+                                onEdit: () {
+                                  laaiTemplateInVorm(template);
+                                  setState(() => toonVormModal = true);
+                                },
+                              ),
                             );
                           },
                           onDelete: () async {

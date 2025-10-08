@@ -1,9 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:async';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/providers/auth_providers.dart';
 import '../../../shared/widgets/otp_verification_dialog.dart';
+
+// Provider for managing password reset cooldown timer
+final passwordResetCooldownProvider =
+    StateNotifierProvider<PasswordResetCooldownNotifier, int>((ref) {
+      return PasswordResetCooldownNotifier();
+    });
+
+class PasswordResetCooldownNotifier extends StateNotifier<int> {
+  PasswordResetCooldownNotifier() : super(0);
+
+  Timer? _timer;
+
+  void startCooldown() {
+    state = 30; // 30 seconds cooldown
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (state > 0) {
+        state = state - 1;
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+}
 
 class InstellingsPage extends ConsumerWidget {
   const InstellingsPage({super.key});
@@ -12,6 +43,7 @@ class InstellingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = ref.watch(appThemeProvider);
     final isDarkMode = theme.themeMode == ThemeMode.dark;
+    final cooldownSeconds = ref.watch(passwordResetCooldownProvider);
 
     return Scaffold(
       body: Column(
@@ -157,8 +189,17 @@ class InstellingsPage extends ConsumerWidget {
                       width: double.infinity,
                       height: 48,
                       child: ElevatedButton(
-                        onPressed: () => _handlePasswordReset(context, ref),
-                        child: const Text("Stuur herstel e-pos"),
+                        onPressed: cooldownSeconds > 0
+                            ? null
+                            : () => _handlePasswordReset(context, ref),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: cooldownSeconds > 0
+                              ? Colors.grey
+                              : Theme.of(context).primaryColor,
+                        ),
+                        child: cooldownSeconds > 0
+                            ? Text("Wag ${cooldownSeconds}s")
+                            : const Text("Stuur herstel e-pos"),
                       ),
                     ),
                   ),
@@ -295,6 +336,9 @@ class InstellingsPage extends ConsumerWidget {
 
       // Hide loading snackbar
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // Start cooldown timer
+      ref.read(passwordResetCooldownProvider.notifier).startCooldown();
 
       // Show OTP verification dialog
       showDialog(

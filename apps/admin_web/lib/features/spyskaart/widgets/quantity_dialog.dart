@@ -191,7 +191,7 @@ class _QuantityDialogState extends State<QuantityDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          "Hoeveelheid",
+                          "Hoeveelheid items beskikbaar",
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,

@@ -371,7 +371,7 @@ class _TemplateItemsDialogState extends State<TemplateItemsDialog> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       const Text(
-                                        "Hoeveelheid",
+                                        "Hoeveelheid items beskikbaar",
                                         style: TextStyle(
                                           fontSize: 13,
                                           fontWeight: FontWeight.w500,

@@ -319,7 +319,9 @@ class _DaySectionState extends State<DaySection> {
                               widget.aktieweDag,
                               item.id,
                             ),
-                            showEditDeleteButtons:
+                            showEditDeleteButtons: canEdit,
+                            showEditButton: canEdit,
+                            showDeleteButton:
                                 canEdit && widget.aktieweweek == 'volgende',
                             quantity: quantity,
                             cutoffTime: cutoffTime,

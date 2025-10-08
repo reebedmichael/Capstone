@@ -1,14 +1,16 @@
 import 'package:capstone_admin/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../../../shared/providers/auth_providers.dart';
 
-class HulpPage extends StatefulWidget {
+class HulpPage extends ConsumerStatefulWidget {
   const HulpPage({super.key});
 
   @override
-  State<HulpPage> createState() => _HulpPageState();
+  ConsumerState<HulpPage> createState() => _HulpPageState();
 }
 
-class _HulpPageState extends State<HulpPage> {
+class _HulpPageState extends ConsumerState<HulpPage> {
   int? openFAQ; // Track which FAQ is expanded
   bool isLoading = false;
   String suksesBoodskap = '';
@@ -21,6 +23,32 @@ class _HulpPageState extends State<HulpPage> {
   final boodskapCtrl = TextEditingController();
 
   final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    // Prefill form fields when user profile is available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _prefillUserData();
+    });
+  }
+
+  void _prefillUserData() {
+    final userProfileAsync = ref.read(userProfileProvider);
+    userProfileAsync.whenData((profile) {
+      if (profile != null && mounted) {
+        final naam = profile['gebr_naam'] as String? ?? '';
+        final epos = profile['gebr_epos'] as String? ?? '';
+
+        if (naam.isNotEmpty) {
+          naamCtrl.text = naam;
+        }
+        if (epos.isNotEmpty) {
+          eposCtrl.text = epos;
+        }
+      }
+    });
+  }
 
   final List<Map<String, String>> faqItems = [
     {
@@ -89,6 +117,23 @@ class _HulpPageState extends State<HulpPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Watch for user profile changes and prefill fields
+    ref.listen(userProfileProvider, (previous, next) {
+      next.whenData((profile) {
+        if (profile != null && mounted) {
+          final naam = profile['gebr_naam'] as String? ?? '';
+          final epos = profile['gebr_epos'] as String? ?? '';
+
+          if (naam.isNotEmpty && naamCtrl.text.isEmpty) {
+            naamCtrl.text = naam;
+          }
+          if (epos.isNotEmpty && eposCtrl.text.isEmpty) {
+            eposCtrl.text = epos;
+          }
+        }
+      });
+    });
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: AppBar(title: const Text("Hulp en Ondersteuning")),
