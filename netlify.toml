@@ -1,0 +1,10 @@
+[build]
+  base = "apps/admin_web"
+  command = "chmod +x ../../build.sh && ../../build.sh"
+  publish = "apps/admin_web/build/web"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
