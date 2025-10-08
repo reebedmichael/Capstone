@@ -1,4 +1,4 @@
-enum BestellingStatus { geplaas, in_voorbereiding, reg_vir_afhaal, afgehandel, gekanselleer }
+enum BestellingStatus { geplaas, inVoorbereiding, regVirAfhaal, afgehandel, gekanselleer }
 
 enum BetalingStatus { onbetaal, betaal }
 

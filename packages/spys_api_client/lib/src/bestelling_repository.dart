@@ -1,0 +1,80 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'db.dart';
+
+class BestellingItemInput {
+  BestellingItemInput({required this.kosItemId, this.aantal = 1});
+  final String kosItemId;
+  final int aantal;
+}
+
+class BestellingRepository {
+  BestellingRepository(this._db);
+  final SupabaseDb _db;
+
+  SupabaseClient get _sb => _db.raw;
+
+  Future<Map<String, dynamic>> skepBestelling({
+    required String gebrId,
+    required String kampusId,
+    required List<BestellingItemInput> items,
+  }) async {
+    // Create bestelling
+    final bestellingData = {
+      'gebr_id': gebrId,
+      'kampus_id': kampusId,
+      'best_volledige_prys': 0.0, // Calculate later
+    };
+    
+    final bestelling = await _sb.from('bestelling').insert(bestellingData).select().single();
+    final bestId = bestelling['best_id'];
+    
+    // Add items
+    for (final item in items) {
+      await _sb.from('bestelling_kos_item').insert({
+        'best_id': bestId,
+        'kos_item_id': item.kosItemId,
+      });
+    }
+    
+    return Map<String, dynamic>.from(bestelling);
+  }
+
+  Future<List<Map<String, dynamic>>> lysBestellings(String gebrId) async {
+    final rows = await _sb.from('bestelling')
+        .select('''
+          *,
+          kampus:kampus_id(
+            kampus_id,
+            kampus_naam,
+            kampus_ligging
+          ),
+          bestelling_kos_item:bestelling_kos_item(
+            *,
+            kos_item:kos_item_id(
+              *,
+              spyskaart_kos_item:spyskaart_kos_item(
+                spyskaart_kos_afsny_datum,
+                spyskaart_kos_id,
+                spyskaart_id,
+                week_dag_id,
+                kos_item_id
+              )
+            ),
+            best_kos_item_statusse:best_kos_item_statusse(
+              *,
+              kos_item_statusse:kos_stat_id(*)
+            )
+          )
+        ''')
+        .eq('gebr_id', gebrId)
+        .order('best_geskep_datum', ascending: false);
+    return List<Map<String, dynamic>>.from(rows);
+  }
+
+  Future<void> likeBestellingKosItem(String bestKosId) async {
+    await _sb
+        .from('bestelling_kos_item')
+        .update({'best_kos_is_liked': true})
+        .eq('best_kos_id', bestKosId);
+  }
+} 

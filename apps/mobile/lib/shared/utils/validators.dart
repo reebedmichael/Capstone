@@ -21,6 +21,23 @@ class Validators {
     
     return null;
   }
+
+  /// Validates email format using a simple regex pattern
+  static String? validateCellphone(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return StringsAf.errRequired;
+    }
+    
+    // Simple cellphone regex pattern - more permissive but still valid
+    final cellphoneRegex = RegExp(r'^(?:\+27|0)(6|7|8)(?:[-\s]?\d){8}$');
+    
+    
+    if (!cellphoneRegex.hasMatch(value.trim())) {
+      return StringsAf.errCellphoneInvalid;
+    }
+    
+    return null;
+  }
   
   /// Validates password for login (minimum 6 characters)
   static String? validatePasswordLogin(String? value) {

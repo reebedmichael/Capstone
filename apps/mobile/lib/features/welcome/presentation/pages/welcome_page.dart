@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/constants/spacing.dart';
 import '../../../../shared/constants/strings_af.dart';
@@ -17,8 +16,8 @@ class WelcomePage extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppColors.primary.withValues(alpha: 0.1),
-              AppColors.secondary.withValues(alpha: 0.1),
+              Theme.of(context).colorScheme.primary.withOpacity(0.1),
+              Theme.of(context).colorScheme.secondary.withOpacity(0.1),
             ],
           ),
         ),
@@ -33,16 +32,16 @@ class WelcomePage extends StatelessWidget {
                     width: 96,
                     height: 96,
                     decoration: BoxDecoration(
-                      color: AppColors.primary,
+                      color: Theme.of(context).colorScheme.primary,
                       shape: BoxShape.circle,
-                      boxShadow: [BoxShadow(color: AppColors.shadow, blurRadius: 12)],
+                      boxShadow: [BoxShadow(color: Theme.of(context).colorScheme.shadow.withOpacity(0.3), blurRadius: 12)],
                     ),
-                    child: const Center(
-                      child: Text('S', style: TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.bold)),
+                    child: Center(
+                      child: Text('S', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 40, fontWeight: FontWeight.bold)),
                     ),
                   ),
                   Spacing.vGap24,
-                  Text(StringsAf.appTitle, style: AppTypography.displayMedium.copyWith(color: AppColors.primary)),
+                  Text(StringsAf.appTitle, style: AppTypography.displayMedium.copyWith(color: Theme.of(context).colorScheme.primary)),
                   Spacing.vGap8,
                   Text(StringsAf.appSubtitle, style: AppTypography.bodyMedium),
                   Spacing.vGap32,

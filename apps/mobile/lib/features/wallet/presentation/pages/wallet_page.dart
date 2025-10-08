@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:spys_api_client/spys_api_client.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../app/presentation/widgets/app_bottom_nav.dart';
 
@@ -20,6 +21,10 @@ class _WalletPageState extends State<WalletPage>
   int? selectedAmount;
   String topUpAmount = '';
   String paymentMethod = 'card'; // current selected payment method
+  double beursieBalans = 0.0;
+  bool isLaaiing = false;
+  List<Map<String, dynamic>> transactions = [];
+  List<Map<String, dynamic>> toelaeTransactions = [];
 
   // Bank Card input fields (dummy for now)
   String cardNumber = '';
@@ -27,37 +32,43 @@ class _WalletPageState extends State<WalletPage>
   String cvv = '';
   String cardHolder = '';
 
-  // Mock transactions
-  final List<Map<String, dynamic>> transactions = [
-    {
-      'type': 'debit',
-      'amount': 45.00,
-      'description': 'Boerewors en Pap - Hoofkampus Kafeteria',
-      'date': '20 Jul 2024 12:30',
-      'status': 'completed'
-    },
-    {
-      'type': 'credit',
-      'amount': 200.00,
-      'description': 'Beursie Top-up - Bankkaart',
-      'date': '19 Jul 2024 14:15',
-      'status': 'completed'
-    },
-    {
-      'type': 'debit',
-      'amount': 38.00,
-      'description': 'Vegetariese Pasta - Hoofkampus Kafeteria',
-      'date': '18 Jul 2024 13:45',
-      'status': 'completed'
-    },
-  ];
-
   final quickAmounts = [50, 100, 200, 500];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
+    _laaiBeursieData();
+  }
+
+  // ----------------------------
+  // DATA LAADING METHODS
+  // ----------------------------
+  Future<void> _laaiBeursieData() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final beursieRepo = BeursieRepository(SupabaseDb(Supabase.instance.client));
+      final toelaeRepo = ToelaeRepository(SupabaseDb(Supabase.instance.client));
+      
+      // Laai beursie balans (toelae + wallet - same field)
+      final balans = await beursieRepo.kryBeursieBalans(user.id);
+      
+      // Laai transaksies (wallet transactions)
+      final transaksies = await beursieRepo.lysTransaksies(user.id);
+      
+      // Laai toelae transaksies (allowance transactions - different type)
+      final toelaeTransaksies = await toelaeRepo.lysToelaeTransaksies(user.id);
+      
+      setState(() {
+        beursieBalans = balans;
+        transactions = transaksies;
+        toelaeTransactions = toelaeTransaksies;
+      });
+    } catch (e) {
+      print('Fout met laai beursie data: $e');
+    }
   }
 
   // ----------------------------
@@ -76,6 +87,78 @@ class _WalletPageState extends State<WalletPage>
     });
   }
 
+  Future<void> _laaiBeursieOp() async {
+    if (topUpAmount.isEmpty || double.tryParse(topUpAmount) == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Voer \'n geldige bedrag in')),
+      );
+      return;
+    }
+
+    final bedrag = double.parse(topUpAmount);
+    if (bedrag < 10 || bedrag > 1000) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Bedrag moet tussen R10 en R1000 wees')),
+      );
+      return;
+    }
+
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Jy moet eers aanmeld')),
+      );
+      return;
+    }
+
+    setState(() {
+      isLaaiing = true;
+    });
+
+    try {
+      final beursieRepo = BeursieRepository(SupabaseDb(Supabase.instance.client));
+      
+      // Simuleer betaling
+      final betalingSuksesvol = await beursieRepo.simuleerBetaling(paymentMethod, bedrag);
+      
+      if (betalingSuksesvol) {
+        // Laai beursie op
+        final sukses = await beursieRepo.laaiBeursieOp(user.id, bedrag, paymentMethod);
+        
+        if (sukses) {
+          // Herlaai data
+          await _laaiBeursieData();
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('R$bedrag suksesvol bygevoeg aan jou beursie!')),
+          );
+          
+          // Reset form
+          setState(() {
+            topUpAmount = '';
+            selectedAmount = null;
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Fout met laai beursie op. Probeer weer.')),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Betaling het gefaal. Probeer weer.')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Fout: $e')),
+      );
+    } finally {
+      setState(() {
+        isLaaiing = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -85,7 +168,7 @@ class _WalletPageState extends State<WalletPage>
           // HEADER + WALLET BALANCE
           // ----------------------------
           Container(
-            color: AppColors.primary,
+            color: Theme.of(context).colorScheme.primary,
             padding: const EdgeInsets.only(
                 top: 20, left: 16, right: 16, bottom: 16),
             child: Column(
@@ -97,14 +180,14 @@ class _WalletPageState extends State<WalletPage>
                   children: [
                     Text('Beursie',
                         style: AppTypography.titleLarge
-                            .copyWith(color: Colors.white)),
+                            .copyWith(color: Theme.of(context).colorScheme.onPrimary)),
                     const SizedBox(width: 40), // spacing
                   ],
                 ),
                 const SizedBox(height: 16),
                 // Wallet balance card
                 Card(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surface,
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Row(
@@ -113,25 +196,25 @@ class _WalletPageState extends State<WalletPage>
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Beskikbare Balans',
+                            Text('Beskikbare Balans',
                                 style: TextStyle(
-                                    fontSize: 12, color: Colors.grey)),
+                                    fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                             const SizedBox(height: 8),
-                            const Text('R0.00',
-                                style: TextStyle(
+                            Text('R${beursieBalans.toStringAsFixed(2)}',
+                                style: const TextStyle(
                                     fontSize: 24, fontWeight: FontWeight.bold)),
-                            const Text('Laas opgedateer: Vandag',
+                            Text('Laas opgedateer: Vandag',
                                 style: TextStyle(
-                                    fontSize: 12, color: Colors.grey)),
+                                    fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                           ],
                         ),
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.1),
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(30)),
                           child: Icon(Icons.account_balance_wallet,
-                              size: 32, color: AppColors.primary),
+                              size: 32, color: Theme.of(context).colorScheme.primary),
                         ),
                       ],
                     ),
@@ -142,15 +225,17 @@ class _WalletPageState extends State<WalletPage>
           ),
 
           // ----------------------------
-          // TABS: "Laai Beursie" and "Geskiedenis"
+          // TABS: "Laai Beursie", "Betalings", and "Toelae"
           // ----------------------------
           TabBar(
             controller: _tabController,
-            labelColor: AppColors.primary,
-            unselectedLabelColor: Colors.grey,
+            labelColor: Theme.of(context).colorScheme.primary,
+            unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+            isScrollable: true,
             tabs: const [
               Tab(text: 'Laai Beursie'),
-              Tab(text: 'Geskiedenis'),
+              Tab(text: 'Betalings'),
+              Tab(text: 'Toelae Geskiedenis'),
             ],
           ),
 
@@ -194,11 +279,11 @@ class _WalletPageState extends State<WalletPage>
                                     selected: isSelected,
                                     onSelected: (_) =>
                                         handleQuickAmount(amount),
-                                    selectedColor: AppColors.primary,
+                                    selectedColor: Theme.of(context).colorScheme.primary,
                                     labelStyle: TextStyle(
                                         color: isSelected
-                                            ? Colors.white
-                                            : AppColors.primary),
+                                            ? Theme.of(context).colorScheme.onPrimary
+                                            : Theme.of(context).colorScheme.primary),
                                   );
                                 }).toList(),
                               ),
@@ -219,9 +304,9 @@ class _WalletPageState extends State<WalletPage>
                                 },
                               ),
                               const SizedBox(height: 4),
-                              const Text('Minimum: R10 | Maksimum: R1000',
+                              Text('Minimum: R10 | Maksimum: R1000',
                                   style: TextStyle(
-                                      fontSize: 12, color: Colors.grey)),
+                                      fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                             ],
                           ),
                         ),
@@ -346,16 +431,22 @@ class _WalletPageState extends State<WalletPage>
                         height: 50,
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary),
-                          onPressed: () {
-                            // DUMMY ACTION: Show snackbar
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('Top-up clicked')));
-                          },
-                          icon: const Icon(Icons.add),
+                              backgroundColor: Theme.of(context).colorScheme.primary),
+                          onPressed: isLaaiing ? null : _laaiBeursieOp,
+                          icon: isLaaiing 
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.onPrimary),
+                                  ),
+                                )
+                              : const Icon(Icons.add),
                           label: Text(
-                              'Laai R${topUpAmount.isEmpty ? '0' : topUpAmount}'),
+                              isLaaiing 
+                                  ? 'Laai...' 
+                                  : 'Laai R${topUpAmount.isEmpty ? '0' : topUpAmount}'),
                         ),
                       )
                     ],
@@ -365,40 +456,240 @@ class _WalletPageState extends State<WalletPage>
                 // ----------------------------
                 // HISTORY TAB
                 // ----------------------------
-                ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: transactions.length,
-                  itemBuilder: (context, index) {
-                    final t = transactions[index];
-                    return Card(
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: t['type'] == 'credit'
-                              ? Colors.green.shade100
-                              : Colors.red.shade100,
-                          child: Icon(
-                            t['type'] == 'credit'
-                                ? Icons.arrow_upward
-                                : Icons.arrow_downward,
-                            color: t['type'] == 'credit'
-                                ? Colors.green
-                                : Colors.red,
+                transactions.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: Text(
+                            'Geen transaksies gevind nie',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
                           ),
                         ),
-                        title: Text(t['description']),
-                        subtitle: Text(t['date']),
-                        trailing: Text(
-                          '${t['type'] == 'credit' ? '+' : '-'}R${t['amount'].toStringAsFixed(2)}',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: t['type'] == 'credit'
-                                  ? Colors.green
-                                  : Colors.red),
-                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: transactions.length,
+                        itemBuilder: (context, index) {
+                          final t = transactions[index];
+                          final isInbetaling = t['transaksie_tipe'] != null && 
+                              t['transaksie_tipe']['trans_tipe_naam'] == 'inbetaling';
+                          final bedrag = (t['trans_bedrag'] as num?)?.toDouble() ?? 0.0;
+                          final datum = DateTime.parse(t['trans_geskep_datum']);
+                          final datumFormaat = '${datum.day} ${_kryMaandNaam(datum.month)} ${datum.year} ${datum.hour.toString().padLeft(2, '0')}:${datum.minute.toString().padLeft(2, '0')}';
+                          
+                          // Determine appropriate icon based on transaction type
+                          IconData getTransactionIcon() {
+                            if (isInbetaling) {
+                              return Icons.account_balance_wallet; // Money coming in
+                            }
+                            
+                            final beskrywing = (t['trans_beskrywing'] ?? '').toLowerCase();
+                            if (beskrywing.contains('bestelling') || beskrywing.contains('order')) {
+                              return Icons.restaurant; // Food order
+                            } else if (beskrywing.contains('uitbetaling') || beskrywing.contains('payment')) {
+                              return Icons.payment; // Payment made
+                            } else if (beskrywing.contains('refund') || beskrywing.contains('terugbetaling')) {
+                              return Icons.undo; // Refund
+                            } else {
+                              return Icons.shopping_cart; // General spending
+                            }
+                          }
+                          
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              leading: Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: isInbetaling
+                                      ? Colors.green.withOpacity(0.1)
+                                      : Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isInbetaling
+                                        ? Colors.green.withOpacity(0.3)
+                                        : Colors.red.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Icon(
+                                  getTransactionIcon(),
+                                  color: isInbetaling
+                                      ? Colors.green.shade600
+                                      : Colors.red.shade600,
+                                  size: 24,
+                                ),
+                              ),
+                              title: Text(
+                                t['trans_beskrywing'] ?? 'Transaksie',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              subtitle: Text(
+                                datumFormaat,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              trailing: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isInbetaling
+                                      ? Colors.green.withOpacity(0.1)
+                                      : Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isInbetaling
+                                        ? Colors.green.withOpacity(0.3)
+                                        : Colors.red.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  '${isInbetaling ? '+' : '-'}R${bedrag.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: isInbetaling
+                                        ? Colors.green.shade700
+                                        : Colors.red.shade700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
+
+                // ----------------------------
+                // ALLOWANCE HISTORY TAB
+                // ----------------------------
+                toelaeTransactions.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32.0),
+                          child: Text(
+                            'Geen toelae transaksies gevind nie',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: toelaeTransactions.length,
+                        itemBuilder: (context, index) {
+                          final t = toelaeTransactions[index];
+                          final tipeNaam = t['transaksie_tipe'] != null
+                              ? t['transaksie_tipe']['trans_tipe_naam'] ?? ''
+                              : '';
+                          final isInbetaling = tipeNaam.contains('inbetaling');
+                          final bedrag = (t['trans_bedrag'] as num?)?.toDouble() ?? 0.0;
+                          final datum = DateTime.parse(t['trans_geskep_datum']);
+                          final datumFormaat = '${datum.day} ${_kryMaandNaam(datum.month)} ${datum.year} ${datum.hour.toString().padLeft(2, '0')}:${datum.minute.toString().padLeft(2, '0')}';
+                          
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              leading: Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: isInbetaling
+                                      ? Colors.green.withOpacity(0.1)
+                                      : Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: isInbetaling
+                                        ? Colors.green.withOpacity(0.3)
+                                        : Colors.red.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Icon(
+                                  isInbetaling
+                                      ? Icons.account_balance_wallet
+                                      : Icons.remove_circle_outline,
+                                  color: isInbetaling
+                                      ? Colors.green.shade600
+                                      : Colors.red.shade600,
+                                  size: 24,
+                                ),
+                              ),
+                              title: Text(
+                                t['trans_beskrywing'] ?? 'Toelae Transaksie',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              subtitle: Text(
+                                datumFormaat,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              trailing: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isInbetaling
+                                      ? Colors.green.withOpacity(0.1)
+                                      : Colors.red.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isInbetaling
+                                        ? Colors.green.withOpacity(0.3)
+                                        : Colors.red.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Text(
+                                  '${isInbetaling ? '+' : '-'}R${bedrag.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: isInbetaling
+                                        ? Colors.green.shade700
+                                        : Colors.red.shade700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
               ],
             ),
           ),
@@ -407,6 +698,17 @@ class _WalletPageState extends State<WalletPage>
 
       bottomNavigationBar: const AppBottomNav(currentIndex: 2),
     );
+  }
+
+  // ----------------------------
+  // HELPER METHODS
+  // ----------------------------
+  String _kryMaandNaam(int maand) {
+    const maande = [
+      'Jan', 'Feb', 'Mrt', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des'
+    ];
+    return maande[maand - 1];
   }
 
   // ----------------------------
@@ -421,19 +723,19 @@ class _WalletPageState extends State<WalletPage>
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           border: Border.all(
-              color: isSelected ? AppColors.primary : Colors.grey),
+              color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurfaceVariant),
           borderRadius: BorderRadius.circular(8),
-          color: isSelected ? AppColors.primary : Colors.transparent,
+          color: isSelected ? Theme.of(context).colorScheme.primary : Colors.transparent,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: isSelected ? Colors.white : AppColors.primary),
+            Icon(icon, color: isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.primary),
             const SizedBox(height: 4),
             Text(label,
                 style: TextStyle(
                     fontSize: 12,
-                    color: isSelected ? Colors.white : AppColors.primary)),
+                    color: isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.primary)),
           ],
         ),
       ),

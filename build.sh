@@ -9,9 +9,8 @@ export PATH="$PATH:`pwd`/_flutter/bin"
 # Verify Flutter
 flutter --version
 
-echo "Current directory: $(pwd)"
-echo "Listing files:"
-ls -la
+echo "Navigating to admin_web directory..."
+cd apps/admin_web
 
 echo "Getting dependencies..."
 flutter pub get

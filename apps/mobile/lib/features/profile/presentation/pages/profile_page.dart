@@ -1,73 +1,151 @@
+import 'package:capstone_mobile/locator.dart';
+import 'package:capstone_mobile/shared/providers/auth_form_providers.dart';
+import 'package:capstone_mobile/shared/constants/spacing.dart';
+import 'package:capstone_mobile/shared/widgets/spys_primary_button.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:spys_api_client/spys_api_client.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../app/presentation/widgets/app_bottom_nav.dart';
 
-class ProfilePage extends StatefulWidget {
+import '../../../../shared/widgets/name_fields.dart';
+import '../../../../shared/widgets/email_field.dart';
+import '../../../../shared/widgets/cellphone_field.dart';
+import '../../../../shared/widgets/location_dropdown.dart';
+
+class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  ConsumerState<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
-  bool isEditing = false;
-  bool isLoading = false;
-
-  // Dummy user data
-  String name = 'Jan';
-  String surname = 'Jansen';
-  String email = 'jan@example.com';
-  String phone = '0821234567';
-  String userType = 'Student';
-  String pickupLocation = 'Kampus Sentraal';
-  double walletBalance = 250.75;
-
-  // Form controllers
-  late TextEditingController nameController;
-  late TextEditingController surnameController;
-  late TextEditingController emailController;
-  late TextEditingController phoneController;
+class _ProfilePageState extends ConsumerState<ProfilePage> {
+  bool isLoading = true;
+  bool isLoadingDiets = true;
+  List<Map<String, dynamic>> _allDiets = const [];
+  Set<String> _selectedDietIds = <String>{};
+  
+  Future<T> _retryWithBackoff<T>(Future<T> Function() action,
+      {int maxAttempts = 3, Duration initialDelay = const Duration(milliseconds: 400)}) async {
+    int attempt = 0;
+    Duration delay = initialDelay;
+    while (true) {
+      attempt++;
+      try {
+        return await action();
+      } catch (e) {
+        if (attempt >= maxAttempts) rethrow;
+        await Future.delayed(delay);
+        delay *= 2;
+      }
+    }
+  }
 
   @override
   void initState() {
     super.initState();
-    nameController = TextEditingController(text: name);
-    surnameController = TextEditingController(text: surname);
-    emailController = TextEditingController(text: email);
-    phoneController = TextEditingController(text: phone);
+    _loadUserData();
   }
 
-  @override
-  void dispose() {
-    nameController.dispose();
-    surnameController.dispose();
-    emailController.dispose();
-    phoneController.dispose();
-    super.dispose();
+  Future<void> _loadUserData() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        setState(() {
+          isLoading = false;
+        });
+        return;
+      }
+
+      final repository = sl<GebruikersRepository>();
+      final data = await repository.kryGebruiker(user.id);
+
+      if (data != null) {
+        setState(() {
+          ref.read(firstNameProvider.notifier).state = data['gebr_naam'] ?? '';
+          ref.read(lastNameProvider.notifier).state = data['gebr_van'] ?? '';
+          ref.read(emailProvider.notifier).state = data['gebr_epos'] ?? '';
+          ref.read(cellphoneProvider.notifier).state = data["gebr_selfoon"] ?? '';
+          ref.read(locationProvider.notifier).state = data["kampus_naam"] ?? '';
+          ref.read(walletBalanceProvider.notifier).state = data['beursie_balans'] ?? '';
+          isLoading = false;
+        });
+        await _loadDietData(user.id);
+      } else {
+        debugPrint("User data not found");
+        setState(() {
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading user: $e");
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
-  void handleSave() {
+  Future<void> _loadDietData(String userId) async {
     setState(() {
-      name = nameController.text;
-      surname = surnameController.text;
-      email = emailController.text;
-      phone = phoneController.text;
-      isEditing = false;
+      isLoadingDiets = true;
     });
-  }
+    List<Map<String, dynamic>> allDietsLocal = const [];
+    Set<String> selectedLocal = <String>{};
+    try {
+      final client = Supabase.instance.client;
+      // Run both reads in parallel with timeout + retry (helps flaky mobile networks)
+      final results = await Future.wait([
+        _retryWithBackoff(() => client
+            .from('dieet_vereiste')
+            .select('dieet_id, dieet_naam')
+            .order('dieet_naam')
+            .timeout(const Duration(seconds: 12))),
+        _retryWithBackoff(() => client
+            .from('gebruiker_dieet_vereistes')
+            .select('dieet_id')
+            .eq('gebr_id', userId)
+            .timeout(const Duration(seconds: 12))),
+      ]);
 
-  void handleCancel() {
-    setState(() {
-      nameController.text = name;
-      surnameController.text = surname;
-      emailController.text = email;
-      phoneController.text = phone;
-      isEditing = false;
-    });
+      final all = List<Map<String, dynamic>>.from(results[0] as List);
+      final rows = List<Map<String, dynamic>>.from(results[1] as List);
+      allDietsLocal = all;
+      selectedLocal = rows.map<String>((e) => e['dieet_id'].toString()).toSet();
+    } catch (e) {
+      debugPrint('Kon nie dieet data laai nie: $e');
+      allDietsLocal = const [];
+      selectedLocal = <String>{};
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _allDiets = allDietsLocal;
+        _selectedDietIds = selectedLocal;
+        isLoadingDiets = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final initials = "${name[0]}${surname[0]}".toUpperCase();
+    if (isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final firstName = ref.watch(firstNameProvider);
+    final lastName = ref.watch(lastNameProvider);
+    final email = ref.watch(emailProvider);
+    final cellphone = ref.watch(cellphoneProvider);
+    final location = ref.watch(locationProvider);
+    final walletBalance = ref.watch(walletBalanceProvider);
+    final isFormValid = ref.watch(profielFormValidProvider);
+
+    final initials =
+        "${firstName.isNotEmpty ? firstName[0] : ''}${lastName.isNotEmpty ? lastName[0] : ''}"
+            .toUpperCase();
 
     return Scaffold(
       body: SafeArea(
@@ -77,42 +155,23 @@ class _ProfilePageState extends State<ProfilePage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+                border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.outline)),
                 color: Theme.of(context).colorScheme.surface,
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Text(
                     "My Profiel",
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                  Row(
-                    children: [
-                      if (!isEditing)
-                        IconButton(
-                          icon: const Icon(Icons.edit),
-                          onPressed: () => setState(() => isEditing = true),
-                        )
-                      else ...[
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: handleCancel,
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.save, color: Colors.green),
-                          onPressed: handleSave,
-                        ),
-                      ]
-                    ],
-                  )
                 ],
               ),
             ),
 
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 child: Column(
                   children: [
                     // Profile Card
@@ -133,36 +192,38 @@ class _ProfilePageState extends State<ProfilePage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text("$name $surname",
-                                      style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold)),
+                                  Text(
+                                    "$firstName $lastName",
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                   const SizedBox(height: 4),
-                                  Text(email,
-                                      style: TextStyle(
-                                          color: Colors.grey.shade600)),
+                                  Text(
+                                    email,
+                                    style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                  ),
                                   const SizedBox(height: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: Colors.blue.shade50,
+                                      color: Theme.of(context).colorScheme.primaryContainer,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: Text(
-                                      userType,
-                                      style: const TextStyle(fontSize: 12),
+                                    child: const Text(
+                                      "Ekstern",
+                                      style: TextStyle(fontSize: 12, color: Colors.white),
                                     ),
                                   ),
                                 ],
                               ),
-                            )
+                            ),
                           ],
                         ),
                       ),
                     ),
-
-                    const SizedBox(height: 16),
 
                     // Personal Information
                     Card(
@@ -178,99 +239,86 @@ class _ProfilePageState extends State<ProfilePage> {
                                 Text(
                                   "Persoonlike Inligting",
                                   style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 16),
+                            Spacing.vGap20,
+                            NameFields(initialFirstName: firstName, initialLastName: lastName),
+                            Spacing.vGap16,
+                            EmailField(initialEmail: email),
+                            Spacing.vGap16,
+                            CellphoneField(initialCellphone: cellphone),
+                            Spacing.vGap16,
+                            LocationDropdown(initialValue: location),
+                            Spacing.vGap16,
+                            _DietMultiSelect(
+                              isLoading: isLoadingDiets,
+                              allDiets: _allDiets,
+                              selectedDietIds: _selectedDietIds,
+                              onChanged: (ids) {
+                                setState(() {
+                                  _selectedDietIds = ids;
+                                });
+                              },
+                            ),
+                            Spacing.vGap16,
+                            SpysPrimaryButton(
+                              text: "Stoor",
+                              onPressed: isFormValid
+                                  ? () async {
+                                    final user = Supabase.instance.client.auth.currentUser;
+                                    if (user == null) return;
 
-                            // Name
-                            _buildField(
-                                label: "Naam",
-                                controller: nameController,
-                                enabled: isEditing),
+                                    final gebRepository = sl<GebruikersRepository>();
+                                    final kamRepository = sl<KampusRepository>();
+                                    final newKampusID = await kamRepository.kryKampusID(location);
 
-                            const SizedBox(height: 12),
+                                    await gebRepository.skepOfOpdateerGebruiker({
+                                      "gebr_id": user.id,
+                                      "gebr_naam": firstName,
+                                      "gebr_van": lastName,
+                                      "gebr_epos": email,
+                                      "gebr_selfoon": cellphone,
+                                      "kampus_id": newKampusID,
+                                    });
 
-                            // Surname
-                            _buildField(
-                                label: "Van",
-                                controller: surnameController,
-                                enabled: isEditing),
+                                    // Opdateer gebruiker se dieet vereistes
+                                    try {
+                                      final sb = Supabase.instance.client;
+                                      await sb
+                                          .from('gebruiker_dieet_vereistes')
+                                          .delete()
+                                          .eq('gebr_id', user.id);
 
-                            const SizedBox(height: 12),
+                                      if (_selectedDietIds.isNotEmpty) {
+                                        final inserts = _selectedDietIds
+                                            .map((id) => {
+                                                  'gebr_id': user.id,
+                                                  'dieet_id': id,
+                                                })
+                                            .toList();
+                                        await sb.from('gebruiker_dieet_vereistes').insert(inserts);
+                                      }
+                                    } catch (e) {
+                                      debugPrint('Kon nie dieet vereistes stoor nie: $e');
+                                    }
 
-                            // Email
-                            _buildField(
-                                label: "E-pos Adres",
-                                controller: emailController,
-                                enabled: isEditing,
-                                icon: Icons.mail),
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            'Gebruiker Inligting Opgedateer!'),
+                                        backgroundColor: Theme.of(context).colorScheme.tertiary,
+                                      ),
+                                    );
 
-                            const SizedBox(height: 12),
-
-                            // Phone
-                            _buildField(
-                                label: "Selfoon Nommer",
-                                controller: phoneController,
-                                enabled: isEditing,
-                                icon: Icons.phone),
-
-                            const SizedBox(height: 12),
-
-                            // User type
-                            isEditing
-                                ? DropdownButtonFormField<String>(
-                                    value: userType,
-                                    decoration: const InputDecoration(
-                                      labelText: "Gebruiker Tipe",
-                                    ),
-                                    items: const [
-                                      DropdownMenuItem(
-                                          value: "Student",
-                                          child: Text("Student")),
-                                      DropdownMenuItem(
-                                          value: "Personeel",
-                                          child: Text("Personeel")),
-                                      DropdownMenuItem(
-                                          value: "Ander", child: Text("Ander")),
-                                    ],
-                                    onChanged: (val) =>
-                                        setState(() => userType = val ?? ""),
-                                  )
-                                : ListTile(
-                                    leading: const Icon(Icons.badge),
-                                    title: Text(userType),
-                                  ),
-
-                            const SizedBox(height: 12),
-
-                            // Pickup location
-                            isEditing
-                                ? DropdownButtonFormField<String>(
-                                    value: pickupLocation,
-                                    decoration: const InputDecoration(
-                                      labelText: "Haalpunt",
-                                    ),
-                                    items: const [
-                                      DropdownMenuItem(
-                                          value: "Kampus Sentraal",
-                                          child: Text("Kampus Sentraal")),
-                                      DropdownMenuItem(
-                                          value: "Biblioteek",
-                                          child: Text("Biblioteek")),
-                                      DropdownMenuItem(
-                                          value: "Kafeteria",
-                                          child: Text("Kafeteria")),
-                                    ],
-                                    onChanged: (val) => setState(
-                                        () => pickupLocation = val ?? ""),
-                                  )
-                                : ListTile(
-                                    leading: const Icon(Icons.location_on),
-                                    title: Text(pickupLocation),
-                                  ),
+                                    // Reload updated user data
+                                    _loadUserData();
+                                  }
+                                : null,
+                            ),
                           ],
                         ),
                       ),
@@ -278,126 +326,49 @@ class _ProfilePageState extends State<ProfilePage> {
 
                     const SizedBox(height: 16),
 
-                    // Account Settings
+                    // Account Settings (Wallet etc.)
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: const [
-                                Icon(Icons.settings, size: 20),
-                                SizedBox(width: 8),
                                 Text(
-                                  "Rekening Instellings",
-                                  style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold),
+                                  "Beursie Balans",
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  "Beskikbare fondse",
+                                  style: TextStyle(fontSize: 12),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 16),
-
-                            // Wallet Balance
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.shade50,
-                                borderRadius: BorderRadius.circular(8),
-                                border:
-                                    Border.all(color: Colors.blue.shade100),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: const [
-                                      Text("Beursie Balans",
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold)),
-                                      Text("Beskikbare fondse",
-                                          style: TextStyle(fontSize: 12)),
-                                    ],
-                                  ),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        "R${walletBalance.toStringAsFixed(2)}",
-                                        style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.blue),
-                                      ),
-                                      TextButton(
-                                        onPressed: () {},
-                                        child: const Text("Bestuur"),
-                                      )
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            // Quick Actions
-                            Row(
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    icon: const Icon(Icons.settings),
-                                    label: const Text("Instellings"),
-                                    onPressed: () {},
+                                Text(
+                                  "R${walletBalance.toStringAsFixed(2)}",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).colorScheme.primary,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    icon: const Icon(Icons.help),
-                                    label: const Text("Help"),
-                                    onPressed: () {},
-                                  ),
+                                TextButton(
+                                  onPressed: () {
+                                    context.go('/wallet');
+                                  },
+                                  child: const Text("Bestuur"),
                                 ),
                               ],
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            // Logout
-                            OutlinedButton.icon(
-                              icon: const Icon(Icons.logout, color: Colors.red),
-                              label: const Text(
-                                "Teken Uit",
-                                style: TextStyle(color: Colors.red),
-                              ),
-                              onPressed: () {},
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Colors.red),
-                              ),
                             ),
                           ],
                         ),
                       ),
                     ),
-
-                    const SizedBox(height: 16),
-
-                    // Edit Mode Notice
-                    if (isEditing)
-                      Card(
-                        color: Colors.amber.shade50,
-                        child: ListTile(
-                          leading: const Icon(Icons.info, color: Colors.orange),
-                          title: const Text(
-                            "Wysig Modus: Maak jou veranderings en druk Stoor.",
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -425,6 +396,79 @@ class _ProfilePageState extends State<ProfilePage> {
         prefixIcon: icon != null ? Icon(icon) : null,
         border: const OutlineInputBorder(),
       ),
+    );
+  }
+}
+
+class _DietMultiSelect extends StatelessWidget {
+  const _DietMultiSelect({
+    required this.isLoading,
+    required this.allDiets,
+    required this.selectedDietIds,
+    required this.onChanged,
+  });
+
+  final bool isLoading;
+  final List<Map<String, dynamic>> allDiets;
+  final Set<String> selectedDietIds;
+  final ValueChanged<Set<String>> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: const [
+            Icon(Icons.restaurant_menu, size: 20),
+            SizedBox(width: 8),
+            Text(
+              "Dieet Vereistes",
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (isLoading)
+          const LinearProgressIndicator(minHeight: 2)
+        else ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: allDiets.map((d) {
+              final id = d['dieet_id'].toString();
+              final naam = d['dieet_naam'].toString();
+              final isSelected = selectedDietIds.contains(id);
+              return FilterChip(
+                label: Text(naam),
+                labelStyle: TextStyle(
+                  color: isSelected
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.onSurface,
+                ),
+                selected: isSelected,
+                onSelected: (sel) {
+                  final next = Set<String>.from(selectedDietIds);
+                  if (sel) {
+                    next.add(id);
+                  } else {
+                    next.remove(id);
+                  }
+                  onChanged(next);
+                },
+              );
+            }).toList(),
+          ),
+          if (allDiets.isEmpty)
+            Text(
+              'Geen dieet opsies beskikbaar nie',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
+        ],
+      ],
     );
   }
 }

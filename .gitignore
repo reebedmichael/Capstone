@@ -1,0 +1,8 @@
+# Existing ignores
+.DS_Store
+
+# Env files (apps)
+apps/mobile/.env.dev
+apps/mobile/.env.prod
+apps/admin_web/.env.dev
+apps/admin_web/.env.prod 
