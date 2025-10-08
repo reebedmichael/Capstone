@@ -1,19 +1,71 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import '../../../shared/utils/admin_permissions.dart';
 
-class PendingUserApprovals extends StatelessWidget {
-  final List<Map<String, dynamic>> pendingUsers;
-  final Function(String) onApproveUser;
-  final Function(String) onRejectUser;
-  final Function(String) onNavigateToUsers;
+class UserManagementSummary extends ConsumerStatefulWidget {
+  const UserManagementSummary({Key? key}) : super(key: key);
 
-  const PendingUserApprovals({
-    Key? key,
-    required this.pendingUsers,
-    required this.onApproveUser,
-    required this.onRejectUser,
-    required this.onNavigateToUsers,
-  }) : super(key: key);
+  @override
+  ConsumerState<UserManagementSummary> createState() =>
+      _UserManagementSummaryState();
+}
+
+class _UserManagementSummaryState extends ConsumerState<UserManagementSummary> {
+  bool _isLoading = true;
+  String? _error;
+  List<Map<String, dynamic>> _users = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final sb = Supabase.instance.client;
+
+      // Load users with related data
+      final gebruikers = await sb
+          .from('gebruikers')
+          .select(
+            '*, gebr_tipe:gebr_tipe_id(gebr_tipe_naam, gebr_toelaag), admin_tipe:admin_tipe_id(admin_tipe_naam), kampus:kampus_id(kampus_naam)',
+          )
+          .limit(100); // Limit for dashboard performance
+
+      if (mounted) {
+        setState(() {
+          _users = List<Map<String, dynamic>>.from(gebruikers);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  List<Map<String, dynamic>> _getRandomUsers() {
+    if (_users.length <= 6) return _users;
+
+    final random = Random();
+    final shuffled = List<Map<String, dynamic>>.from(_users)..shuffle(random);
+    return shuffled.take(6).toList();
+  }
 
   Widget _summaryBox(String number, String label, Color base) {
     return Expanded(
@@ -48,6 +100,67 @@ class PendingUserApprovals extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Card(
+        elevation: 1,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Laai gebruiker data...'),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Card(
+        elevation: 1,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, color: Colors.red, size: 48),
+              const SizedBox(height: 16),
+              Text(
+                'Fout met laai van gebruiker data',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                style: TextStyle(color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadData,
+                child: const Text('Probeer weer'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Calculate statistics
+    final totalAdmins = _users
+        .where((u) => (u['admin_tipe']?['admin_tipe_naam'] ?? '') != '')
+        .length;
+    final students = _users
+        .where((u) => (u['gebr_tipe']?['gebr_tipe_naam'] ?? '') == 'Student')
+        .length;
+    final personeel = _users
+        .where((u) => (u['gebr_tipe']?['gebr_tipe_naam'] ?? '') == 'Personeel')
+        .length;
+
     return Card(
       elevation: 1,
       child: Padding(
@@ -61,12 +174,12 @@ class PendingUserApprovals extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: const [
                       Text(
-                        'Gebruiker Goedkeurings',
+                        'Gebruiker Bestuur Oorsig',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'Gebruiker registrasie opsomming en goedkeuringsstatus',
+                        'Gebruiker statistieke en beheer opsomming',
                         style: TextStyle(color: Colors.grey, fontSize: 12),
                       ),
                     ],
@@ -74,64 +187,56 @@ class PendingUserApprovals extends StatelessWidget {
                 ),
                 ElevatedButton(
                   onPressed: () => context.go('/gebruikers'),
-
                   style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                   ),
-                  child: Text('Meer'),
+                  child: const Text('Meer'),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            if (pendingUsers.isEmpty)
-              Column(
-                children: const [
-                  SizedBox(height: 12),
-                  Icon(
-                    Icons.check_circle_outline,
-                    size: 48,
-                    color: Colors.grey,
-                  ),
-                  SizedBox(height: 8),
-                  Text('No pending approvals'),
-                ],
-              )
-            else
-              Column(
-                children: [
-                  // Summary stats
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _summaryBox(
-                        '${pendingUsers.length}',
-                        'Total Pending',
-                        Colors.amber,
-                      ),
-                      _summaryBox(
-                        '${pendingUsers.where((u) => u['accountType'] == 'Customer').length}',
-                        'Customers',
-                        Colors.blue,
-                      ),
-                      _summaryBox(
-                        '${pendingUsers.where((u) => u['accountType'] == 'Delivery Partner').length}',
-                        'Partners',
-                        Colors.green,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  // Most recent
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Most Recent',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Column(
-                    children: pendingUsers.take(3).map((user) {
+
+            // Summary statistics
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _summaryBox('$totalAdmins', 'Totaal Admins', Colors.purple),
+                _summaryBox('$students', 'Studente', Colors.teal),
+                _summaryBox('$personeel', 'Personeel', Colors.orange),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Recent users section
+            if (_users.isNotEmpty) ...[
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Onlangse Gebruikers',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 200, // Fixed height to enable scrolling
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: _getRandomUsers().map((user) {
+                      final name =
+                          '${user['gebr_naam'] ?? ''} ${user['gebr_van'] ?? ''}'
+                              .trim();
+                      final role =
+                          user['gebr_tipe']?['gebr_tipe_naam'] ?? 'Onbekend';
+                      final isActive = user['is_aktief'] == true;
+                      final isPending = AdminPermissions.isPendingApproval(
+                        user,
+                      );
+
                       return Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.all(8),
@@ -154,8 +259,16 @@ class PendingUserApprovals extends StatelessWidget {
                                     ).colorScheme.primary.withOpacity(0.1),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Center(
-                                    child: Icon(Icons.person, size: 18),
+                                  child: Center(
+                                    child: Icon(
+                                      isPending
+                                          ? Icons.person_add
+                                          : Icons.person,
+                                      size: 18,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 10),
@@ -163,43 +276,71 @@ class PendingUserApprovals extends StatelessWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      user['name'],
+                                      name.isEmpty ? '(Geen naam)' : name,
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                     Text(
-                                      user['accountType'],
-                                      style: const TextStyle(
+                                      role,
+                                      style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.grey,
+                                        color: Colors.grey[600],
                                       ),
                                     ),
                                   ],
                                 ),
                               ],
                             ),
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.close),
-                                  onPressed: () => onRejectUser(user['id']),
-                                  tooltip: 'Reject',
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isPending
+                                    ? Colors.amber.shade100
+                                    : isActive
+                                    ? Colors.green.shade100
+                                    : Colors.red.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                isPending
+                                    ? 'Wag'
+                                    : isActive
+                                    ? 'Aktief'
+                                    : 'Nie aktief',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: isPending
+                                      ? Colors.amber.shade800
+                                      : isActive
+                                      ? Colors.green.shade800
+                                      : Colors.red.shade800,
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.check),
-                                  onPressed: () => onApproveUser(user['id']),
-                                  tooltip: 'Approve',
-                                ),
-                              ],
+                              ),
                             ),
                           ],
                         ),
                       );
                     }).toList(),
                   ),
-                ],
+                ),
               ),
+
+              if (_users.length > 6)
+                TextButton(
+                  onPressed: () => context.go('/gebruikers'),
+                  child: Text('Bekyk ${_users.length - 6} meer gebruikers'),
+                ),
+            ] else ...[
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Text('Geen gebruikers gevind nie'),
+              ),
+            ],
           ],
         ),
       ),

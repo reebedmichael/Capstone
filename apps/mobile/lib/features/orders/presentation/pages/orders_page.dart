@@ -439,11 +439,11 @@ class _OrdersPageState extends State<OrdersPage>
       case 'In voorbereiding':
         return Theme.of(context).colorScheme.primaryContainer;
       case 'Afgehandel':
-        return Theme.of(context).colorScheme.tertiaryContainer;
+        return Colors.green.shade800;
       case 'Gekanselleer':
         return Theme.of(context).colorScheme.errorContainer;
       case 'Verstryk':
-        return Colors.red.shade100;
+        return Colors.black;
       default:
         return Theme.of(context).colorScheme.surfaceVariant;
     }
@@ -875,7 +875,7 @@ class _OrdersPageState extends State<OrdersPage>
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: isPastDue ? Colors.red.shade100 : _statusColor(lastStatus ?? ''),
+                                  color: isPastDue ? Colors.black : _statusColor(lastStatus ?? ''),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Row(
@@ -885,7 +885,9 @@ class _OrdersPageState extends State<OrdersPage>
                                       isPastDue ? 'Verstryk' : (lastStatus ?? 'Onbekend'),
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: _tabController.index == 1 ? Colors.white : null,
+                                        color: isPastDue
+                                            ? Colors.white
+                                            : (_tabController.index == 1 ? Colors.white : null),
                                       ),
                                     ),
                                     if (lastUpdated != null) ...[
@@ -895,7 +897,9 @@ class _OrdersPageState extends State<OrdersPage>
                                         style: TextStyle(
                                           fontSize: 11,
                                           fontStyle: FontStyle.italic,
-                                          color: _tabController.index == 1 ? Colors.white : null,
+                                          color: isPastDue
+                                              ? Colors.white
+                                              : (_tabController.index == 1 ? Colors.white : null),
                                         ),
                                       ),
                                     ],

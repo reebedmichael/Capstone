@@ -9,6 +9,8 @@ class KositemTemplateCard extends StatefulWidget {
   final VoidCallback onDelete;
   final VoidCallback onView;
   final bool showEditDeleteButtons;
+  final bool showEditButton;
+  final bool showDeleteButton;
   final int? quantity;
   final DateTime? cutoffTime;
   final bool showLikes;
@@ -20,6 +22,8 @@ class KositemTemplateCard extends StatefulWidget {
     required this.onDelete,
     required this.onView,
     this.showEditDeleteButtons = true,
+    this.showEditButton = true,
+    this.showDeleteButton = true,
     this.quantity,
     this.cutoffTime,
     this.showLikes = false,
@@ -249,18 +253,18 @@ class _KositemTemplateCardState extends State<KositemTemplateCard> {
                             onTap: widget.onView,
                             color: Colors.blue,
                           ),
-                          if (widget.showEditDeleteButtons) ...[
+                          if (widget.showEditButton)
                             _circleIconButton(
                               icon: Icons.edit,
                               onTap: widget.onEdit,
                               color: Colors.green,
                             ),
+                          if (widget.showDeleteButton)
                             _circleIconButton(
                               icon: Icons.delete_outline,
                               onTap: widget.onDelete,
                               color: Colors.red.shade400,
                             ),
-                          ],
                         ],
                       ),
                     ),
@@ -280,13 +284,15 @@ class _KositemTemplateCardState extends State<KositemTemplateCard> {
                         onTap: widget.onView,
                         color: Colors.blue,
                       ),
-                      if (widget.showEditDeleteButtons) ...[
+                      if (widget.showEditButton) ...[
                         const SizedBox(width: 8),
                         _circleIconButton(
                           icon: Icons.edit,
                           onTap: widget.onEdit,
                           color: Colors.green,
                         ),
+                      ],
+                      if (widget.showDeleteButton) ...[
                         const SizedBox(width: 8),
                         _circleIconButton(
                           icon: Icons.delete_outline,

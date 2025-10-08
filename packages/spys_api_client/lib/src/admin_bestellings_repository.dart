@@ -10,11 +10,55 @@ class AdminBestellingRepository {
 
   SupabaseClient get _sb => _db.raw;
 
+  // Cache management
+  List<Map<String, dynamic>>? _cachedBestellings;
+  DateTime? _lastCacheUpdate;
+  Duration _cacheValidityDuration = const Duration(minutes: 5);
+
+  /// Check if cache is valid (not expired)
+  bool get _isCacheValid {
+    if (_cachedBestellings == null || _lastCacheUpdate == null) return false;
+    return DateTime.now().difference(_lastCacheUpdate!) <
+        _cacheValidityDuration;
+  }
+
+  /// Clear the cache
+  void clearCache() {
+    _cachedBestellings = null;
+    _lastCacheUpdate = null;
+  }
+
+  /// Force refresh cache by clearing it
+  void invalidateCache() {
+    clearCache();
+  }
+
+  /// Set cache validity duration
+  void setCacheValidityDuration(Duration duration) {
+    _cacheValidityDuration = duration;
+  }
+
+  /// Get cached data if valid, otherwise return null
+  List<Map<String, dynamic>>? getCachedBestellings() {
+    return _isCacheValid ? _cachedBestellings : null;
+  }
+
   /// Haal bestellings en assembles al die verwante data in `kos_items`.
   ///
   /// Returned `List<Map<String, dynamic>>` met elke bestelling se kern velde
   /// en 'n `kos_items` sleutel wat 'n lys van items met name en statusse bevat.
-  Future<List<Map<String, dynamic>>> getBestellings() async {
+  ///
+  /// Uses cache if available and valid to improve performance.
+  Future<List<Map<String, dynamic>>> getBestellings({
+    bool forceRefresh = false,
+  }) async {
+    // Return cached data if valid and not forcing refresh
+    if (!forceRefresh && _isCacheValid) {
+      print('Cache hit: Returning cached bestellings data');
+      return _cachedBestellings!;
+    }
+
+    print('Cache miss or force refresh: Fetching fresh data from database');
     try {
       // Stap 1: laai basiese bestellingsreeks
       final rows = await _sb
@@ -159,6 +203,11 @@ class AdminBestellingRepository {
         results.add(order);
       }
 
+      // Cache the results
+      _cachedBestellings = results;
+      _lastCacheUpdate = DateTime.now();
+      print('Cache updated: ${results.length} bestellings cached');
+
       return results;
     } catch (e, st) {
       print('Fout in getBestellings: $e\n$st');
@@ -185,10 +234,10 @@ class AdminBestellingRepository {
   Future<Map<String, dynamic>> cancelUnclaimedOrders() async {
     try {
       print('🧹 Starting automatic cleanup of unclaimed orders...');
-      
+
       final today = DateTime.now();
       final todayDate = DateTime(today.year, today.month, today.day);
-      
+
       // Find all orders that are past their delivery date and not yet completed/cancelled
       final unclaimedOrders = await _sb
           .from('bestelling_kos_item')
@@ -202,7 +251,7 @@ class AdminBestellingRepository {
             )
           ''')
           .lt('best_datum', todayDate.toIso8601String());
-      
+
       if (unclaimedOrders.isEmpty) {
         print('✅ No unclaimed orders found');
         return {
@@ -211,83 +260,89 @@ class AdminBestellingRepository {
           'message': 'Geen onopgehaalde bestellings gevind nie',
         };
       }
-      
+
       print('🔍 Found ${unclaimedOrders.length} potentially unclaimed orders');
-      
+
       // Get the "Gekanselleer" status ID
       final cancelStatusData = await _sb
           .from('kos_item_statusse')
           .select('kos_stat_id')
           .eq('kos_stat_naam', 'Gekanselleer')
           .maybeSingle();
-      
+
       if (cancelStatusData == null) {
         throw Exception('Kon nie "Gekanselleer" status vind nie');
       }
-      
+
       final cancelStatusId = cancelStatusData['kos_stat_id'] as String;
       int cancelledCount = 0;
       List<String> cancelledItems = [];
-      
+
       // Process each unclaimed order
       for (final order in unclaimedOrders) {
         final bestKosId = order['best_kos_id'] as String;
         final bestDatumStr = order['best_datum'] as String?;
         final kosItem = order['kos_item'] as Map<String, dynamic>?;
-        final itemName = kosItem?['kos_item_naam'] as String? ?? 'Onbekende item';
-        
+        final itemName =
+            kosItem?['kos_item_naam'] as String? ?? 'Onbekende item';
+
         if (bestDatumStr == null) continue;
-        
+
         try {
           final bestDatum = DateTime.parse(bestDatumStr);
-          final orderDate = DateTime(bestDatum.year, bestDatum.month, bestDatum.day);
-          
+          final orderDate = DateTime(
+            bestDatum.year,
+            bestDatum.month,
+            bestDatum.day,
+          );
+
           // Skip if order is not past its delivery date
           if (!orderDate.isBefore(todayDate)) continue;
-          
+
           // Check if order is already completed or cancelled
           final statuses = order['best_kos_item_statusse'] as List? ?? [];
           bool isAlreadyProcessed = false;
-          
+
           for (final status in statuses) {
-            final statusInfo = status['kos_item_statusse'] as Map<String, dynamic>?;
+            final statusInfo =
+                status['kos_item_statusse'] as Map<String, dynamic>?;
             final statusName = statusInfo?['kos_stat_naam'] as String?;
             if (statusName == 'Afgehandel' || statusName == 'Gekanselleer') {
               isAlreadyProcessed = true;
               break;
             }
           }
-          
+
           if (isAlreadyProcessed) continue;
-          
+
           // Cancel the order item
           await _sb.from('best_kos_item_statusse').insert({
             'best_kos_id': bestKosId,
             'kos_stat_id': cancelStatusId,
             'best_kos_wysig_datum': DateTime.now().toIso8601String(),
           });
-          
+
           cancelledCount++;
           cancelledItems.add(itemName);
-          
-          print('✅ Cancelled unclaimed order: $itemName (Order date: ${_formatDateForDisplay(orderDate)})');
-          
+
+          print(
+            '✅ Cancelled unclaimed order: $itemName (Order date: ${_formatDateForDisplay(orderDate)})',
+          );
         } catch (e) {
           print('❌ Error processing order $bestKosId: $e');
         }
       }
-      
+
       print('✅ Cleanup completed. Cancelled $cancelledCount orders');
-      
+
       return {
         'success': true,
         'cancelledCount': cancelledCount,
         'cancelledItems': cancelledItems,
-        'message': cancelledCount > 0 
+        'message': cancelledCount > 0
             ? '$cancelledCount onopgehaalde bestelling(s) is outomaties gekanselleer'
             : 'Geen onopgehaalde bestellings gevind nie',
       };
-      
     } catch (e) {
       print('❌ Error during order cleanup: $e');
       return {
@@ -296,25 +351,42 @@ class AdminBestellingRepository {
       };
     }
   }
-  
+
   /// Format date for display in Afrikaans
   String _formatDateForDisplay(DateTime date) {
     final months = [
-      'Januarie', 'Februarie', 'Maart', 'April', 'Mei', 'Junie',
-      'Julie', 'Augustus', 'September', 'Oktober', 'November', 'Desember'
+      'Januarie',
+      'Februarie',
+      'Maart',
+      'April',
+      'Mei',
+      'Junie',
+      'Julie',
+      'Augustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
     ];
-    
+
     final weekdays = [
-      'Sondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrydag', 'Saterdag'
+      'Sondag',
+      'Maandag',
+      'Dinsdag',
+      'Woensdag',
+      'Donderdag',
+      'Vrydag',
+      'Saterdag',
     ];
-    
+
     final weekday = weekdays[date.weekday % 7];
     final month = months[date.month - 1];
-    
+
     return '$weekday ${date.day} $month ${date.year}';
   }
 
   /// Dateer die status van 'n `bestelling_kos_item` op.
+  /// Automatically invalidates cache after successful update.
   Future<void> updateStatus({
     required String bestKosId, // GEWYSIG NA STRING
     required String statusNaam,
@@ -398,6 +470,10 @@ class AdminBestellingRepository {
           'trans_tipe_id': transTipeId,
         });
       }
+
+      // Invalidate cache after successful update
+      invalidateCache();
+      print('Cache invalidated after status update');
     } catch (e, st) {
       print('Fout in updateStatus: $e\n$st');
       rethrow;

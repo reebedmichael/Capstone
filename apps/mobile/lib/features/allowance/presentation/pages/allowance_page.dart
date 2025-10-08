@@ -234,7 +234,7 @@ class _AllowancePageState extends State<AllowancePage> {
                         style: TextStyle(
                           color: spendingPercentage > 80
                               ? Colors.red
-                              : Colors.black,
+                              : Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ] else ...[

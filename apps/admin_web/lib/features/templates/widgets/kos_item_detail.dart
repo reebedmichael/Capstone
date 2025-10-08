@@ -4,8 +4,9 @@ import 'kos_item_templaat.dart';
 
 class KositemDetailDialog extends StatelessWidget {
   final KositemTemplate item;
+  final VoidCallback? onEdit;
 
-  const KositemDetailDialog({super.key, required this.item});
+  const KositemDetailDialog({super.key, required this.item, this.onEdit});
 
   @override
   Widget build(BuildContext context) {
@@ -176,6 +177,24 @@ class KositemDetailDialog extends StatelessWidget {
                 ),
 
               const SizedBox(height: 24),
+
+              // Edit button (only shown if onEdit callback is provided)
+              if (onEdit != null)
+                Align(
+                  alignment: Alignment.bottomRight,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Close detail dialog
+                      onEdit!(); // Call the edit callback
+                    },
+                    icon: const Icon(Icons.edit),
+                    label: const Text('Wysig'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

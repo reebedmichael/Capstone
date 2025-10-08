@@ -16,6 +16,7 @@ class OrderItem {
   final double price;
   final OrderStatus status;
   final String scheduledDay;
+  final DateTime? bestDatum; // Add actual date field
 
   OrderItem({
     required this.id,
@@ -24,6 +25,7 @@ class OrderItem {
     required this.price,
     required this.status,
     required this.scheduledDay,
+    this.bestDatum, // Add to constructor
   });
 
   OrderItem copyWith({
@@ -33,6 +35,7 @@ class OrderItem {
     double? price,
     OrderStatus? status,
     String? scheduledDay,
+    DateTime? bestDatum, // Add to copyWith
   }) {
     return OrderItem(
       id: id ?? this.id,
@@ -41,6 +44,7 @@ class OrderItem {
       price: price ?? this.price,
       status: status ?? this.status,
       scheduledDay: scheduledDay ?? this.scheduledDay,
+      bestDatum: bestDatum ?? this.bestDatum, // Add to copyWith
     );
   }
 }

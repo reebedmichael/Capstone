@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../templates/widgets/kos_item_templaat.dart';
 
 class ItemSearchOverlay extends StatefulWidget {
@@ -280,6 +281,33 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
                   },
                 );
               },
+            ),
+          ),
+
+          // Create new item button
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: Theme.of(context).dividerColor),
+              ),
+            ),
+            child: Center(
+              child: TextButton.icon(
+                onPressed: () {
+                  // Close the overlay first
+                  widget.onClose();
+                  // Navigate to kositem template page
+                  context.go('/templates/kositem');
+                },
+                icon: const Icon(Icons.add_circle_outline),
+                label: const Text(
+                  'Nie gevind wat jy soek? Skep \'n nuwe kositem',
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.primary,
+                ),
+              ),
             ),
           ),
         ],

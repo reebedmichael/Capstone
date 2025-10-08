@@ -247,6 +247,22 @@ class AuthService {
     }
   }
 
+  // Check if user exists by email
+  Future<bool> userExistsByEmail({required String email}) async {
+    try {
+      final result = await _supabase
+          .from('gebruikers')
+          .select('gebr_id')
+          .eq('gebr_epos', email)
+          .maybeSingle();
+
+      return result != null;
+    } catch (e) {
+      print('Error checking if user exists by email: $e');
+      return false;
+    }
+  }
+
   // Get user profile from our database
   Future<Map<String, dynamic>?> getUserProfile() async {
     if (currentUser == null) {

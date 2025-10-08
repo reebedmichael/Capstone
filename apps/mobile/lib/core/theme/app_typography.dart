@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
 
 class AppTypography {
   static const String fontFamily = 'Inter';
@@ -9,7 +8,6 @@ class AppTypography {
     fontSize: 21,
     height: 1.3,
     fontWeight: FontWeight.w500,
-    color: AppColors.onSurface,
     fontFamily: fontFamily,
   );
 
@@ -17,7 +15,6 @@ class AppTypography {
     fontSize: 17.5,
     height: 1.35,
     fontWeight: FontWeight.w500,
-    color: AppColors.onSurface,
     fontFamily: fontFamily,
   );
 
@@ -25,7 +22,6 @@ class AppTypography {
     fontSize: 15.75,
     height: 1.4,
     fontWeight: FontWeight.w500,
-    color: AppColors.onSurface,
     fontFamily: fontFamily,
   );
 
@@ -33,7 +29,6 @@ class AppTypography {
     fontSize: 14,
     height: 1.5,
     fontWeight: FontWeight.w400,
-    color: AppColors.onSurface,
     fontFamily: fontFamily,
   );
 
@@ -41,7 +36,6 @@ class AppTypography {
     fontSize: 14,
     height: 1.5,
     fontWeight: FontWeight.w500,
-    color: AppColors.onSurface,
     fontFamily: fontFamily,
   );
 
@@ -49,7 +43,6 @@ class AppTypography {
     fontSize: 14,
     height: 1.2,
     fontWeight: FontWeight.w500,
-    color: AppColors.onSurface,
     fontFamily: fontFamily,
   );
 
@@ -63,28 +56,24 @@ class AppTypography {
     fontSize: 12,
     height: 1.4,
     fontWeight: FontWeight.w500,
-    color: AppColors.onSurface,
     fontFamily: fontFamily,
   );
   static const TextStyle bodySmall = TextStyle(
     fontSize: 12,
     height: 1.45,
     fontWeight: FontWeight.w400,
-    color: AppColors.onSurface,
     fontFamily: fontFamily,
   );
   static const TextStyle labelMedium = TextStyle(
     fontSize: 12,
     height: 1.2,
     fontWeight: FontWeight.w500,
-    color: AppColors.onSurface,
     fontFamily: fontFamily,
   );
   static const TextStyle labelSmall = TextStyle(
     fontSize: 10,
     height: 1.2,
     fontWeight: FontWeight.w500,
-    color: AppColors.onSurface,
     fontFamily: fontFamily,
   );
 
@@ -93,7 +82,6 @@ class AppTypography {
     fontSize: 12,
     height: 1.4,
     fontWeight: FontWeight.w400,
-    color: AppColors.onSurface,
     fontFamily: fontFamily,
   );
 
@@ -101,7 +89,6 @@ class AppTypography {
     fontSize: 10,
     height: 1.2,
     fontWeight: FontWeight.w500,
-    color: AppColors.onSurface,
     letterSpacing: 1.0,
     fontFamily: fontFamily,
   );
@@ -110,7 +97,6 @@ class AppTypography {
     fontSize: 12,
     height: 1.4,
     fontWeight: FontWeight.w400,
-    color: AppColors.error,
     fontFamily: fontFamily,
   );
 
@@ -118,7 +104,6 @@ class AppTypography {
     fontSize: 14,
     height: 1.3,
     fontWeight: FontWeight.w500,
-    color: AppColors.primary,
     decoration: TextDecoration.underline,
     fontFamily: fontFamily,
   );

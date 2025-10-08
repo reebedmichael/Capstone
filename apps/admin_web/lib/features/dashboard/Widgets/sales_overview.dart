@@ -13,7 +13,7 @@ class SalesOverview extends StatefulWidget {
 
 class _SalesOverviewState extends State<SalesOverview> {
   late final AdminDashboardRepository _repo;
-  List<Map<String, dynamic>>? _weeklySalesData;
+  List<Map<String, dynamic>>? _weeklyItemData;
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -22,19 +22,19 @@ class _SalesOverviewState extends State<SalesOverview> {
     super.initState();
     final supabaseClient = Supabase.instance.client;
     _repo = AdminDashboardRepository(SupabaseDb(supabaseClient));
-    _loadWeeklySalesData();
+    _loadWeeklyItemData();
   }
 
-  Future<void> _loadWeeklySalesData() async {
+  Future<void> _loadWeeklyItemData() async {
     try {
       setState(() {
         _isLoading = true;
         _errorMessage = null;
       });
 
-      final data = await _repo.fetchWeeklySales();
+      final data = await _repo.fetchWeeklyItemCount();
       setState(() {
-        _weeklySalesData = data;
+        _weeklyItemData = data;
         _isLoading = false;
       });
     } catch (e) {
@@ -45,8 +45,8 @@ class _SalesOverviewState extends State<SalesOverview> {
     }
   }
 
-  String _formatCurrency(double amount) {
-    return 'R${amount.toInt()}';
+  String _formatItemCount(int count) {
+    return count.toString();
   }
 
   String _formatDate(String dateStr) {
@@ -56,7 +56,7 @@ class _SalesOverviewState extends State<SalesOverview> {
   }
 
   Widget _buildLineChart() {
-    if (_weeklySalesData == null || _weeklySalesData!.isEmpty) {
+    if (_weeklyItemData == null || _weeklyItemData!.isEmpty) {
       return Container(
         height: 320,
         decoration: BoxDecoration(
@@ -65,19 +65,18 @@ class _SalesOverviewState extends State<SalesOverview> {
         ),
         child: const Center(
           child: Text(
-            'Geen verkope data beskikbaar',
+            'Geen item data beskikbaar',
             style: TextStyle(color: Colors.grey),
           ),
         ),
       );
     }
 
-    final data = _weeklySalesData!;
-    final maxSales = data.fold<double>(
+    final data = _weeklyItemData!;
+    final maxItems = data.fold<int>(
       0,
-      (max, item) => (item['totalSales'] as num).toDouble() > max
-          ? (item['totalSales'] as num).toDouble()
-          : max,
+      (max, item) =>
+          (item['totalItems'] as int) > max ? (item['totalItems'] as int) : max,
     );
 
     return Container(
@@ -88,7 +87,7 @@ class _SalesOverviewState extends State<SalesOverview> {
           gridData: FlGridData(
             show: true,
             drawVerticalLine: true,
-            horizontalInterval: maxSales > 0 ? maxSales / 5 : 1,
+            horizontalInterval: maxItems > 0 ? maxItems / 5 : 1,
             verticalInterval: 1,
             getDrawingHorizontalLine: (value) {
               return FlLine(color: Colors.grey.shade300, strokeWidth: 1);
@@ -101,6 +100,8 @@ class _SalesOverviewState extends State<SalesOverview> {
             show: true,
             rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
             topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+
+            // X Axis (bottom)
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
@@ -123,17 +124,28 @@ class _SalesOverviewState extends State<SalesOverview> {
                   return const Text('');
                 },
               ),
+              // Axis title
+              axisNameWidget: const Padding(
+                padding: EdgeInsets.only(top: 2),
+                child: Text(
+                  'Dag van week',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+              ),
+              axisNameSize: 24,
             ),
+
+            // Y Axis (left)
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                interval: maxSales > 0 ? maxSales / 2 : 1,
+                interval: maxItems > 0 ? maxItems / 2 : 1,
                 reservedSize: 40,
                 getTitlesWidget: (double value, TitleMeta meta) {
                   return SideTitleWidget(
                     axisSide: meta.axisSide,
                     child: Text(
-                      _formatCurrency(value),
+                      _formatItemCount(value.toInt()),
                       style: const TextStyle(
                         color: Colors.grey,
                         fontWeight: FontWeight.bold,
@@ -143,6 +155,15 @@ class _SalesOverviewState extends State<SalesOverview> {
                   );
                 },
               ),
+              // Axis title
+              axisNameWidget: const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Aantal items',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+              ),
+              axisNameSize: 32,
             ),
           ),
           borderData: FlBorderData(
@@ -152,13 +173,18 @@ class _SalesOverviewState extends State<SalesOverview> {
           minX: 0,
           maxX: (data.length - 1).toDouble(),
           minY: 0,
-          maxY: maxSales,
+          // clipData: FlClipData.all(),
+          maxY: maxItems.toDouble(),
           lineBarsData: [
             LineChartBarData(
               spots: data.asMap().entries.map((entry) {
-                return FlSpot(entry.key.toDouble(), entry.value['totalSales']);
+                return FlSpot(
+                  entry.key.toDouble(),
+                  (entry.value['totalItems'] as int).toDouble(),
+                );
               }).toList(),
-              isCurved: true,
+              // isCurved: true,
+              isCurved: false,
               gradient: LinearGradient(
                 colors: [
                   Colors.deepOrange.shade400,
@@ -214,7 +240,7 @@ class _SalesOverviewState extends State<SalesOverview> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Verkope Oorsig',
+                          'Item Verkope Oorsig',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -222,7 +248,7 @@ class _SalesOverviewState extends State<SalesOverview> {
                         ),
                         const SizedBox(height: 6),
                         const Text(
-                          'Weeklikse verkope prestasie',
+                          'Huidige week se item verkope prestasie',
                           style: TextStyle(color: Colors.grey),
                         ),
                       ],
@@ -250,7 +276,7 @@ class _SalesOverviewState extends State<SalesOverview> {
                         children: [
                           CircularProgressIndicator(),
                           SizedBox(height: 16),
-                          Text('Laai verkope data...'),
+                          Text('Laai item data...'),
                         ],
                       ),
                     ),
@@ -269,7 +295,7 @@ class _SalesOverviewState extends State<SalesOverview> {
                           Icon(Icons.error, color: Colors.red, size: 48),
                           const SizedBox(height: 8),
                           Text(
-                            'Kon nie verkope data laai nie',
+                            'Kon nie item data laai nie',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -283,7 +309,7 @@ class _SalesOverviewState extends State<SalesOverview> {
                           ),
                           const SizedBox(height: 12),
                           ElevatedButton.icon(
-                            onPressed: _loadWeeklySalesData,
+                            onPressed: _loadWeeklyItemData,
                             icon: Icon(Icons.refresh),
                             label: Text('Probeer weer'),
                           ),

@@ -1,8 +1,8 @@
 // order_details_modal.dart
 import 'package:flutter/material.dart';
-import '../../types/order.dart';
-import '../../utils/status_utils.dart';
-import '../../constants/order_constants.dart';
+import '../../../shared/types/order.dart';
+import '../../../shared/utils/status_utils.dart';
+import '../../../shared/constants/order_constants.dart';
 import 'cancel_confirmation.dart';
 import 'status_badge.dart';
 

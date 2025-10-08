@@ -4,8 +4,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class KpiCards extends StatefulWidget {
   final double mediaWidth;
+  final ValueNotifier<int>? refreshTrigger;
 
-  const KpiCards({Key? key, required this.mediaWidth}) : super(key: key);
+  const KpiCards({Key? key, required this.mediaWidth, this.refreshTrigger})
+    : super(key: key);
 
   @override
   State<KpiCards> createState() => _KpiCardsState();
@@ -23,25 +25,57 @@ class _KpiCardsState extends State<KpiCards> {
     final supabaseClient = Supabase.instance.client;
     _repo = AdminDashboardRepository(SupabaseDb(supabaseClient));
     _loadKpiData();
+
+    // Listen for refresh triggers
+    widget.refreshTrigger?.addListener(_onRefreshTriggered);
+  }
+
+  @override
+  void dispose() {
+    widget.refreshTrigger?.removeListener(_onRefreshTriggered);
+    super.dispose();
+  }
+
+  void _onRefreshTriggered() {
+    if (mounted) {
+      _loadKpiData();
+    }
+  }
+
+  // Add method to refresh KPI data
+  void refreshKpiData() {
+    _loadKpiData();
   }
 
   Future<void> _loadKpiData() async {
+    if (!mounted) return;
+
     try {
       setState(() {
         _isLoading = true;
         _errorMessage = null;
       });
 
-      final data = await _repo.fetcKpiStats();
-      setState(() {
-        _kpiData = data;
-        _isLoading = false;
-      });
+      final data = await _repo.fetchDashboardStats().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('KPI data loading timeout - please try again');
+        },
+      );
+
+      if (mounted) {
+        setState(() {
+          _kpiData = data;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -200,12 +234,13 @@ class _KpiCardsState extends State<KpiCards> {
     }
 
     final data = _kpiData!;
-    final todayEarnings = data['todayEarnings'] as double;
-    final yesterdayEarnings = data['yesterdayEarnings'] as double;
-    final todayOrders = data['todayOrders'] as int;
-    final yesterdayOrders = data['yesterdayOrders'] as int;
+    final todayEarnings = (data['todayEarnings'] as num?)?.toDouble() ?? 0.0;
+    final yesterdayEarnings =
+        (data['yesterdayEarnings'] as num?)?.toDouble() ?? 0.0;
+    final todayOrders = (data['todayOrders'] as num?)?.toInt() ?? 0;
+    final yesterdayOrders = (data['yesterdayOrders'] as num?)?.toInt() ?? 0;
     final mostPopularItem = data['mostPopularItem'] as String?;
-    final uncompletedOrders = data['uncompletedOrders'] as int;
+    final uncompletedOrders = (data['uncompletedOrders'] as num?)?.toInt() ?? 0;
 
     return Wrap(
       spacing: 16,
@@ -233,7 +268,7 @@ class _KpiCardsState extends State<KpiCards> {
           width: _kpiWidth(widget.mediaWidth),
         ),
         _buildKpiCard(
-          title: 'Bestellings vandag',
+          title: 'Totale items vir vandag',
           icon: Icons.shopping_cart,
           value: todayOrders.toString(),
           subtitle: Row(
@@ -260,6 +295,16 @@ class _KpiCardsState extends State<KpiCards> {
           width: _kpiWidth(widget.mediaWidth),
         ),
         _buildKpiCard(
+          title: 'Items om nog te lewer',
+          icon: Icons.delivery_dining,
+          value: uncompletedOrders.toString(),
+          subtitle: const Text(
+            'Nog nie afgehandel of gekanseleer nie',
+            style: TextStyle(fontSize: 12),
+          ),
+          width: _kpiWidth(widget.mediaWidth),
+        ),
+        _buildKpiCard(
           title: 'Populêre Kos Items',
           icon: Icons.emoji_food_beverage,
           value: mostPopularItem ?? 'Geen data',
@@ -276,16 +321,6 @@ class _KpiCardsState extends State<KpiCards> {
           ),
           width: _kpiWidth(widget.mediaWidth),
           valueIsLarge: false,
-        ),
-        _buildKpiCard(
-          title: 'Kos Items',
-          icon: Icons.schedule,
-          value: uncompletedOrders.toString(),
-          subtitle: const Text(
-            'Items nog nie afgehandel nie',
-            style: TextStyle(fontSize: 12),
-          ),
-          width: _kpiWidth(widget.mediaWidth),
         ),
       ],
     );

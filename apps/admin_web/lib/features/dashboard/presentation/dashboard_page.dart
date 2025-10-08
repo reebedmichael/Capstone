@@ -1,4 +1,3 @@
-import 'package:capstone_admin/features/dashboard/Widgets/quick_actions.dart';
 import 'package:capstone_admin/features/dashboard/Widgets/dashboard_header.dart';
 import 'package:capstone_admin/features/dashboard/Widgets/kpi_cards.dart';
 import 'package:capstone_admin/features/dashboard/Widgets/sales_overview.dart';
@@ -7,6 +6,7 @@ import 'package:capstone_admin/features/dashboard/Widgets/todays_orders.dart';
 import 'package:capstone_admin/features/dashboard/Widgets/next_weeks_menu.dart';
 import 'package:capstone_admin/features/dashboard/Widgets/pending_user_approvals.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 typedef NavigateCallback = void Function(String page);
 
@@ -20,139 +20,13 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  String selectedLocation = 'all';
+  int _unreadNotificationCount = 0;
 
-  List<Map<String, dynamic>> todaysOrders = [
-    {
-      'id': '#12345',
-      'customer': 'John Doe',
-      'status': 'In Progress',
-      'time': '10:30 AM',
-      'items': 3,
-      'location': 'Downtown',
-    },
-    {
-      'id': '#12346',
-      'customer': 'Jane Smith',
-      'status': 'Ready',
-      'time': '11:15 AM',
-      'items': 2,
-      'location': 'Uptown',
-    },
-    {
-      'id': '#12347',
-      'customer': 'Mike Johnson',
-      'status': 'Pending',
-      'time': '12:00 PM',
-      'items': 1,
-      'location': 'Downtown',
-    },
-    {
-      'id': '#12348',
-      'customer': 'Sarah Wilson',
-      'status': 'Delivered',
-      'time': '09:45 AM',
-      'items': 4,
-      'location': 'Mall',
-    },
-    {
-      'id': '#12349',
-      'customer': 'Alex Brown',
-      'status': 'Pending',
-      'time': '12:30 PM',
-      'items': 2,
-      'location': 'Uptown',
-    },
-    {
-      'id': '#12350',
-      'customer': 'Emma Davis',
-      'status': 'In Progress',
-      'time': '01:00 PM',
-      'items': 3,
-      'location': 'Mall',
-    },
-    {
-      'id': '#12351',
-      'customer': 'Tom Wilson',
-      'status': 'Ready',
-      'time': '01:15 PM',
-      'items': 1,
-      'location': 'Downtown',
-    },
-    {
-      'id': '#12352',
-      'customer': 'Lisa Chen',
-      'status': 'Out for Delivery',
-      'time': '11:30 AM',
-      'items': 2,
-      'location': 'Uptown',
-    },
-    {
-      'id': '#12353',
-      'customer': 'David Park',
-      'status': 'Pending',
-      'time': '01:45 PM',
-      'items': 1,
-      'location': 'Mall',
-    },
-    {
-      'id': '#12354',
-      'customer': 'Rachel Green',
-      'status': 'Delivered',
-      'time': '10:15 AM',
-      'items': 3,
-      'location': 'Downtown',
-    },
-  ];
-
-  final List<String> locations = [
-    'All Locations',
-    'Downtown',
-    'Uptown',
-    'Mall',
-  ];
+  // Add ValueNotifier to trigger KPI refresh
+  final ValueNotifier<int> _kpiRefreshTrigger = ValueNotifier<int>(0);
 
   late final List<DateTime> nextWeekDates;
   late List<Map<String, dynamic>> weeklyMenu;
-
-  List<Map<String, dynamic>> pendingUsers = [
-    {
-      'id': 'user_001',
-      'name': 'Michael Rodriguez',
-      'email': 'michael.rodriguez@email.com',
-      'phone': '+1 (555) 123-4567',
-      'registrationDate': '2024-10-04',
-      'accountType': 'Customer',
-      'location': 'Downtown',
-    },
-    {
-      'id': 'user_002',
-      'name': 'Jessica Thompson',
-      'email': 'jessica.thompson@email.com',
-      'phone': '+1 (555) 987-6543',
-      'registrationDate': '2024-10-04',
-      'accountType': 'Delivery Partner',
-      'location': 'Uptown',
-    },
-    {
-      'id': 'user_003',
-      'name': 'Ahmed Hassan',
-      'email': 'ahmed.hassan@email.com',
-      'phone': '+1 (555) 456-7890',
-      'registrationDate': '2024-10-03',
-      'accountType': 'Customer',
-      'location': 'Mall',
-    },
-    {
-      'id': 'user_004',
-      'name': 'Sofia Chen',
-      'email': 'sofia.chen@email.com',
-      'phone': '+1 (555) 321-0987',
-      'registrationDate': '2024-10-03',
-      'accountType': 'Restaurant Partner',
-      'location': 'Downtown',
-    },
-  ];
 
   final List<Map<String, String>> recentActivity = [
     {'action': 'Admin John updated the menu template', 'time': '5 mins ago'},
@@ -164,57 +38,6 @@ class _DashboardPageState extends State<DashboardPage> {
     {
       'action': 'Menu item "Spicy Burger" marked as out of stock',
       'time': '1 hour ago',
-    },
-  ];
-
-  List<Map<String, dynamic>> importantNotifications = [
-    {
-      'id': 'notif_001',
-      'type': 'critical',
-      'title': 'Betaal stelsel probleem',
-      'message':
-          'Betaal stelsel ondervind probleme. Sommige bestellings mag beïnvloed word.',
-      'time': '2 mins terug',
-      'actionRequired': true,
-      'dismissed': false,
-    },
-    {
-      'id': 'notif_002',
-      'type': 'warning',
-      'title': 'Lae Voorraad Waarskuwing',
-      'message': 'Spys se voorraad is laag by Leriba.',
-      'time': '15 mins terug',
-      'actionRequired': true,
-      'dismissed': false,
-    },
-    {
-      'id': 'notif_003',
-      'type': 'info',
-      'title': 'Aflewering opdateering',
-      'message': 'Sarah M. is by Leriba se aflewering span bygevoeg.',
-      'time': '1 hour terug',
-      'actionRequired': false,
-      'dismissed': false,
-    },
-    {
-      'id': 'notif_004',
-      'type': 'success',
-      'title': 'Systeem onderhoud voltooi',
-      'message':
-          'Beplande databasis optimisering voltooi. Prestasie verbeter deur 15%.',
-      'time': '2 hours ago',
-      'actionRequired': false,
-      'dismissed': false,
-    },
-    {
-      'id': 'notif_005',
-      'type': 'warning',
-      'title': 'Weer waarskuwing',
-      'message':
-          'Hoë reen is verwag vir die vandag. Pas aflewering tydlyne aan.',
-      'time': '3 hours terug',
-      'actionRequired': true,
-      'dismissed': false,
     },
   ];
 
@@ -289,115 +112,6 @@ class _DashboardPageState extends State<DashboardPage> {
     return weekDays;
   }
 
-  Color getStatusColor(String status) {
-    switch (status) {
-      case 'Pending':
-        return Colors.amber;
-      case 'In Progress':
-        return Colors.blue;
-      case 'Ready':
-        return Colors.purple;
-      case 'Out for Delivery':
-        return Colors.orange;
-      case 'Delivered':
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String? getNextStatus(String currentStatus) {
-    switch (currentStatus) {
-      case 'Pending':
-        return 'In Progress';
-      case 'In Progress':
-        return 'Ready';
-      case 'Ready':
-        return 'Out for Delivery';
-      case 'Out for Delivery':
-        return 'Delivered';
-      case 'Delivered':
-        return null;
-      default:
-        return null;
-    }
-  }
-
-  void updateOrdersByStatus(String currentStatus) {
-    final nextStatus = getNextStatus(currentStatus);
-    if (nextStatus == null) return;
-    setState(() {
-      todaysOrders = todaysOrders.map((order) {
-        if (order['status'] == currentStatus &&
-            (selectedLocation == 'all' ||
-                order['location'] == selectedLocation)) {
-          final updated = Map<String, dynamic>.from(order);
-          updated['status'] = nextStatus;
-          return updated;
-        }
-        return order;
-      }).toList();
-    });
-  }
-
-  List<Map<String, dynamic>> getFilteredOrders() {
-    if (selectedLocation == 'all') return todaysOrders;
-    return todaysOrders
-        .where((o) => o['location'] == selectedLocation)
-        .toList();
-  }
-
-  List<Map<String, dynamic>> getStatusGroups() {
-    final filtered = getFilteredOrders();
-    final Map<String, int> summary = {};
-    for (var order in filtered) {
-      final s = order['status'] as String;
-      summary[s] = (summary[s] ?? 0) + 1;
-    }
-    final groups = [
-      {
-        'status': 'Pending',
-        'count': summary['Pending'] ?? 0,
-        'color': getStatusColor('Pending'),
-      },
-      {
-        'status': 'In Progress',
-        'count': summary['In Progress'] ?? 0,
-        'color': getStatusColor('In Progress'),
-      },
-      {
-        'status': 'Ready',
-        'count': summary['Ready'] ?? 0,
-        'color': getStatusColor('Ready'),
-      },
-      {
-        'status': 'Out for Delivery',
-        'count': summary['Out for Delivery'] ?? 0,
-        'color': getStatusColor('Out for Delivery'),
-      },
-      {
-        'status': 'Delivered',
-        'count': summary['Delivered'] ?? 0,
-        'color': getStatusColor('Delivered'),
-      },
-    ];
-    return groups.where((g) => (g['count'] as int) > 0).toList();
-  }
-
-  void approveUser(String userId) {
-    setState(() {
-      pendingUsers = pendingUsers.where((u) => u['id'] != userId).toList();
-    });
-    // API call would go here
-  }
-
-  void rejectUser(String userId) {
-    setState(() {
-      pendingUsers = pendingUsers.where((u) => u['id'] != userId).toList();
-    });
-    // API call would go here
-  }
-
   TextStyle accountTypeTextStyle(String type) {
     switch (type) {
       case 'Customer':
@@ -461,25 +175,6 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  void dismissNotification(String id) {
-    setState(() {
-      importantNotifications = importantNotifications.map((notif) {
-        if (notif['id'] == id) {
-          final copy = Map<String, dynamic>.from(notif);
-          copy['dismissed'] = true;
-          return copy;
-        }
-        return notif;
-      }).toList();
-    });
-  }
-
-  List<Map<String, dynamic>> getActiveNotifications() {
-    return importantNotifications
-        .where((n) => n['dismissed'] == false)
-        .toList();
-  }
-
   String formatShortDate(DateTime d) {
     // e.g., Oct 21
     const months = [
@@ -509,14 +204,10 @@ class _DashboardPageState extends State<DashboardPage> {
       children: [
         // Dashboard Header
         DashboardHeader(
-          ongeleeseKennisgewings: importantNotifications
-              .where((n) => n['dismissed'] == false)
-              .length,
-          onNavigeerNaKennisgewings: () {
-            // TODO: Navigate to notifications page
-          },
+          ongeleeseKennisgewings: _unreadNotificationCount,
+          onNavigeerNaKennisgewings: () => context.go('/kennisgewings'),
           onUitteken: () {
-            // TODO: Handle sign out
+            // No longer needed - handled internally by DashboardHeader
           },
         ),
 
@@ -527,77 +218,103 @@ class _DashboardPageState extends State<DashboardPage> {
             child: Column(
               children: [
                 // KPI Cards
-                KpiCards(mediaWidth: mediaWidth),
+                KpiCards(
+                  mediaWidth: mediaWidth,
+                  refreshTrigger: _kpiRefreshTrigger,
+                ),
 
                 const SizedBox(height: 16),
 
                 // Charts & Important Notifications
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Sales chart (left, large)
-                    Expanded(flex: 2, child: SalesOverview()),
-                    const SizedBox(width: 16),
-                    // Important Notifications (right, small)
-                    Expanded(
-                      flex: 1,
-                      child: ImportantNotifications(
-                        importantNotifications: importantNotifications,
-                        onDismissNotification: dismissNotification,
+                if (isLarge || isMedium)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Sales chart (left, large)
+                      Expanded(flex: 2, child: SalesOverview()),
+                      const SizedBox(width: 16),
+                      // Important Notifications (right, small)
+                      Expanded(
+                        flex: 1,
+                        child: ImportantNotifications(
+                          onNotificationCountChanged: (count) {
+                            setState(() {
+                              _unreadNotificationCount = count;
+                            });
+                          },
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  )
+                else
+                  Column(
+                    children: [
+                      SalesOverview(),
+                      const SizedBox(height: 16),
+                      ImportantNotifications(
+                        onNotificationCountChanged: (count) {
+                          setState(() {
+                            _unreadNotificationCount = count;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
 
                 const SizedBox(height: 16),
 
                 // Today's Orders & Weekly Menu
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Today's Orders (left)
-                    Expanded(
-                      child: TodaysOrders(
-                        todaysOrders: todaysOrders,
-                        selectedLocation: selectedLocation,
-                        locations: locations,
-                        onLocationChanged: (location) {
-                          setState(() {
-                            selectedLocation = location;
-                          });
-                        },
-                        onUpdateOrdersByStatus: updateOrdersByStatus,
-                        onNavigateToOrders: widget.onNavigate ?? (page) {},
+                if (isLarge || isMedium)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Today's Orders (left)
+                      Expanded(
+                        child: TodaysOrders(
+                          onStatusChangedToDone: () {
+                            // Refresh KPI cards when status changes to done
+                            _kpiRefreshTrigger.value++;
+                          },
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    // Weekly Menu (right)
-                    Expanded(
-                      child: NextWeeksMenu(
+                      const SizedBox(width: 16),
+                      // Weekly Menu (right)
+                      Expanded(
+                        child: NextWeeksMenu(
+                          onNavigateToMenu: widget.onNavigate ?? (page) {},
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Column(
+                    children: [
+                      TodaysOrders(
+                        onStatusChangedToDone: () {
+                          // Refresh KPI cards when status changes to done
+                          _kpiRefreshTrigger.value++;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      NextWeeksMenu(
                         onNavigateToMenu: widget.onNavigate ?? (page) {},
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
 
                 const SizedBox(height: 16),
 
-                // Pending User Approvals
-                PendingUserApprovals(
-                  pendingUsers: pendingUsers,
-                  onApproveUser: approveUser,
-                  onRejectUser: rejectUser,
-                  onNavigateToUsers: widget.onNavigate ?? (page) {},
-                ),
+                // User Management Summary
+                const UserManagementSummary(),
 
                 const SizedBox(height: 16),
 
                 // Quick Actions
-                QuickActions(
-                  isLarge: isLarge,
-                  isMedium: isMedium,
-                  widget: widget,
-                ),
+                // QuickActions(
+                //   isLarge: isLarge,
+                //   isMedium: isMedium,
+                //   widget: widget,
+                // ),
               ],
             ),
           ),

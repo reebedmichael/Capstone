@@ -12,189 +12,347 @@ class AdminDashboardRepository {
   /// - order count today and yesterday
   /// - most popular item today
   /// - number of uncompleted orders today
-  Future<Map<String, dynamic>> fetcKpiStats() async {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
+  Future<Map<String, dynamic>> fetchDashboardStats() async {
+    try {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final yesterday = today.subtract(const Duration(days: 1));
 
-    final todayStr = today.toIso8601String();
-    final yesterdayStr = yesterday.toIso8601String();
+      final todayStr = today.toIso8601String();
+      final yesterdayStr = yesterday.toIso8601String();
 
-    // 1. Total earnings today and yesterday
-    final todayEarningsRes = await _sb
-        .from('bestelling')
-        .select('best_volledige_prys')
-        .gte('best_geskep_datum', todayStr)
-        .lte('best_geskep_datum', now.toIso8601String());
+      // Execute all queries in parallel for better performance
+      final results = await Future.wait([
+        // 1. Today's food items with earnings (using best_datum)
+        _sb
+            .from('bestelling_kos_item')
+            .select('kos_item_id, item_hoev, best_datum, best_kos_id')
+            .gte('best_datum', todayStr)
+            .lt('best_datum', now.toIso8601String()),
 
-    final yesterdayEarningsRes = await _sb
-        .from('bestelling')
-        .select('best_volledige_prys')
-        .gte('best_geskep_datum', yesterdayStr)
-        .lt('best_geskep_datum', todayStr);
+        // 2. Yesterday's food items with earnings (using best_datum)
+        _sb
+            .from('bestelling_kos_item')
+            .select('kos_item_id, item_hoev, best_datum, best_kos_id')
+            .gte('best_datum', yesterdayStr)
+            .lt('best_datum', todayStr),
 
-    final double todayEarnings = todayEarningsRes.fold<double>(
-      0,
-      (sum, row) => sum + (row['best_volledige_prys'] as num).toDouble(),
-    );
-    final double yesterdayEarnings = yesterdayEarningsRes.fold<double>(
-      0,
-      (sum, row) => sum + (row['best_volledige_prys'] as num).toDouble(),
-    );
+        // 3. Get all status types once
+        _sb.from('kos_item_statusse').select('kos_stat_id, kos_stat_naam'),
+      ]);
 
-    // 2. Order counts today and yesterday
-    final todayOrders = todayEarningsRes.length;
-    final yesterdayOrders = yesterdayEarningsRes.length;
+      final todayItemsRes = results[0] as List;
+      final yesterdayItemsRes = results[1] as List;
+      final allStatusesRes = results[2] as List;
 
-    // 3. Most popular item today
-    final popularRes = await _sb
-        .from('bestelling')
-        .select('best_id')
-        .gte('best_geskep_datum', todayStr)
-        .lte('best_geskep_datum', now.toIso8601String());
+      // Calculate earnings and order counts from food items
+      final todayEarnings = await _computeEarningsFromItems(todayItemsRes);
+      final yesterdayEarnings = await _computeEarningsFromItems(
+        yesterdayItemsRes,
+      );
 
-    final bestIdsToday = (popularRes as List).map((r) => r['best_id']).toList();
+      // Count distinct orders (best_kos_id) for today and yesterday
+      final todayOrders = _countDistinctOrders(todayItemsRes);
+      final yesterdayOrders = _countDistinctOrders(yesterdayItemsRes);
 
-    String? mostPopularItem;
-    if (bestIdsToday.isNotEmpty) {
-      final itemRes = await _sb
-          .from('bestelling_kos_item')
-          .select('kos_item_id')
-          .inFilter('best_id', bestIdsToday);
+      // Get completed status IDs (both done and canceled)
+      final completedStatusIds = allStatusesRes
+          .where(
+            (s) =>
+                s['kos_stat_naam'] == 'Afgehandel' ||
+                s['kos_stat_naam'] == 'Gekanseleer',
+          )
+          .map((s) => s['kos_stat_id'] as String?)
+          .where((id) => id != null)
+          .cast<String>()
+          .toSet();
 
-      if (itemRes.isNotEmpty) {
-        final counts = <dynamic, int>{};
-        for (var row in itemRes) {
-          final id = row['kos_item_id'];
-          counts[id] = (counts[id] ?? 0) + 1;
-        }
+      // Execute remaining queries in parallel
+      final remainingResults = await Future.wait([
+        // Popular item calculation (using today's food items)
+        _getMostPopularItem(todayItemsRes),
 
-        // Find most frequent kos_item_id
-        final sorted = counts.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
-        final topItemId = sorted.first.key;
+        // Uncompleted orders calculation (using today's food items)
+        _getUncompletedOrdersCount(todayItemsRes, completedStatusIds),
+      ]);
 
-        final kosItemRes = await _sb
-            .from('kos_item')
-            .select('kos_item_naam')
-            .eq('kos_item_id', topItemId)
-            .maybeSingle();
+      final mostPopularItem = remainingResults[0] as String?;
+      final uncompletedOrders = remainingResults[1] as int;
 
-        mostPopularItem = kosItemRes?['kos_item_naam'];
-      }
+      return {
+        'todayEarnings': todayEarnings,
+        'yesterdayEarnings': yesterdayEarnings,
+        'todayOrders': todayOrders,
+        'yesterdayOrders': yesterdayOrders,
+        'mostPopularItem': mostPopularItem,
+        'uncompletedOrders': uncompletedOrders,
+      };
+    } catch (e, stackTrace) {
+      print('Error in fetchDashboardStats: $e');
+      print('Stack trace: $stackTrace');
+      // Return default values in case of error
+      return {
+        'todayEarnings': 0.0,
+        'yesterdayEarnings': 0.0,
+        'todayOrders': 0,
+        'yesterdayOrders': 0,
+        'mostPopularItem': null,
+        'uncompletedOrders': 0,
+      };
     }
-
-    // 4. Uncompleted orders today
-    final uncompletedRes = await _sb
-        .from('bestelling')
-        .select('best_id')
-        .gte('best_geskep_datum', todayStr)
-        .lte('best_geskep_datum', now.toIso8601String());
-
-    final bestIdsForStatus = (uncompletedRes as List)
-        .map((r) => r['best_id'])
-        .toList();
-
-    int uncompletedOrders = 0;
-    if (bestIdsForStatus.isNotEmpty) {
-      final statusRes = await _sb
-          .from('bestelling_kos_item')
-          .select('best_kos_id, item_hoev')
-          .inFilter('best_id', bestIdsForStatus);
-
-      final bestKosIds = (statusRes as List)
-          .map((r) => r['best_kos_id'] as String)
-          .toList();
-
-      if (bestKosIds.isNotEmpty) {
-        final statCountRes = await _sb
-            .from('best_kos_item_statusse')
-            .select('best_kos_stat_id, kos_stat_id, best_kos_id')
-            .inFilter('best_kos_id', bestKosIds);
-
-        // Fetch status names
-        final allStatuses = await _sb
-            .from('kos_item_statusse')
-            .select('kos_stat_id, kos_stat_naam');
-
-        final afgehandelIds = allStatuses
-            .where((s) => s['kos_stat_naam'] == 'Afgehandel')
-            .map((s) => s['kos_stat_id'] as String)
-            .toSet();
-
-        // Maak 'n map van best_kos_id -> item_hoev (hoeveelheid)
-        final itemQtyMap = {
-          for (var row in statusRes)
-            row['best_kos_id'] as String: row['item_hoev'] as int,
-        };
-
-        // Som al die hoeveelhede waar die status nie 'Afgehandel' is nie
-        uncompletedOrders = (statCountRes as List).fold<int>(0, (sum, s) {
-          final kosStatId = s['kos_stat_id'] as String;
-          if (!afgehandelIds.contains(kosStatId)) {
-            final bestKosId = s['best_kos_id'] as String;
-            return sum + (itemQtyMap[bestKosId] ?? 0);
-          }
-          return sum;
-        });
-      }
-    }
-
-    return {
-      'todayEarnings': todayEarnings,
-      'yesterdayEarnings': yesterdayEarnings,
-      'todayOrders': todayOrders,
-      'yesterdayOrders': yesterdayOrders,
-      'mostPopularItem': mostPopularItem,
-      'uncompletedOrders': uncompletedOrders,
-    };
   }
 
-  // Fetch total sales for every day in current week (Mon-Sun)
-  Future<List<Map<String, dynamic>>> fetchWeeklySales() async {
-    final now = DateTime.now();
-    final weekday = now.weekday; // 1 (Mon) - 7 (Sun)
-    final startOfWeek = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).subtract(Duration(days: weekday - 1)); // Maandag
+  /// Compute earnings from food items by fetching their costs
+  Future<double> _computeEarningsFromItems(List<dynamic> items) async {
+    if (items.isEmpty) return 0.0;
 
-    final startStr = startOfWeek.toIso8601String();
-    final endStr = now.toIso8601String();
+    // Collect unique kos_item_ids
+    final kosIds = items
+        .map((r) => r['kos_item_id'] as String?)
+        .where((id) => id != null)
+        .cast<String>()
+        .toSet()
+        .toList();
+    if (kosIds.isEmpty) return 0.0;
 
-    final res = await _sb
-        .from('bestelling')
-        .select('best_volledige_prys, best_geskep_datum')
-        .gte('best_geskep_datum', startStr)
-        .lte('best_geskep_datum', endStr);
+    try {
+      final kosData = await _sb
+          .from('kos_item')
+          .select('kos_item_id, kos_item_koste')
+          .inFilter('kos_item_id', kosIds);
 
-    // Initialize map for each day of the week (Mon-Sun)
-    final salesMap = <DateTime, double>{
-      for (int i = 0; i < 7; i++) startOfWeek.add(Duration(days: i)): 0.0,
-    };
+      final kosRows = List<Map<String, dynamic>>.from(kosData);
+      final Map<String, double> costById = {};
+      for (final row in kosRows) {
+        final id = row['kos_item_id']?.toString();
+        final costRaw = row['kos_item_koste'];
+        double cost = 0.0;
+        if (costRaw is num)
+          cost = costRaw.toDouble();
+        else if (costRaw is String)
+          cost = double.tryParse(costRaw) ?? 0.0;
+        if (id != null) costById[id] = cost;
+      }
 
-    for (var row in res as List) {
-      final date = DateTime.parse(row['best_geskep_datum'] as String);
-      final dayKey = DateTime(date.year, date.month, date.day); // normalise
-      if (salesMap.containsKey(dayKey)) {
-        salesMap[dayKey] =
-            (salesMap[dayKey] ?? 0) +
-            (row['best_volledige_prys'] as num).toDouble();
+      double total = 0.0;
+      for (final it in items) {
+        final id = it['kos_item_id']?.toString();
+        final qtyRaw = it['item_hoev'];
+        int qty = 0;
+        if (qtyRaw is num)
+          qty = qtyRaw.toInt();
+        else if (qtyRaw is String)
+          qty = int.tryParse(qtyRaw) ?? 0;
+        final cost = (id != null && costById.containsKey(id))
+            ? costById[id]!
+            : 0.0;
+        total += qty * cost;
+      }
+      return total;
+    } catch (e) {
+      print('Error computing earnings: $e');
+      return 0.0;
+    }
+  }
+
+  /// Count distinct orders from food items
+  int _countDistinctOrders(List<dynamic> items) {
+    final ids = items
+        .map((r) => r['best_kos_id'] as String?)
+        .where((x) => x != null)
+        .cast<String>()
+        .toSet()
+        .length;
+    return ids;
+  }
+
+  /// Helper method to get most popular item efficiently
+  Future<String?> _getMostPopularItem(List<dynamic> todayItems) async {
+    if (todayItems.isEmpty) return null;
+
+    // Count occurrences of each kos_item_id efficiently
+    final counts = <dynamic, int>{};
+    for (var row in todayItems) {
+      final id = row['kos_item_id'];
+      final qty = row['item_hoev'] as int? ?? 0;
+      if (id != null) {
+        counts[id] = (counts[id] ?? 0) + qty;
       }
     }
 
-    // Convert to list of maps sorted by date
-    final salesList =
-        salesMap.entries.map((e) {
-          return {
-            'date': e.key.toIso8601String().split('T').first,
-            'totalSales': e.value,
-          };
-        }).toList()..sort(
-          (a, b) => (a['date'] as String).compareTo(b['date'] as String),
+    // Find most frequent kos_item_id
+    final sorted = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    if (sorted.isEmpty) return null;
+
+    final topItemId = sorted.first.key;
+
+    // Get item name
+    final kosItemRes = await _sb
+        .from('kos_item')
+        .select('kos_item_naam')
+        .eq('kos_item_id', topItemId)
+        .maybeSingle();
+
+    return kosItemRes?['kos_item_naam'];
+  }
+
+  /// Helper method to get uncompleted orders count efficiently
+  /// Counts items that are NOT marked as done (Afgehandel) or canceled (Gekanseleer)
+  Future<int> _getUncompletedOrdersCount(
+    List<dynamic> todayItems,
+    Set<String> completedStatusIds,
+  ) async {
+    if (todayItems.isEmpty) return 0;
+
+    final bestKosIds = todayItems
+        .map((r) => r['best_kos_id'] as String?)
+        .where((id) => id != null)
+        .cast<String>()
+        .toList();
+
+    if (bestKosIds.isEmpty) return 0;
+
+    // Get statuses for these items
+    final statCountRes = await _sb
+        .from('best_kos_item_statusse')
+        .select('kos_stat_id, best_kos_id')
+        .inFilter('best_kos_id', bestKosIds);
+
+    // Create quantity map
+    final itemQtyMap = <String, int>{};
+    for (var row in todayItems) {
+      final bestKosId = row['best_kos_id'] as String?;
+      final itemHoev = row['item_hoev'] as int?;
+      if (bestKosId != null && itemHoev != null) {
+        itemQtyMap[bestKosId] = itemHoev;
+      }
+    }
+
+    // Count uncompleted items (not done and not canceled)
+    int uncompletedOrders = 0;
+    final processedItems = <String>{};
+
+    for (var s in statCountRes) {
+      final bestKosId = s['best_kos_id'] as String;
+      final kosStatId = s['kos_stat_id'] as String;
+
+      // Only process each item once
+      if (processedItems.contains(bestKosId)) continue;
+      processedItems.add(bestKosId);
+
+      // If status is NOT completed (not done and not canceled), count the quantity
+      if (!completedStatusIds.contains(kosStatId)) {
+        uncompletedOrders += itemQtyMap[bestKosId] ?? 0;
+      }
+    }
+
+    return uncompletedOrders;
+  }
+
+  // Fetch total amount of items for each day in current week (Mon-Sun)
+  Future<List<Map<String, dynamic>>> fetchWeeklyItemCount() async {
+    final now = DateTime.now();
+
+    // Start of week (Monday)
+    final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final monday = DateTime(
+      startOfWeek.year,
+      startOfWeek.month,
+      startOfWeek.day,
+    );
+
+    // End of week (Sunday, 23:59:59)
+    final sunday = monday.add(const Duration(days: 6));
+    final mondayStr = monday.toIso8601String();
+    final sundayStr = DateTime(
+      sunday.year,
+      sunday.month,
+      sunday.day,
+      23,
+      59,
+      59,
+    ).toIso8601String();
+
+    // Directly query bestelling_kos_item by best_datum
+    final res = await _sb
+        .from('bestelling_kos_item')
+        .select('item_hoev, best_datum')
+        .gte('best_datum', mondayStr)
+        .lte('best_datum', sundayStr);
+
+    // Aggregate counts per day
+    final Map<String, int> counts = {};
+    for (final row in res) {
+      final bestDatumStr = row['best_datum'] as String;
+      final bestDatum = DateTime.parse(bestDatumStr);
+      final dayKey = DateTime(
+        bestDatum.year,
+        bestDatum.month,
+        bestDatum.day,
+      ).toIso8601String();
+
+      final qty = row['item_hoev'] as int? ?? 0;
+      counts[dayKey] = (counts[dayKey] ?? 0) + qty;
+    }
+
+    // Ensure all days Mon–Sun are present
+    final List<Map<String, dynamic>> result = [];
+    for (int i = 0; i < 7; i++) {
+      final d = monday.add(Duration(days: i));
+      final key = DateTime(d.year, d.month, d.day).toIso8601String();
+      result.add({'date': key, 'totalItems': counts[key] ?? 0});
+    }
+
+    return result;
+  }
+
+  //Fetch unread notifications for userid(UUID)
+  //from 'kennisgewings' get * wher gebr_id==userid and kennis_gelees==false and get kennis_tipe_naam from kennisgewings_tipes where kennis_tipe_id
+  Future<List<Map<String, dynamic>>> fetchUnreadNotifications(
+    String userId,
+  ) async {
+    try {
+      final res = await _sb
+          .from('kennisgewings')
+          .select('*, kennis_tipe:kennis_tipe_id(kennis_tipe_naam)')
+          .eq('gebr_id', userId)
+          .eq('kennis_gelees', false)
+          .order('kennis_geskep_datum', ascending: false);
+
+      // Flatten the nested JSON structure
+      return (res as List).map((e) {
+        final notification = Map<String, dynamic>.from(
+          e as Map<String, dynamic>,
         );
 
-    return salesList;
+        // Extract kennis_tipe_naam from nested structure
+        final kennisTipe = notification['kennis_tipe'] as Map<String, dynamic>?;
+        if (kennisTipe != null) {
+          notification['kennis_tipe_naam'] = kennisTipe['kennis_tipe_naam'];
+        }
+
+        // Remove the nested kennis_tipe object to avoid confusion
+        notification.remove('kennis_tipe');
+
+        return notification;
+      }).toList();
+    } catch (e, st) {
+      print('Fout in fetchUnreadNotifications: $e\n$st');
+      return [];
+    }
+  }
+
+  //Mark notification as read by kennis_id
+  Future<void> markNotificationAsRead(String kennisId) async {
+    try {
+      await _sb
+          .from('kennisgewings')
+          .update({'kennis_gelees': true})
+          .eq('kennis_id', kennisId);
+    } catch (e, st) {
+      print('Fout in markNotificationAsRead: $e\n$st');
+    }
   }
 }

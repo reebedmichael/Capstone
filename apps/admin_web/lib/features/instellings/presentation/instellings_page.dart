@@ -1,9 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:async';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/providers/auth_providers.dart';
 import '../../../shared/widgets/otp_verification_dialog.dart';
+
+// Provider for managing password reset cooldown timer
+final passwordResetCooldownProvider =
+    StateNotifierProvider<PasswordResetCooldownNotifier, int>((ref) {
+      return PasswordResetCooldownNotifier();
+    });
+
+class PasswordResetCooldownNotifier extends StateNotifier<int> {
+  PasswordResetCooldownNotifier() : super(0);
+
+  Timer? _timer;
+
+  void startCooldown() {
+    state = 30; // 30 seconds cooldown
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (state > 0) {
+        state = state - 1;
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+}
 
 class InstellingsPage extends ConsumerWidget {
   const InstellingsPage({super.key});
@@ -12,42 +43,12 @@ class InstellingsPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = ref.watch(appThemeProvider);
     final isDarkMode = theme.themeMode == ThemeMode.dark;
+    final cooldownSeconds = ref.watch(passwordResetCooldownProvider);
 
     return Scaffold(
       body: Column(
         children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              border: Border(
-                bottom: BorderSide(color: Theme.of(context).dividerColor),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Instellings",
-                        style: Theme.of(context).textTheme.headlineMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Bestuur jou rekening en stelsel voorkeure",
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
+          _buildHeader(context),
           // Content
           Expanded(
             child: SingleChildScrollView(
@@ -157,8 +158,17 @@ class InstellingsPage extends ConsumerWidget {
                       width: double.infinity,
                       height: 48,
                       child: ElevatedButton(
-                        onPressed: () => _handlePasswordReset(context, ref),
-                        child: const Text("Stuur herstel e-pos"),
+                        onPressed: cooldownSeconds > 0
+                            ? null
+                            : () => _handlePasswordReset(context, ref),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: cooldownSeconds > 0
+                              ? Colors.grey
+                              : Theme.of(context).primaryColor,
+                        ),
+                        child: cooldownSeconds > 0
+                            ? Text("Wag ${cooldownSeconds}s")
+                            : const Text("Stuur herstel e-pos"),
                       ),
                     ),
                   ),
@@ -197,6 +207,113 @@ class InstellingsPage extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    final mediaWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = mediaWidth < 600;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).dividerColor),
+        ),
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmallScreen ? 16 : 24,
+        vertical: isSmallScreen ? 12 : 16,
+      ),
+      child: isSmallScreen
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Logo and title section
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Center(
+                        child: Text("⚙️", style: TextStyle(fontSize: 18)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Instellings",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          Text(
+                            "Bestuur jou rekening en stelsel voorkeure",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodySmall?.color,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                /// Left section: logo + title + description
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(
+                        child: Text("⚙️", style: TextStyle(fontSize: 20)),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Instellings",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        Text(
+                          "Bestuur jou rekening en stelsel voorkeure",
+                          style: TextStyle(
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 
@@ -295,6 +412,9 @@ class InstellingsPage extends ConsumerWidget {
 
       // Hide loading snackbar
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      // Start cooldown timer
+      ref.read(passwordResetCooldownProvider.notifier).startCooldown();
 
       // Show OTP verification dialog
       showDialog(

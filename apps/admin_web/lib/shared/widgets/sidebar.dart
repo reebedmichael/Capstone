@@ -12,8 +12,30 @@ class Sidebar extends ConsumerStatefulWidget {
   ConsumerState<Sidebar> createState() => _SidebarState();
 }
 
-class _SidebarState extends ConsumerState<Sidebar> {
+class _SidebarState extends ConsumerState<Sidebar>
+    with TickerProviderStateMixin {
   bool spyskaartExpanded = false;
+  late AnimationController _expandController;
+  late Animation<double> _expandAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _expandController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _expandAnimation = CurvedAnimation(
+      parent: _expandController,
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _expandController.dispose();
+    super.dispose();
+  }
 
   @override
   void didChangeDependencies() {
@@ -24,31 +46,27 @@ class _SidebarState extends ConsumerState<Sidebar> {
   @override
   void didUpdateWidget(covariant Sidebar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // If collapse state changed, re-evaluate auto-expand
     if (oldWidget.isCollapsed != widget.isCollapsed) {
       _maybeAutoExpandForRoute();
     }
   }
 
   void _maybeAutoExpandForRoute() {
-    // Safely get path portion of current route
     final currentUri = GoRouterState.of(context).uri;
     final path = currentUri.path;
-
     final shouldExpand = _isSpyskaartRoute(path);
 
-    // Only auto-expand when sidebar is expanded (not collapsed)
     if (!widget.isCollapsed && shouldExpand && !spyskaartExpanded) {
       setState(() => spyskaartExpanded = true);
+      _expandController.forward();
     }
-    // If sidebar collapsed, keep submenu hidden
     if (widget.isCollapsed && spyskaartExpanded) {
       setState(() => spyskaartExpanded = false);
+      _expandController.reverse();
     }
   }
 
   bool _isSpyskaartRoute(String path) {
-    // Match main route, week route, or templates subroutes
     return path == '/spyskaart' ||
         path == '/week_spyskaart' ||
         path.startsWith('/templates');
@@ -56,13 +74,473 @@ class _SidebarState extends ConsumerState<Sidebar> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final currentRoute = GoRouterState.of(context).uri.path;
 
-  // other top-level entries (after the Spyskaart group)
-  final restEntries = <_NavEntry>[
-    _NavEntry('Bestellings', Icons.receipt_long, '/bestellings'),
-    _NavEntry('Gebruikers', Icons.group_outlined, '/gebruikers'),
-    _NavEntry('Toelae', Icons.account_balance_wallet, '/toelae'),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.getSurfaceColor(isDark),
+        border: Border(
+          right: BorderSide(color: AppColors.getBorderColor(isDark), width: 1),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(2, 0),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Header / Brand
+            _buildHeader(theme, isDark),
+
+            // Main navigation content
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                children: [
+                  // Dashboard
+                  _buildNavItem(
+                    _NavEntry(
+                      'Dashboard',
+                      Icons.dashboard_outlined,
+                      '/dashboard',
+                    ),
+                    currentRoute,
+                    theme,
+                    isDark,
+                  ),
+
+                  // Bestellings
+                  _buildNavItem(
+                    _NavEntry(
+                      'Bestellings',
+                      Icons.receipt_long,
+                      '/bestellings',
+                    ),
+                    currentRoute,
+                    theme,
+                    isDark,
+                  ),
+
+                  // Spyskaart group
+                  _buildSpyskaartGroup(currentRoute, theme, isDark),
+
+                  // Other navigation items
+                  ..._getOtherNavEntries().map(
+                    (e) => _buildNavItem(e, currentRoute, theme, isDark),
+                  ),
+                ],
+              ),
+            ),
+
+            // Logout section
+            _buildLogoutSection(theme, isDark),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(ThemeData theme, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: AppColors.getBorderColor(isDark), width: 1),
+        ),
+      ),
+      child: widget.isCollapsed
+          ? Center(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.fastfood, size: 28, color: AppColors.primary),
+              ),
+            )
+          : Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.fastfood,
+                    size: 24,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Spys Admin',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.getOnSurfaceColor(isDark),
+                        ),
+                      ),
+                      Text(
+                        'Bestuur Portaal',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.getOnSurfaceVariantColor(isDark),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildNavItem(
+    _NavEntry entry,
+    String currentRoute,
+    ThemeData theme,
+    bool isDark,
+  ) {
+    final isSelected = currentRoute == entry.path;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => context.go(entry.path),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: EdgeInsets.symmetric(
+              horizontal: widget.isCollapsed ? 16 : 16,
+              vertical: 12,
+            ),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? AppColors.primary.withOpacity(0.1)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+              border: isSelected
+                  ? Border.all(
+                      color: AppColors.primary.withOpacity(0.3),
+                      width: 1,
+                    )
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: widget.isCollapsed ? 24 : 32,
+                  height: widget.isCollapsed ? 24 : 32,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.getOnSurfaceVariantColor(
+                            isDark,
+                          ).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    entry.icon,
+                    size: widget.isCollapsed ? 16 : 18,
+                    color: isSelected
+                        ? Colors.white
+                        : AppColors.getOnSurfaceVariantColor(isDark),
+                  ),
+                ),
+                if (!widget.isCollapsed) ...[
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      entry.label,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.getOnSurfaceColor(isDark),
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSpyskaartGroup(
+    String currentRoute,
+    ThemeData theme,
+    bool isDark,
+  ) {
+    final isSelected = _isSpyskaartRoute(currentRoute);
+    final children = [
+      _NavEntry('Week Spyskaart', Icons.calendar_today, '/week_spyskaart'),
+      _NavEntry('Kositems', Icons.list_alt, '/templates/kositem'),
+      _NavEntry('Templaaie', Icons.view_week, '/templates/week'),
+    ];
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Parent tile
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                if (widget.isCollapsed) {
+                  context.go('/spyskaart');
+                } else {
+                  setState(() {
+                    spyskaartExpanded = !spyskaartExpanded;
+                    if (spyskaartExpanded) {
+                      _expandController.forward();
+                    } else {
+                      _expandController.reverse();
+                    }
+                  });
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: EdgeInsets.symmetric(
+                  horizontal: widget.isCollapsed ? 16 : 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppColors.primary.withOpacity(0.1)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  border: isSelected
+                      ? Border.all(
+                          color: AppColors.primary.withOpacity(0.3),
+                          width: 1,
+                        )
+                      : null,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: widget.isCollapsed ? 24 : 32,
+                      height: widget.isCollapsed ? 24 : 32,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.getOnSurfaceVariantColor(
+                                isDark,
+                              ).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.restaurant_menu,
+                        size: widget.isCollapsed ? 16 : 18,
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.getOnSurfaceVariantColor(isDark),
+                      ),
+                    ),
+                    if (!widget.isCollapsed) ...[
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          'Spyskaart',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.getOnSurfaceColor(isDark),
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                      AnimatedRotation(
+                        turns: spyskaartExpanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 300),
+                        child: Icon(
+                          Icons.keyboard_arrow_down,
+                          color: AppColors.getOnSurfaceVariantColor(isDark),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Submenu items
+          if (!widget.isCollapsed)
+            SizeTransition(
+              sizeFactor: _expandAnimation,
+              child: Container(
+                margin: const EdgeInsets.only(left: 24, top: 4),
+                child: Column(
+                  children: children.map((child) {
+                    final isChildSelected = currentRoute == child.path;
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 2),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () => context.go(child.path),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isChildSelected
+                                  ? AppColors.primary.withOpacity(0.1)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                              border: isChildSelected
+                                  ? Border.all(
+                                      color: AppColors.primary.withOpacity(0.3),
+                                      width: 1,
+                                    )
+                                  : null,
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    color: isChildSelected
+                                        ? AppColors.primary
+                                        : AppColors.getOnSurfaceVariantColor(
+                                            isDark,
+                                          ).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(
+                                    child.icon,
+                                    size: 12,
+                                    color: isChildSelected
+                                        ? Colors.white
+                                        : AppColors.getOnSurfaceVariantColor(
+                                            isDark,
+                                          ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    child.label,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: isChildSelected
+                                          ? AppColors.primary
+                                          : AppColors.getOnSurfaceVariantColor(
+                                              isDark,
+                                            ),
+                                      fontWeight: isChildSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLogoutSection(ThemeData theme, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: AppColors.getBorderColor(isDark), width: 1),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: _handleLogout,
+          child: Container(
+            padding: EdgeInsets.symmetric(
+              horizontal: widget.isCollapsed ? 16 : 16,
+              vertical: 12,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.destructive.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.destructive.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: widget.isCollapsed ? 24 : 32,
+                  height: widget.isCollapsed ? 24 : 32,
+                  decoration: BoxDecoration(
+                    color: AppColors.destructive.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.logout,
+                    size: widget.isCollapsed ? 16 : 18,
+                    color: AppColors.destructive,
+                  ),
+                ),
+                if (!widget.isCollapsed) ...[
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      'Teken Uit',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: AppColors.destructive,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<_NavEntry> _getOtherNavEntries() {
+    return [
+      _NavEntry('Gebruikers', Icons.group_outlined, '/gebruikers'),
+      _NavEntry('Toelae', Icons.account_balance_wallet, '/toelae'),
       _NavEntry(
         'Kennisgewings',
         Icons.notifications_outlined,
@@ -72,237 +550,7 @@ class _SidebarState extends ConsumerState<Sidebar> {
       _NavEntry('Instellings', Icons.settings_outlined, '/instellings'),
       _NavEntry('Hulp', Icons.help_outline, '/hulp'),
       _NavEntry('Profiel', Icons.person_outline, '/profiel'),
-      _NavEntry('Teken Uit', Icons.logout, '/logout'),
     ];
-
-    return SafeArea(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          // Header / Brand
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: widget.isCollapsed
-                ? const Icon(Icons.fastfood, size: 28)
-                : Text(
-                    'Spys Admin',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-          ),
-
-          // Dashboard (always first)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            child: _buildTile(
-              _NavEntry('Dashboard', Icons.dashboard_outlined, '/dashboard'),
-              currentRoute,
-            ),
-          ),
-
-          // Spyskaart group (main + children)
-          _buildSpyskaartGroup(currentRoute),
-
-          // The rest of the entries in original order
-          ...restEntries.map(
-            (e) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              child: _buildTile(e, currentRoute),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSpyskaartGroup(String currentRoute) {
-    final isSelected = _isSpyskaartRoute(currentRoute);
-
-    final children = [
-      _NavEntry('Week Spyskaart', Icons.calendar_today, '/week_spyskaart'),
-      _NavEntry('Kositems', Icons.list_alt, '/templates/kositem'),
-      _NavEntry('Templaaie', Icons.view_week, '/templates/week'),
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // parent tile
-          MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: StatefulBuilder(
-              builder: (context, setStateHover) {
-                bool isHovered = false;
-                return MouseRegion(
-                  onEnter: (_) => setStateHover(() => isHovered = true),
-                  onExit: (_) => setStateHover(() => isHovered = false),
-                  child: GestureDetector(
-                    onTap: () {
-                      if (widget.isCollapsed) {
-                        // collapsed: navigate to main spyskaart
-                        context.go('/spyskaart');
-                      } else {
-                        // expanded: toggle submenu
-                        setState(() => spyskaartExpanded = !spyskaartExpanded);
-                      }
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.primary
-                            : isHovered
-                            ? Colors.grey.withValues(alpha: 0.08)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: widget.isCollapsed ? 16 : 12,
-                          vertical: 8,
-                        ),
-                        child: Row(
-                          children: [
-                            SizedBox(
-                              width: widget.isCollapsed ? 24 : 40,
-                              child: Tooltip(
-                                message: widget.isCollapsed ? 'Spyskaart' : '',
-                                waitDuration: const Duration(milliseconds: 400),
-                                child: Icon(
-                                  Icons.restaurant_menu,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : Theme.of(context).iconTheme.color,
-                                ),
-                              ),
-                            ),
-                            if (!widget.isCollapsed) ...[
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  'Spyskaart',
-                                  style: TextStyle(
-                                    color: isSelected
-                                        ? Colors.white
-                                        : Theme.of(
-                                            context,
-                                          ).textTheme.bodyMedium?.color,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w600
-                                        : FontWeight.normal,
-                                  ),
-                                ),
-                              ),
-                              Icon(
-                                spyskaartExpanded
-                                    ? Icons.expand_less
-                                    : Icons.expand_more,
-                                color: isSelected
-                                    ? Colors.white
-                                    : Theme.of(context).iconTheme.color,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-
-          // submenu items (only when expanded and sidebar not collapsed)
-          if (!widget.isCollapsed && spyskaartExpanded)
-            Padding(
-              padding: const EdgeInsets.only(left: 32, top: 6),
-              child: Column(
-                children: children
-                    .map(
-                      (e) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: _buildTile(e, currentRoute),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTile(_NavEntry e, String currentRoute) {
-    final isSelected = currentRoute == e.path;
-
-    return StatefulBuilder(
-      builder: (context, setStateHover) {
-        bool isHovered = false;
-        return MouseRegion(
-          onEnter: (_) => setStateHover(() => isHovered = true),
-          onExit: (_) => setStateHover(() => isHovered = false),
-          cursor: SystemMouseCursors.click,
-          child: GestureDetector(
-            onTap: () {
-              if (e.path == '/logout') {
-                _handleLogout();
-              } else {
-                context.go(e.path);
-              }
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? AppColors.primary
-                    : isHovered
-                    ? Colors.grey.withValues(alpha: 0.08)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: widget.isCollapsed ? 16 : 12,
-                  vertical: 8,
-                ),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: widget.isCollapsed ? 24 : 40,
-                      child: Tooltip(
-                        message: widget.isCollapsed ? e.label : '',
-                        waitDuration: const Duration(milliseconds: 400),
-                        child: Icon(
-                          e.icon,
-                          color: isSelected
-                              ? Colors.white
-                              : Theme.of(context).iconTheme.color,
-                        ),
-                      ),
-                    ),
-                    if (!widget.isCollapsed) ...[
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          e.label,
-                          style: TextStyle(
-                            color: isSelected
-                                ? Colors.white
-                                : Theme.of(context).textTheme.bodyMedium?.color,
-                            fontWeight: isSelected
-                                ? FontWeight.w600
-                                : FontWeight.normal,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
   }
 
   void _handleLogout() async {
@@ -317,7 +565,11 @@ class _SidebarState extends ConsumerState<Sidebar> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Fout met teken uit: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.destructive,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
       }

@@ -115,6 +115,7 @@ class _FormModalState extends State<FormModal> {
   int _currentStep = 0;
   bool _showSearchOverlay = false;
   String _currentDayKey = '';
+  String? _validationError;
 
   void _openSearchOverlay(String dagKey) {
     setState(() {
@@ -137,16 +138,103 @@ class _FormModalState extends State<FormModal> {
     });
   }
 
+  bool _validateCurrentStep() {
+    setState(() {
+      _validationError = null;
+    });
+
+    switch (_currentStep) {
+      case 0: // General Information
+        if (widget.nameController.text.trim().isEmpty) {
+          setState(() {
+            _validationError = "Templaat naam is verpligtend";
+          });
+          return false;
+        }
+        break;
+      case 1: // Manage Food Items
+        bool hasAnyItems = false;
+        for (final day in widget.daeVanWeek) {
+          final dayKey = day['key']!;
+          if (widget.formDays[dayKey]!.isNotEmpty) {
+            hasAnyItems = true;
+            break;
+          }
+        }
+        if (!hasAnyItems) {
+          setState(() {
+            _validationError =
+                "Jy moet ten minste een kositem vir een dag kies";
+          });
+          return false;
+        }
+        break;
+      case 2: // Summary
+        // Final validation - check all required fields
+        if (widget.nameController.text.trim().isEmpty) {
+          setState(() {
+            _validationError = "Templaat naam is verpligtend";
+            _currentStep = 0; // Go back to step 0
+          });
+          return false;
+        }
+
+        bool hasAnyItems = false;
+        for (final day in widget.daeVanWeek) {
+          final dayKey = day['key']!;
+          if (widget.formDays[dayKey]!.isNotEmpty) {
+            hasAnyItems = true;
+            break;
+          }
+        }
+        if (!hasAnyItems) {
+          setState(() {
+            _validationError =
+                "Jy moet ten minste een kositem vir een dag kies";
+            _currentStep = 1; // Go back to step 1
+          });
+          return false;
+        }
+        break;
+    }
+    return true;
+  }
+
   Widget _buildGeneralInfoStep() {
     return Column(
       children: [
         const SizedBox(height: 12),
+        if (_validationError != null && _currentStep == 0)
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              border: Border.all(color: Colors.red.shade200),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red.shade600, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _validationError!,
+                    style: TextStyle(color: Colors.red.shade700, fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+          ),
         TextField(
           controller: widget.nameController,
           decoration: InputDecoration(
             labelText: 'Templaat Naam *',
             prefixIcon: const Icon(Icons.edit),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            errorText: (_validationError != null && _currentStep == 0)
+                ? _validationError
+                : null,
           ),
         ),
         const SizedBox(height: 12),
@@ -169,6 +257,35 @@ class _FormModalState extends State<FormModal> {
       length: widget.daeVanWeek.length,
       child: Column(
         children: [
+          if (_validationError != null && _currentStep == 1)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                border: Border.all(color: Colors.red.shade200),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    color: Colors.red.shade600,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _validationError!,
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           TabBar(
             isScrollable: true,
             indicatorColor: Theme.of(context).colorScheme.primary,
@@ -309,15 +426,21 @@ class _FormModalState extends State<FormModal> {
                     type: StepperType.vertical,
                     currentStep: _currentStep,
                     onStepContinue: () {
-                      if (_currentStep < 2) {
-                        setState(() => _currentStep += 1);
-                      } else {
-                        widget.onSave();
+                      if (_validateCurrentStep()) {
+                        if (_currentStep < 2) {
+                          setState(() => _currentStep += 1);
+                        } else {
+                          widget.onSave();
+                        }
                       }
                     },
                     onStepCancel: () {
                       if (_currentStep > 0) {
-                        setState(() => _currentStep -= 1);
+                        setState(() {
+                          _currentStep -= 1;
+                          _validationError =
+                              null; // Clear validation error when going back
+                        });
                       } else {
                         widget.onCancel();
                       }
@@ -326,6 +449,8 @@ class _FormModalState extends State<FormModal> {
                     onStepTapped: (int step) {
                       setState(() {
                         _currentStep = step;
+                        _validationError =
+                            null; // Clear validation error when navigating
                       });
                     },
                     controlsBuilder: (context, details) {
