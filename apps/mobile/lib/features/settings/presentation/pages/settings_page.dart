@@ -176,23 +176,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ],
           ),
 
-          // Data Management
-          _buildCard(
-            title: "Data Bestuur",
-            icon: Icons.storage,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.download),
-                title: const Text("Eksporteer My Data"),
-                onTap: () {
-                  Fluttertoast.showToast(
-                    gravity: ToastGravity.TOP,
-                    msg: "Jou data word ge-eksporteer. Jy sa 'n epos ontvang!",
-                  );
-                },
-              ),
-            ],
-          ),
+          
 
           // Danger Zone
           Card(
