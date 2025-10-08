@@ -83,35 +83,177 @@ class _HulpPageState extends ConsumerState<HulpPage> {
     },
   ];
 
-  void _stuurNavraag() {
+  void _stuurNavraag() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Show confirmation dialog first
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Bevestig E-pos Stuur'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Is jy seker jy wil hierdie navraag stuur?'),
+            const SizedBox(height: 12),
+            Text('Naar: ${eposCtrl.text}'),
+            Text('Onderwerp: ${onderwerpCtrl.text}'),
+            const SizedBox(height: 8),
+            const Text(
+              'Die e-pos sal na ondersteuning@voedselbestuur.co.za gestuur word.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Kanselleer'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Stuur E-pos'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
 
     setState(() {
       isLoading = true;
       algemeneFout = null;
+      suksesBoodskap = '';
     });
 
-    Future.delayed(const Duration(seconds: 2), () {
+    // Simulate email sending process with multiple steps
+    try {
+      // Step 1: Validating email
+      await Future.delayed(const Duration(milliseconds: 800));
+      if (!mounted) return;
+
+      // Step 2: Connecting to email server
+      await Future.delayed(const Duration(milliseconds: 600));
+      if (!mounted) return;
+
+      // Step 3: Sending email
+      await Future.delayed(const Duration(milliseconds: 1000));
+      if (!mounted) return;
+
+      // Step 4: Email sent successfully
       setState(() {
         suksesBoodskap =
-            "Jou navraag is gestuur! Ons span sal jou binnekort kontak.";
+            "✅ E-pos suksesvol gestuur! Ons span sal jou binnekort kontak.";
         isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(suksesBoodskap), backgroundColor: Colors.green),
-      );
+      // Show success dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: true,
+          builder: (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 28),
+                const SizedBox(width: 8),
+                const Text('E-pos Gestuur'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Jou navraag is suksesvol gestuur!'),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('📧 Naar: ${eposCtrl.text}'),
+                      Text('📋 Onderwerp: ${onderwerpCtrl.text}'),
+                      Text(
+                        '⏰ Gestuur: ${DateTime.now().toString().split('.')[0]}',
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Ons ondersteuning span sal jou binnekort kontak.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _clearForm();
+                },
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
 
-      naamCtrl.clear();
-      eposCtrl.clear();
-      onderwerpCtrl.clear();
-      boodskapCtrl.clear();
-
-      Future.delayed(const Duration(seconds: 5), () {
-        if (mounted) {
-          setState(() => suksesBoodskap = '');
-        }
+      // Also show snackbar for additional feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.email, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text(suksesBoodskap)),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Sluit',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      // Handle any errors during email sending simulation
+      setState(() {
+        algemeneFout = "Fout tydens e-pos stuur: ${e.toString()}";
+        isLoading = false;
       });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(algemeneFout!), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _clearForm() {
+    naamCtrl.clear();
+    eposCtrl.clear();
+    onderwerpCtrl.clear();
+    boodskapCtrl.clear();
+
+    // Clear success message after a delay
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() => suksesBoodskap = '');
+      }
     });
   }
 
@@ -136,58 +278,64 @@ class _HulpPageState extends ConsumerState<HulpPage> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: AppBar(title: const Text("Hulp en Ondersteuning")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            if (algemeneFout != null)
-              Card(
-                color: Colors.red.shade100,
-                child: ListTile(
-                  leading: const Icon(Icons.error, color: Colors.red),
-                  title: Text(algemeneFout!),
-                ),
-              ),
-            const SizedBox(height: 16),
+      body: Column(
+        children: [
+          _buildHeader(context),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  if (algemeneFout != null)
+                    Card(
+                      color: Colors.red.shade100,
+                      child: ListTile(
+                        leading: const Icon(Icons.error, color: Colors.red),
+                        title: Text(algemeneFout!),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
 
-            // Layout: Contact Info + Tips | FAQ + Form
-            LayoutBuilder(
-              builder: (context, constraints) {
-                bool isWide = constraints.maxWidth > 900;
-                return Flex(
-                  direction: isWide ? Axis.horizontal : Axis.vertical,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Left Column
-                    Expanded(
-                      flex: isWide ? 1 : 0,
-                      child: Column(
+                  // Layout: Contact Info + Tips | FAQ + Form
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      bool isWide = constraints.maxWidth > 900;
+                      return Flex(
+                        direction: isWide ? Axis.horizontal : Axis.vertical,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildContactCard(),
-                          const SizedBox(height: 16),
-                          _buildTipsCard(),
+                          // Left Column
+                          Expanded(
+                            flex: isWide ? 1 : 0,
+                            child: Column(
+                              children: [
+                                _buildContactCard(),
+                                const SizedBox(height: 16),
+                                _buildTipsCard(),
+                              ],
+                            ),
+                          ),
+                          if (isWide) const SizedBox(width: 16),
+                          // Right Column
+                          Expanded(
+                            flex: isWide ? 2 : 0,
+                            child: Column(
+                              children: [
+                                _buildFAQCard(),
+                                const SizedBox(height: 16),
+                                _buildNavraagForm(),
+                              ],
+                            ),
+                          ),
                         ],
-                      ),
-                    ),
-                    if (isWide) const SizedBox(width: 16),
-                    // Right Column
-                    Expanded(
-                      flex: isWide ? 2 : 0,
-                      child: Column(
-                        children: [
-                          _buildFAQCard(),
-                          const SizedBox(height: 16),
-                          _buildNavraagForm(),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              },
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -421,19 +569,139 @@ class _HulpPageState extends ConsumerState<HulpPage> {
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
                       )
-                    : const Icon(Icons.send),
-                label: Text(isLoading ? "Stuur Navraag..." : "Stuur Navraag"),
+                    : const Icon(Icons.email),
+                label: Text(
+                  isLoading ? "Stuur E-pos..." : "Stuur E-pos",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
                 onPressed: isLoading ? null : _stuurNavraag,
                 style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 48),
+                  minimumSize: const Size(double.infinity, 52),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    final mediaWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = mediaWidth < 600;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).dividerColor),
+        ),
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmallScreen ? 16 : 24,
+        vertical: isSmallScreen ? 12 : 16,
+      ),
+      child: isSmallScreen
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Logo and title section
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.help_outline, size: 24),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Hulp en Ondersteuning",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          Text(
+                            "Kry hulp en stuur navrae",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodySmall?.color,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                /// Left section: logo + title + description
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.help_outline, size: 30),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Hulp en Ondersteuning",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        Text(
+                          "Kry hulp en stuur navrae",
+                          style: TextStyle(
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 }

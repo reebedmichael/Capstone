@@ -48,38 +48,7 @@ class InstellingsPage extends ConsumerWidget {
     return Scaffold(
       body: Column(
         children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              border: Border(
-                bottom: BorderSide(color: Theme.of(context).dividerColor),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Instellings",
-                        style: Theme.of(context).textTheme.headlineMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "Bestuur jou rekening en stelsel voorkeure",
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
+          _buildHeader(context),
           // Content
           Expanded(
             child: SingleChildScrollView(
@@ -238,6 +207,113 @@ class InstellingsPage extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    final mediaWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = mediaWidth < 600;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).dividerColor),
+        ),
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: isSmallScreen ? 16 : 24,
+        vertical: isSmallScreen ? 12 : 16,
+      ),
+      child: isSmallScreen
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Logo and title section
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Center(
+                        child: Text("⚙️", style: TextStyle(fontSize: 18)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Instellings",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          Text(
+                            "Bestuur jou rekening en stelsel voorkeure",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodySmall?.color,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                /// Left section: logo + title + description
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Center(
+                        child: Text("⚙️", style: TextStyle(fontSize: 20)),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Instellings",
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        Text(
+                          "Bestuur jou rekening en stelsel voorkeure",
+                          style: TextStyle(
+                            color: Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 

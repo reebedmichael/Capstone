@@ -8,6 +8,7 @@ class DayItemsSummary extends StatelessWidget {
   final String selectedDay;
   final String? selectedFoodItem;
   final void Function(String foodItem) onFoodItemClick;
+  final List<Order> allOrders; // Add this to get all orders for the day
 
   const DayItemsSummary({
     super.key,
@@ -15,6 +16,7 @@ class DayItemsSummary extends StatelessWidget {
     required this.selectedDay,
     this.selectedFoodItem,
     required this.onFoodItemClick,
+    required this.allOrders, // Add this parameter
   });
 
   @override
@@ -58,7 +60,9 @@ class DayItemsSummary extends StatelessWidget {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            OrderConstants.getUiString('items'),
+                            _isPastDay(selectedDay)
+                                ? OrderConstants.getUiString('items')
+                                : 'Aktiewe Items',
                             style: theme.textTheme.bodySmall?.copyWith(
                               fontWeight: FontWeight.w500,
                               color: Colors.orange.shade700,
@@ -243,11 +247,21 @@ class DayItemsSummary extends StatelessWidget {
 
   List<_ItemSummary> _computeItemsSummary() {
     final Map<String, _ItemSummary> itemsMap = {};
+    final isPastDay = _isPastDay(selectedDay);
 
-    for (final order in orders) {
+    // Use allOrders instead of orders to always show all available items
+    for (final order in allOrders) {
       for (final item in order.items.where(
         (i) => i.scheduledDay == selectedDay,
       )) {
+        // For today and upcoming days, only show active items (not done or cancelled)
+        // For past days, show all items
+        if (!isPastDay &&
+            (item.status == OrderStatus.done ||
+                item.status == OrderStatus.cancelled)) {
+          continue; // Skip completed items for today/upcoming days
+        }
+
         itemsMap.update(
           item.name,
           (existing) => existing.copyWith(
@@ -262,6 +276,50 @@ class DayItemsSummary extends StatelessWidget {
     final itemsList = itemsMap.values.toList();
     itemsList.sort((a, b) => b.totalQuantity.compareTo(a.totalQuantity));
     return itemsList;
+  }
+
+  bool _isPastDay(String selectedDay) {
+    if (selectedDay == "Geskiedenis") return true;
+
+    final today = DateTime.now();
+    final selectedDate = _getDateForSelectedDay(selectedDay, today);
+
+    // Compare only the date part (year, month, day) to avoid time issues
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final selectedDateOnly = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+    );
+
+    return selectedDateOnly.isBefore(todayDate);
+  }
+
+  DateTime _getDateForSelectedDay(String selectedDay, DateTime today) {
+    // Map day names to weekday numbers
+    final dayMap = {
+      'Maandag': 1,
+      'Dinsdag': 2,
+      'Woensdag': 3,
+      'Donderdag': 4,
+      'Vrydag': 5,
+      'Saterdag': 6,
+      'Sondag': 7,
+    };
+
+    final selectedWeekday = dayMap[selectedDay];
+    if (selectedWeekday == null) {
+      return today; // Fallback to today if day not found
+    }
+
+    // Calculate the Monday of the current week
+    final currentWeekday = today.weekday;
+    final daysSinceMonday = currentWeekday - 1;
+    final mondayOfWeek = today.subtract(Duration(days: daysSinceMonday));
+
+    // Calculate the target date for the selected day
+    final daysToAdd = selectedWeekday - 1;
+    return mondayOfWeek.add(Duration(days: daysToAdd));
   }
 }
 

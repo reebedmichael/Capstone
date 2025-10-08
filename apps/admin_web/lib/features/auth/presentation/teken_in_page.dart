@@ -12,6 +12,7 @@ import '../../../shared/providers/auth_form_providers.dart';
 import '../../../shared/providers/auth_providers.dart';
 import '../../../shared/widgets/email_field.dart';
 import '../../../shared/widgets/password_field.dart';
+import '../../../shared/widgets/email_input_dialog.dart';
 
 class TekenInPage extends ConsumerWidget {
   const TekenInPage({super.key});
@@ -151,22 +152,8 @@ class TekenInPage extends ConsumerWidget {
                               onPressed: () {
                                 showDialog(
                                   context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: Text(
-                                      StringsAfAdmin.forgotPasswordDialogTitle,
-                                    ),
-                                    content: Text(
-                                      StringsAfAdmin
-                                          .forgotPasswordDialogMessage,
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).pop(),
-                                        child: Text(StringsAfAdmin.dialogOk),
-                                      ),
-                                    ],
-                                  ),
+                                  builder: (context) =>
+                                      const EmailInputDialog(),
                                 );
                               },
                               child: Text(

@@ -52,7 +52,7 @@ class OrderConstants {
     'keepOrder': 'Hou bestelling',
     'cancelItems': 'Kanseleer',
     'thisWeek': 'Hierdie week',
-    'items': 'Items om aan kliënte af te lewer',
+    'items': 'Items vir hierdie dag',
     'totalItems': 'totaal',
     'filtered': 'Gefiltreer',
     'clearFilter': 'Vee filter uit om alle items te wys',

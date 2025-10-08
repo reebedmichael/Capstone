@@ -58,11 +58,10 @@ class _SidebarState extends ConsumerState<Sidebar> {
   Widget build(BuildContext context) {
     final currentRoute = GoRouterState.of(context).uri.path;
 
-  // other top-level entries (after the Spyskaart group)
-  final restEntries = <_NavEntry>[
-    _NavEntry('Bestellings', Icons.receipt_long, '/bestellings'),
-    _NavEntry('Gebruikers', Icons.group_outlined, '/gebruikers'),
-    _NavEntry('Toelae', Icons.account_balance_wallet, '/toelae'),
+    // other top-level entries (after the Spyskaart group)
+    final restEntries = <_NavEntry>[
+      _NavEntry('Gebruikers', Icons.group_outlined, '/gebruikers'),
+      _NavEntry('Toelae', Icons.account_balance_wallet, '/toelae'),
       _NavEntry(
         'Kennisgewings',
         Icons.notifications_outlined,
@@ -72,42 +71,83 @@ class _SidebarState extends ConsumerState<Sidebar> {
       _NavEntry('Instellings', Icons.settings_outlined, '/instellings'),
       _NavEntry('Hulp', Icons.help_outline, '/hulp'),
       _NavEntry('Profiel', Icons.person_outline, '/profiel'),
-      _NavEntry('Teken Uit', Icons.logout, '/logout'),
     ];
 
+    // Logout entry (always at bottom)
+    final logoutEntry = _NavEntry('Teken Uit', Icons.logout, '/logout');
+
     return SafeArea(
-      child: ListView(
-        padding: EdgeInsets.zero,
+      child: Column(
         children: [
-          // Header / Brand
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: widget.isCollapsed
-                ? const Icon(Icons.fastfood, size: 28)
-                : Text(
-                    'Spys Admin',
-                    style: Theme.of(context).textTheme.titleLarge,
+          // Main navigation content
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                // Header / Brand
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: widget.isCollapsed
+                      ? const Icon(Icons.fastfood, size: 28)
+                      : Text(
+                          'Spys Admin',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                ),
+
+                // Dashboard (always first)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
                   ),
+                  child: _buildTile(
+                    _NavEntry(
+                      'Dashboard',
+                      Icons.dashboard_outlined,
+                      '/dashboard',
+                    ),
+                    currentRoute,
+                  ),
+                ),
+
+                // Bestellings (right after Dashboard)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  child: _buildTile(
+                    _NavEntry(
+                      'Bestellings',
+                      Icons.receipt_long,
+                      '/bestellings',
+                    ),
+                    currentRoute,
+                  ),
+                ),
+
+                // Spyskaart group (main + children)
+                _buildSpyskaartGroup(currentRoute),
+
+                // The rest of the entries in original order
+                ...restEntries.map(
+                  (e) => Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    child: _buildTile(e, currentRoute),
+                  ),
+                ),
+              ],
+            ),
           ),
 
-          // Dashboard (always first)
+          // Logout (always at bottom of page)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            child: _buildTile(
-              _NavEntry('Dashboard', Icons.dashboard_outlined, '/dashboard'),
-              currentRoute,
-            ),
-          ),
-
-          // Spyskaart group (main + children)
-          _buildSpyskaartGroup(currentRoute),
-
-          // The rest of the entries in original order
-          ...restEntries.map(
-            (e) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              child: _buildTile(e, currentRoute),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: _buildTile(logoutEntry, currentRoute),
           ),
         ],
       ),
@@ -152,7 +192,7 @@ class _SidebarState extends ConsumerState<Sidebar> {
                         color: isSelected
                             ? AppColors.primary
                             : isHovered
-                            ? Colors.grey.withValues(alpha: 0.08)
+                            ? Colors.grey.withOpacity(0.08)
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -255,7 +295,7 @@ class _SidebarState extends ConsumerState<Sidebar> {
                 color: isSelected
                     ? AppColors.primary
                     : isHovered
-                    ? Colors.grey.withValues(alpha: 0.08)
+                    ? Colors.grey.withOpacity(0.08)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),

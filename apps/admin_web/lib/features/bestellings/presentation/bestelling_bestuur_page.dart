@@ -165,8 +165,8 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
     }
   }
 
-  // Filtering logic: Splits orders by food item for the daily view.
-  List<Order> get filteredOrders {
+  // Get all orders for the selected day (without food item filtering)
+  List<Order> get allOrdersForDay {
     List<Order> baseOrders;
     // Geskiedenis (History) view: Show original orders that are fully completed or cancelled.
     if (selectedDay == "Geskiedenis") {
@@ -182,16 +182,26 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
     } else {
       final List<Order> splitOrders = [];
 
+      // Calculate the target date based on selected day
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final targetDate = _getDateForSelectedDay(selectedDay, today);
+
       for (final order in orders) {
-        // 1. Filter items for the selected day that are NOT yet "done".
-        final dayItems = order.items
-            .where(
-              (item) =>
-                  item.scheduledDay == selectedDay &&
-                  item.status != OrderStatus.done &&
-                  item.status != OrderStatus.cancelled,
-            )
-            .toList();
+        // 1. Filter items for the selected day using bestDatum if available, otherwise fallback to scheduledDay
+        final dayItems = order.items.where((item) {
+          // Use the actual bestDatum if available
+          if (item.bestDatum != null) {
+            final itemDate = DateTime(
+              item.bestDatum!.year,
+              item.bestDatum!.month,
+              item.bestDatum!.day,
+            );
+            return itemDate.isAtSameMomentAs(targetDate);
+          }
+          // Fallback to scheduledDay if bestDatum is not available
+          return item.scheduledDay == selectedDay;
+        }).toList();
 
         if (dayItems.isEmpty) continue;
 
@@ -203,11 +213,6 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
 
         // 3. Create a new "split" order for each food group.
         itemsByFoodType.forEach((foodName, foodItems) {
-          // Apply the food item filter if one is selected.
-          if (selectedFoodItem.isNotEmpty && foodName != selectedFoodItem) {
-            return; // Skip this food group.
-          }
-
           final foodTotalAmount = foodItems.fold<double>(
             0,
             (sum, item) => sum + item.price * item.quantity,
@@ -236,8 +241,8 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
           .toList();
     }
 
-    // 4. Apply search query to the list of split orders.
-    return baseOrders.where((order) {
+    // Apply search query to the list of split orders.
+    final filteredOrders = baseOrders.where((order) {
       final originalOrderId = order.id.split('__').first;
       final matchesSearch =
           searchQuery.isEmpty ||
@@ -247,6 +252,44 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
           originalOrderId.toLowerCase().contains(searchQuery.toLowerCase());
       return matchesSearch;
     }).toList();
+
+    // Sort orders: active orders first, then completed orders
+    filteredOrders.sort((a, b) {
+      final aIsCompleted =
+          a.status == OrderStatus.done || a.status == OrderStatus.cancelled;
+      final bIsCompleted =
+          b.status == OrderStatus.done || b.status == OrderStatus.cancelled;
+
+      // If one is completed and the other isn't, prioritize the active one
+      if (aIsCompleted && !bIsCompleted) return 1;
+      if (!aIsCompleted && bIsCompleted) return -1;
+
+      // If both have the same completion status, sort by creation date (newest first)
+      return b.createdAt.compareTo(a.createdAt);
+    });
+
+    return filteredOrders;
+  }
+
+  // Filtering logic: Splits orders by food item for the daily view.
+  List<Order> get filteredOrders {
+    // Get all orders for the day first
+    final allOrders = allOrdersForDay;
+
+    // Apply food item filter if one is selected
+    if (selectedFoodItem.isNotEmpty) {
+      return allOrders.where((order) {
+        // Extract food name from split order ID
+        final parts = order.id.split('__');
+        if (parts.length >= 2) {
+          final foodName = parts.sublist(1).join('__');
+          return foodName == selectedFoodItem;
+        }
+        return false;
+      }).toList();
+    }
+
+    return allOrders;
   }
   // === Status update handlers (Refactored for split orders) ===
 
@@ -516,6 +559,51 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
   }
 
   // === Helpers ===
+
+  DateTime _getDateForSelectedDay(String selectedDay, DateTime today) {
+    // Map day names to weekday numbers
+    final dayMap = {
+      'Maandag': 1,
+      'Dinsdag': 2,
+      'Woensdag': 3,
+      'Donderdag': 4,
+      'Vrydag': 5,
+      'Saterdag': 6,
+      'Sondag': 7,
+    };
+
+    final selectedWeekday = dayMap[selectedDay];
+    if (selectedWeekday == null) {
+      return today; // Fallback to today if day not found
+    }
+
+    // Calculate the Monday of the current week
+    final currentWeekday = today.weekday;
+    final daysSinceMonday = currentWeekday - 1;
+    final mondayOfWeek = today.subtract(Duration(days: daysSinceMonday));
+
+    // Calculate the target date for the selected day
+    final daysToAdd = selectedWeekday - 1;
+    return mondayOfWeek.add(Duration(days: daysToAdd));
+  }
+
+  bool _isPreviousDay(String selectedDay) {
+    if (selectedDay == "Geskiedenis") return false;
+
+    final today = DateTime.now();
+    final selectedDate = _getDateForSelectedDay(selectedDay, today);
+
+    // Compare only the date part (year, month, day) to avoid time issues
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final selectedDateOnly = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+    );
+
+    return selectedDateOnly.isBefore(todayDate);
+  }
+
   OrderStatus _recalcOrderStatus(List<OrderItem> items) {
     if (items.every((i) => i.status == OrderStatus.done)) {
       return OrderStatus.done;
@@ -757,6 +845,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
                     selectedDay: selectedDay,
                     selectedFoodItem: selectedFoodItem,
                     onFoodItemClick: handleFoodItemClick,
+                    allOrders: allOrdersForDay,
                   ),
                   const SizedBox(height: 32),
                   filteredOrders.isEmpty
@@ -787,23 +876,31 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
                                 if (selectedDay != "Geskiedenis")
                                   Row(
                                     children: [
-                                      ElevatedButton.icon(
-                                        onPressed:
-                                            _handleCleanupUnclaimedOrders,
-                                        icon: const Icon(
-                                          Icons.cleaning_services_outlined,
+                                      if (_isPreviousDay(selectedDay))
+                                        ElevatedButton.icon(
+                                          onPressed:
+                                              _handleCleanupUnclaimedOrders,
+                                          icon: const Icon(
+                                            Icons.cleaning_services_outlined,
+                                          ),
+                                          label: const Text(
+                                            'Merk aktiewe bestellings as gemis',
+                                          ),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                            foregroundColor: Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                          ),
                                         ),
-                                        label: const Text(
-                                          'Opruim Onopgehaalde',
-                                        ),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              Colors.orange.shade100,
-                                          foregroundColor:
-                                              Colors.orange.shade800,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
+                                      if (_isPreviousDay(selectedDay))
+                                        const SizedBox(width: 8),
                                       BulkActions(
                                         orders: filteredOrders,
                                         onBulkUpdate: handleBulkUpdate,
@@ -843,9 +940,9 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Bevestig Opruiming'),
+        title: const Text('Bevestig Status Opdateering'),
         content: const Text(
-          'Is jy seker jy wil onopgehaalde bestellings outomaties kanselleer? '
+          'Is jy seker jy wil onopgehaalde bestellings merk as gemis? '
           'Hierdie aksie kan nie ongedaan gemaak word nie.',
         ),
         actions: [
