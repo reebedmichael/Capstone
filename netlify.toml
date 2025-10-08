@@ -1,7 +1,7 @@
 [build]
   base = "apps/admin_web"
   command = "chmod +x ../../build.sh && ../../build.sh"
-  publish = "apps/admin_web/build/web"
+  publish = "build/web"
 
 [[redirects]]
   from = "/*"
