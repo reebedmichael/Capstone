@@ -217,6 +217,10 @@ class _OrdersPageState extends State<OrdersPage>
           orders = ordersData;
           isLoading = false;
         });
+        // After loading, ensure expired items are marked as 'Verstryk'
+        // This will insert a status row for items past the cutoff time
+        // and refresh orders if any updates were made.
+        unawaited(_updateExpiredItemStatuses());
       }
     } catch (e) {
       debugPrint('Error loading orders: $e');
@@ -446,6 +450,74 @@ class _OrdersPageState extends State<OrdersPage>
         return Colors.black;
       default:
         return Theme.of(context).colorScheme.surfaceVariant;
+    }
+  }
+
+  Future<void> _updateExpiredItemStatuses() async {
+    try {
+      final sb = Supabase.instance.client;
+      // Lookup status id for 'Verstryk' once
+      final statusRow = await sb
+          .from('kos_item_statusse')
+          .select('kos_stat_id')
+          .eq('kos_stat_naam', 'Verstryk')
+          .maybeSingle();
+      if (statusRow == null) return;
+      final String verstrykStatusId = statusRow['kos_stat_id'].toString();
+
+      bool anyUpdated = false;
+      final DateTime now = DateTime.now();
+
+      // Iterate over all items in current orders and insert status if needed
+      for (final order in orders) {
+        final List items = (order['bestelling_kos_item'] as List? ?? []);
+        for (final it in items) {
+          final String? bestKosId = it['best_kos_id']?.toString();
+          if (bestKosId == null) continue;
+
+          // Compute cutoff: previous day 17:00 from bestelling_kos_item.best_datum
+          final String? bestDatumIso = it['best_datum'] as String?;
+          final DateTime? cutoff = _computeCutoffFromBestDatum(bestDatumIso);
+          if (cutoff == null || now.isBefore(cutoff)) continue;
+
+          // Skip if item already in a terminal state or already expired
+          final List statuses = (it['best_kos_item_statusse'] as List? ?? []);
+          String? latestName;
+          bool alreadyExpired = false;
+          if (statuses.isNotEmpty) {
+            final last = statuses.last;
+            final Map<String, dynamic> statusInfo =
+                (last['kos_item_statusse'] as Map<String, dynamic>? ?? {});
+            latestName = statusInfo['kos_stat_naam'] as String?;
+            for (final s in statuses) {
+              final Map<String, dynamic> info =
+                  (s['kos_item_statusse'] as Map<String, dynamic>? ?? {});
+              if ((info['kos_stat_naam'] as String?) == 'Verstryk') {
+                alreadyExpired = true;
+                break;
+              }
+            }
+          }
+
+          if (alreadyExpired || latestName == 'Afgehandel' || latestName == 'Gekanselleer') {
+            continue;
+          }
+
+          // Insert 'Verstryk' status
+          await sb.from('best_kos_item_statusse').insert({
+            'best_kos_id': bestKosId,
+            'kos_stat_id': verstrykStatusId,
+            'best_kos_wysig_datum': DateTime.now().toIso8601String(),
+          });
+          anyUpdated = true;
+        }
+      }
+
+      if (anyUpdated && mounted) {
+        await _loadOrders();
+      }
+    } catch (e) {
+      debugPrint('Error updating expired statuses: $e');
     }
   }
 
