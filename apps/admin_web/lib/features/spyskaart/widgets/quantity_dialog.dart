@@ -190,12 +190,26 @@ class _QuantityDialogState extends State<QuantityDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "Hoeveelheid items beskikbaar",
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        Row(
+                          children: [
+                            const Text(
+                              "Hoeveelheid items",
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Tooltip(
+                              message:
+                                  "Die aantal items wat beskikbaar is vir bestelling",
+                              child: Icon(
+                                Icons.info_outline,
+                                size: 14,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         TextField(
@@ -219,14 +233,24 @@ class _QuantityDialogState extends State<QuantityDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          children: const [
-                            Icon(Icons.event, size: 14),
-                            SizedBox(width: 4),
-                            Text(
+                          children: [
+                            const Icon(Icons.event, size: 14),
+                            const SizedBox(width: 4),
+                            const Text(
                               "Afsny datum & tyd",
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Tooltip(
+                              message:
+                                  "Die tyd wanneer bestellings vir hierdie item afgesny word",
+                              child: Icon(
+                                Icons.info_outline,
+                                size: 14,
+                                color: Colors.grey.shade600,
                               ),
                             ),
                           ],
