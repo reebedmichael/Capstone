@@ -58,12 +58,18 @@ class KennisgewingRepository {
       final tipeId = await _kryOfSkepKennisgewingTipe(tipeNaam);
 
       // Skep kennisgewing
-      await _sb.from('kennisgewings').insert({
+      final Map<String, dynamic> data = {
         'gebr_id': gebrId,
         'kennis_beskrywing': beskrywing,
         'kennis_tipe_id': tipeId,
         'kennis_gelees': false,
-      });
+      };
+      
+      if (titel != null && titel.isNotEmpty) {
+        data['kennis_titel'] = titel;
+      }
+      
+      await _sb.from('kennisgewings').insert(data);
 
       // Stuur email as gevra
       if (stuurEmail) {
@@ -86,16 +92,23 @@ class KennisgewingRepository {
   Future<bool> skepGlobaleKennisgewing({
     required String beskrywing,
     required String tipeNaam,
+    String? titel,
   }) async {
     try {
       // Kry of skep kennisgewing tipe
       final tipeId = await _kryOfSkepKennisgewingTipe(tipeNaam);
 
       // Skep globale kennisgewing
-      await _sb.from('globale_kennisgewings').insert({
+      final Map<String, dynamic> data = {
         'glob_kennis_beskrywing': beskrywing,
         'kennis_tipe_id': tipeId,
-      });
+      };
+      
+      if (titel != null && titel.isNotEmpty) {
+        data['glob_kennis_titel'] = titel;
+      }
+      
+      await _sb.from('globale_kennisgewings').insert(data);
 
       return true;
     } catch (e) {
@@ -121,11 +134,19 @@ class KennisgewingRepository {
       final tipeId = await _kryOfSkepKennisgewingTipe(tipeNaam);
 
       // Skep kennisgewings vir alle gebruikers
-      final kennisgewings = gebruikers.map((gebruiker) => {
-        'gebr_id': gebruiker['gebr_id'],
-        'kennis_beskrywing': beskrywing,
-        'kennis_tipe_id': tipeId,
-        'kennis_gelees': false,
+      final kennisgewings = gebruikers.map((gebruiker) {
+        final Map<String, dynamic> data = {
+          'gebr_id': gebruiker['gebr_id'],
+          'kennis_beskrywing': beskrywing,
+          'kennis_tipe_id': tipeId,
+          'kennis_gelees': false,
+        };
+        
+        if (titel != null && titel.isNotEmpty) {
+          data['kennis_titel'] = titel;
+        }
+        
+        return data;
       }).toList();
 
       await _sb.from('kennisgewings').insert(kennisgewings);
@@ -161,11 +182,19 @@ class KennisgewingRepository {
       final tipeId = await _kryOfSkepKennisgewingTipe(tipeNaam);
 
       // Skep kennisgewings vir spesifieke gebruikers
-      final kennisgewings = gebrIds.map((gebrId) => {
-        'gebr_id': gebrId,
-        'kennis_beskrywing': beskrywing,
-        'kennis_tipe_id': tipeId,
-        'kennis_gelees': false,
+      final kennisgewings = gebrIds.map((gebrId) {
+        final Map<String, dynamic> data = {
+          'gebr_id': gebrId,
+          'kennis_beskrywing': beskrywing,
+          'kennis_tipe_id': tipeId,
+          'kennis_gelees': false,
+        };
+        
+        if (titel != null && titel.isNotEmpty) {
+          data['kennis_titel'] = titel;
+        }
+        
+        return data;
       }).toList();
 
       await _sb.from('kennisgewings').insert(kennisgewings);
@@ -242,11 +271,16 @@ class KennisgewingRepository {
   /// Opdateer bestaande kennisgewing
   Future<bool> opdateerKennisgewing({
     required String kennisId,
+    String? titel,
     String? beskrywing,
     String? tipeNaam,
   }) async {
     try {
       final Map<String, dynamic> updates = {};
+      
+      if (titel != null) {
+        updates['kennis_titel'] = titel;
+      }
       
       if (beskrywing != null) {
         updates['kennis_beskrywing'] = beskrywing;
@@ -273,11 +307,16 @@ class KennisgewingRepository {
   /// Opdateer globale kennisgewing
   Future<bool> opdateerGlobaleKennisgewing({
     required String globKennisId,
+    String? titel,
     String? beskrywing,
     String? tipeNaam,
   }) async {
     try {
       final Map<String, dynamic> updates = {};
+      
+      if (titel != null) {
+        updates['glob_kennis_titel'] = titel;
+      }
       
       if (beskrywing != null) {
         updates['glob_kennis_beskrywing'] = beskrywing;
