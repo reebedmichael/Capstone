@@ -679,42 +679,42 @@ class _NotificationsPageState extends State<NotificationsPage>
                 ),
               ),
               const PopupMenuItem(
-                value: 'info',
+                value: 'order',
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, color: Colors.blue),
+                    Icon(Icons.shopping_cart, color: Colors.blue),
                     SizedBox(width: 12),
-                    Text('Inligting'),
+                    Text('Bestellings'),
                   ],
                 ),
               ),
               const PopupMenuItem(
-                value: 'waarskuwing',
+                value: 'menu',
                 child: Row(
                   children: [
-                    Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                    Icon(Icons.restaurant_menu, color: Colors.green),
                     SizedBox(width: 12),
-                    Text('Waarskuwing'),
+                    Text('Spyskaart'),
                   ],
                 ),
               ),
               const PopupMenuItem(
-                value: 'sukses',
+                value: 'allowance',
                 child: Row(
                   children: [
-                    Icon(Icons.check_circle_outline, color: Colors.green),
+                    Icon(Icons.account_balance_wallet, color: Colors.orange),
                     SizedBox(width: 12),
-                    Text('Sukses'),
+                    Text('Toelaag'),
                   ],
                 ),
               ),
               const PopupMenuItem(
-                value: 'fout',
+                value: 'algemeen',
                 child: Row(
                   children: [
-                    Icon(Icons.error_outline, color: Colors.red),
+                    Icon(Icons.info_outline, color: Colors.purple),
                     SizedBox(width: 12),
-                    Text('Fout'),
+                    Text('Algemeen'),
                   ],
                 ),
               ),
