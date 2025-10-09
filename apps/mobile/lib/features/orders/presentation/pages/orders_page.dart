@@ -175,8 +175,8 @@ class _OrdersPageState extends State<OrdersPage>
     final DateTime? bestDatumParsed = DateTime.tryParse(bestDatumIso);
     if (bestDatumParsed == null) return null;
     final DateTime bestLocal = bestDatumParsed;
-    final DateTime prevDay = bestLocal.subtract(const Duration(days: 1));
-    return DateTime(prevDay.year, prevDay.month, prevDay.day, 17, 0);
+    final DateTime nextDay = bestLocal.add(const Duration(days: 1));
+    return DateTime(nextDay.year, nextDay.month, nextDay.day, 17, 0);
   }
 
   Future<void> _loadOrders() async {
@@ -447,7 +447,7 @@ class _OrdersPageState extends State<OrdersPage>
       case 'Gekanselleer':
         return Theme.of(context).colorScheme.errorContainer;
       case 'Verstryk':
-        return Colors.black;
+        return Colors.red.shade600;
       default:
         return Theme.of(context).colorScheme.surfaceVariant;
     }
@@ -947,7 +947,7 @@ class _OrdersPageState extends State<OrdersPage>
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: isPastDue ? Colors.black : _statusColor(lastStatus ?? ''),
+                                  color: isPastDue ? Colors.red.shade600 : _statusColor(lastStatus ?? ''),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Row(
