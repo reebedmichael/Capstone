@@ -133,70 +133,6 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
             'waarskuwing',
       )
       .length;
-  int get _kritiek => _all
-      .where(
-        (k) =>
-            (k['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info') ==
-            'kritiek',
-      )
-      .length;
-
-  Future<void> _verwyder(Map<String, dynamic> k) async {
-    final bevestig = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Bevestig Verwydering'),
-        content: const Text(
-          'Is jy seker jy wil hierdie kennisgewing verwyder?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Kanselleer'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Verwyder'),
-          ),
-        ],
-      ),
-    );
-
-    if (bevestig != true) return;
-
-    try {
-      final kennisgewingRepo = KennisgewingRepository(
-        SupabaseDb(Supabase.instance.client),
-      );
-      final soort = k['_kennisgewing_soort'];
-
-      bool sukses = false;
-      if (soort == 'globaal') {
-        sukses = await kennisgewingRepo.verwyderGlobaleKennisgewing(
-          k['glob_kennis_id'],
-        );
-      } else {
-        sukses = await kennisgewingRepo.verwyderKennisgewing(k['kennis_id']);
-      }
-
-      if (sukses) {
-        await _laaiData();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Kennisgewing suksesvol verwyder!')),
-          );
-        }
-      }
-    } catch (e) {
-      print('Fout met verwyder: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Fout: $e')));
-      }
-    }
-  }
 
   Future<void> _openSkepDialog() async {
     final result = await showDialog<bool>(
@@ -260,381 +196,436 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
 
     final groepe = _gegroepeerdeKennisgewings;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          // Header
-          Row(
+    return Column(
+      children: [
+        // Header
+        Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            border: Border(
+              bottom: BorderSide(color: Theme.of(context).dividerColor),
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
-                Icons.notifications_active,
-                size: 32,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Kennisgewings Bestuur',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Statistieke
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final int cols = constraints.maxWidth > 1100
-                  ? 4
-                  : constraints.maxWidth > 800
-                  ? 2
-                  : 1;
-              return GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: cols,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 3.6,
-                children: <Widget>[
-                  _stat(
-                    'Totaal',
-                    '${_all.length}',
-                    Icons.notifications_none,
-                    Theme.of(context).colorScheme.primary,
+              // Left section: logo + title
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.notifications_active,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
-                  _stat(
-                    'Gebruiker',
-                    '$_gebruikerKennisgewings',
-                    Icons.person_outline,
-                    Colors.blue,
-                  ),
-                  _stat(
-                    'Globaal',
-                    '$_globaleKennisgewings',
-                    Icons.public,
-                    Colors.green,
-                  ),
-                  _stat(
-                    'Waarskuwings',
-                    '$_waarskuwings',
-                    Icons.warning_amber_rounded,
-                    Colors.orange,
-                  ),
-                ],
-              );
-            },
-          ),
-
-          const SizedBox(height: 24),
-
-          // Filters en Aksies
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Icon(
-                        Icons.filter_list,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Filters',
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Kennisgewings Bestuur",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
-                      FilledButton.icon(
-                        onPressed: _openSkepDialog,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Skep'),
+                      Text(
+                        "Bestuur kennisgewings en kennisgewings",
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: <Widget>[
-                      // Soort Filter
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          minWidth: 180,
-                          maxWidth: 220,
+                ],
+              ),
+              // Right section: action buttons
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _openSkepDialog,
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Skep'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        // Main content
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                // Statistieke
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final int cols = constraints.maxWidth > 1100
+                        ? 4
+                        : constraints.maxWidth > 800
+                        ? 2
+                        : 1;
+                    return GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: cols,
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
+                      childAspectRatio: 2.9,
+                      children: <Widget>[
+                        _stat(
+                          'Totaal',
+                          '${_all.length}',
+                          Icons.notifications_none,
+                          Theme.of(context).colorScheme.primary,
                         ),
-                        child: DropdownButtonFormField<String>(
-                          value: _soortFilter,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Soort',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.category),
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
+                        _stat(
+                          'Gebruiker',
+                          '$_gebruikerKennisgewings',
+                          Icons.person_outline,
+                          Colors.blue,
+                        ),
+                        _stat(
+                          'Globaal',
+                          '$_globaleKennisgewings',
+                          Icons.public,
+                          Colors.green,
+                        ),
+                        _stat(
+                          'Waarskuwings',
+                          '$_waarskuwings',
+                          Icons.warning_amber_rounded,
+                          Colors.orange,
+                        ),
+                      ],
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 24),
+
+                // Filters en Aksies
+                Card(
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Row(
+                          children: <Widget>[
+                            Icon(
+                              Icons.filter_list,
+                              color: Theme.of(context).colorScheme.primary,
+                              size: 24,
                             ),
-                            isDense: true,
-                          ),
-                          items: const <DropdownMenuItem<String>>[
-                            DropdownMenuItem(
-                              value: 'alles',
+                            const SizedBox(width: 8),
+                            Expanded(
                               child: Text(
-                                'Alle',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            DropdownMenuItem(
-                              value: 'gebruiker',
-                              child: Text(
-                                'Gebruiker',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            DropdownMenuItem(
-                              value: 'globaal',
-                              child: Text(
-                                'Globaal',
-                                overflow: TextOverflow.ellipsis,
+                                'Filters',
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.bold),
                               ),
                             ),
                           ],
-                          onChanged: (String? v) =>
-                              setState(() => _soortFilter = v ?? 'alles'),
                         ),
-                      ),
+                        const SizedBox(height: 20),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: <Widget>[
+                            // Soort Filter
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                minWidth: 180,
+                                maxWidth: 220,
+                              ),
+                              child: DropdownButtonFormField<String>(
+                                value: _soortFilter,
+                                isExpanded: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'Soort',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.category),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  isDense: true,
+                                ),
+                                items: const <DropdownMenuItem<String>>[
+                                  DropdownMenuItem(
+                                    value: 'alles',
+                                    child: Text(
+                                      'Alle',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'gebruiker',
+                                    child: Text(
+                                      'Gebruiker',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'globaal',
+                                    child: Text(
+                                      'Globaal',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                                onChanged: (String? v) =>
+                                    setState(() => _soortFilter = v ?? 'alles'),
+                              ),
+                            ),
 
-                      // Tipe Filter
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          minWidth: 180,
-                          maxWidth: 220,
-                        ),
-                        child: DropdownButtonFormField<String>(
-                          value: _tipeFilter,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Tipe',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.label),
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            isDense: true,
-                          ),
-                          items: const <DropdownMenuItem<String>>[
-                            DropdownMenuItem(
-                              value: 'alle_tipes',
-                              child: Text(
-                                'Alle tipes',
-                                overflow: TextOverflow.ellipsis,
+                            // Tipe Filter
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                minWidth: 180,
+                                maxWidth: 220,
+                              ),
+                              child: DropdownButtonFormField<String>(
+                                value: _tipeFilter,
+                                isExpanded: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'Tipe',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.label),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  isDense: true,
+                                ),
+                                items: const <DropdownMenuItem<String>>[
+                                  DropdownMenuItem(
+                                    value: 'alle_tipes',
+                                    child: Text(
+                                      'Alle tipes',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'info',
+                                    child: Text(
+                                      'Inligting',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'waarskuwing',
+                                    child: Text(
+                                      'Waarskuwing',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'fout',
+                                    child: Text(
+                                      'Fout',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'sukses',
+                                    child: Text(
+                                      'Sukses',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                                onChanged: (String? v) => setState(
+                                  () => _tipeFilter = v ?? 'alle_tipes',
+                                ),
                               ),
                             ),
-                            DropdownMenuItem(
-                              value: 'info',
-                              child: Text(
-                                'Inligting',
-                                overflow: TextOverflow.ellipsis,
+
+                            // Gebruiker Filter
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                minWidth: 200,
+                                maxWidth: 280,
+                              ),
+                              child: DropdownButtonFormField<String?>(
+                                value: _selectedGebruikerId,
+                                isExpanded: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'Gebruiker',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.person),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  isDense: true,
+                                ),
+                                items: [
+                                  const DropdownMenuItem<String?>(
+                                    value: null,
+                                    child: Text(
+                                      'Alle Gebruikers',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  ..._gebruikers.map(
+                                    (g) => DropdownMenuItem<String?>(
+                                      value: g['gebr_id'],
+                                      child: Text(
+                                        '${g['gebr_naam']} ${g['gebr_van']}',
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                onChanged: (String? v) =>
+                                    setState(() => _selectedGebruikerId = v),
                               ),
                             ),
-                            DropdownMenuItem(
-                              value: 'waarskuwing',
-                              child: Text(
-                                'Waarskuwing',
-                                overflow: TextOverflow.ellipsis,
+
+                            // Datum Reeks Filter
+                            OutlinedButton.icon(
+                              onPressed: _selectDateRange,
+                              icon: const Icon(Icons.date_range),
+                              label: Text(
+                                _dateRange == null
+                                    ? 'Kies Datum Reeks'
+                                    : '${DateFormat('dd MMM yyyy').format(_dateRange!.start)} - ${DateFormat('dd MMM yyyy').format(_dateRange!.end)}',
                               ),
                             ),
-                            DropdownMenuItem(
-                              value: 'fout',
-                              child: Text(
-                                'Fout',
-                                overflow: TextOverflow.ellipsis,
+
+                            if (_dateRange != null)
+                              IconButton(
+                                onPressed: _clearDateRange,
+                                icon: const Icon(Icons.clear),
+                                tooltip: 'Verwyder Datum Filter',
                               ),
-                            ),
-                            DropdownMenuItem(
-                              value: 'sukses',
-                              child: Text(
-                                'Sukses',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
                           ],
-                          onChanged: (String? v) =>
-                              setState(() => _tipeFilter = v ?? 'alle_tipes'),
                         ),
-                      ),
+                      ],
+                    ),
+                  ),
+                ),
 
-                      // Gebruiker Filter
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          minWidth: 200,
-                          maxWidth: 280,
-                        ),
-                        child: DropdownButtonFormField<String?>(
-                          value: _selectedGebruikerId,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Gebruiker',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.person),
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
+                const SizedBox(height: 24),
+
+                // Gegroepeerde Kennisgewings Lys
+                Card(
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Row(
+                          children: [
+                            Text(
+                              'Kennisgewings',
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.bold),
                             ),
-                            isDense: true,
-                          ),
-                          items: [
-                            const DropdownMenuItem<String?>(
-                              value: null,
-                              child: Text(
-                                'Alle Gebruikers',
-                                overflow: TextOverflow.ellipsis,
+                            const SizedBox(width: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
                               ),
-                            ),
-                            ..._gebruikers.map(
-                              (g) => DropdownMenuItem<String?>(
-                                value: g['gebr_id'],
-                                child: Text(
-                                  '${g['gebr_naam']} ${g['gebr_van']}',
-                                  overflow: TextOverflow.ellipsis,
+                              decoration: BoxDecoration(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                '${groepe.length} ${groepe.length == 1 ? 'groep' : 'groepe'}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
                               ),
                             ),
                           ],
-                          onChanged: (String? v) =>
-                              setState(() => _selectedGebruikerId = v),
                         ),
-                      ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${_gefilterde.length} van ${_all.length} kennisgewings',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: Colors.grey[600]),
+                        ),
+                        const SizedBox(height: 20),
 
-                      // Datum Reeks Filter
-                      OutlinedButton.icon(
-                        onPressed: _selectDateRange,
-                        icon: const Icon(Icons.date_range),
-                        label: Text(
-                          _dateRange == null
-                              ? 'Kies Datum Reeks'
-                              : '${DateFormat('dd MMM yyyy').format(_dateRange!.start)} - ${DateFormat('dd MMM yyyy').format(_dateRange!.end)}',
-                        ),
-                      ),
-
-                      if (_dateRange != null)
-                        IconButton(
-                          onPressed: _clearDateRange,
-                          icon: const Icon(Icons.clear),
-                          tooltip: 'Verwyder Datum Filter',
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Gegroepeerde Kennisgewings Lys
-          Card(
-            elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    children: [
-                      Text(
-                        'Kennisgewings',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '${groepe.length} ${groepe.length == 1 ? 'groep' : 'groepe'}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${_gefilterde.length} van ${_all.length} kennisgewings',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 20),
-
-                  if (groepe.isEmpty)
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 40),
-                        child: Column(
-                          children: <Widget>[
-                            Icon(
-                              Icons.notifications_none,
-                              size: 64,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Geen Kennisgewings',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.w500,
+                        if (groepe.isEmpty)
+                          Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 40),
+                              child: Column(
+                                children: <Widget>[
+                                  Icon(
+                                    Icons.notifications_none,
+                                    size: 64,
+                                    color: Colors.grey[400],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Geen Kennisgewings',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    )
-                  else
-                    Column(
-                      children: groepe.entries.map((entry) {
-                        final kennisgewings = entry.value;
-                        final eerstKennisgewing = kennisgewings.first;
+                          )
+                        else
+                          Column(
+                            children: groepe.entries.map((entry) {
+                              final kennisgewings = entry.value;
+                              final eerstKennisgewing = kennisgewings.first;
 
-                        return AnnouncementGroupCard(
-                          kennisgewings: kennisgewings,
-                          eerstKennisgewing: eerstKennisgewing,
-                          onEdit: () => _openRedigeerDialog(eerstKennisgewing),
-                          onDelete: () => _verwyderGroep(kennisgewings),
-                        );
-                      }).toList(),
+                              return AnnouncementGroupCard(
+                                kennisgewings: kennisgewings,
+                                eerstKennisgewing: eerstKennisgewing,
+                                onEdit: () =>
+                                    _openRedigeerDialog(eerstKennisgewing),
+                                onDelete: () => _verwyderGroep(kennisgewings),
+                              );
+                            }).toList(),
+                          ),
+                      ],
                     ),
-                ],
-              ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

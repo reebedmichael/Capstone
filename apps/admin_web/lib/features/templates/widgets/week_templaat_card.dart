@@ -123,62 +123,69 @@ class _WeekTemplateCardState extends State<WeekTemplateCard>
     return Card(
       shadowColor: Colors.grey[300],
       surfaceTintColor: Theme.of(context).colorScheme.primary,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // This part remains the same
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _isExpanded = !_isExpanded;
+          });
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // This part remains the same
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.templaat['naam'] as String? ?? '',
+                      style: Theme.of(context).textTheme.titleLarge,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 150,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.edit),
+                          label: const Text('Wysig'),
+                          onPressed: () {
+                            // Stop event propagation to prevent card expansion
+                            widget.onEdit();
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () {
+                          // Stop event propagation to prevent card expansion
+                          widget.onDelete();
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+
+              if (beskrywing.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4.0),
                   child: Text(
-                    widget.templaat['naam'] as String? ?? '',
-                    style: Theme.of(context).textTheme.titleLarge,
+                    beskrywing,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Row(
-                  children: [
-                    SizedBox(
-                      width: 150,
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.edit),
-                        label: const Text('Wysig'),
-                        onPressed: widget.onEdit,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: widget.onDelete,
-                    ),
-                  ],
-                ),
-              ],
-            ),
 
-            if (beskrywing.isNotEmpty)
+              // ======== UPDATED: TOGGLE INDICATOR ========
+              // Show expand/collapse indicator
               Padding(
-                padding: const EdgeInsets.only(top: 4.0),
-                child: Text(
-                  beskrywing,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-
-            // ======== NEW: TOGGLE BUTTON ========
-            // An InkWell makes the Row tappable to toggle the state.
-            InkWell(
-              onTap: () {
-                setState(() {
-                  _isExpanded = !_isExpanded;
-                });
-              },
-              child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -200,56 +207,56 @@ class _WeekTemplateCardState extends State<WeekTemplateCard>
                   ],
                 ),
               ),
-            ),
 
-            // ======== NEW: COLLAPSIBLE SECTION ========
-            // Use AnimatedCrossFade to smoothly show/hide its child.
-            AnimatedCrossFade(
-              firstChild: const SizedBox.shrink(),
-              secondChild: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Divider(height: 1),
-                  const SizedBox(height: 8),
+              // ======== NEW: COLLAPSIBLE SECTION ========
+              // Use AnimatedCrossFade to smoothly show/hide its child.
+              AnimatedCrossFade(
+                firstChild: const SizedBox.shrink(),
+                secondChild: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Divider(height: 1),
+                    const SizedBox(height: 8),
 
-                  // This is your original content that will now be collapsible
-                  TabBar(
-                    controller: _tabController,
-                    isScrollable: true,
-                    labelColor: Theme.of(context).colorScheme.primary,
-                    tabs: [
-                      ...widget.daeVanWeek.map((d) => Tab(text: d['label'])),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
+                    // This is your original content that will now be collapsible
+                    TabBar(
+                      controller: _tabController,
+                      isScrollable: true,
+                      labelColor: Theme.of(context).colorScheme.primary,
+                      tabs: [
+                        ...widget.daeVanWeek.map((d) => Tab(text: d['label'])),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
 
-                  ConstrainedBox(
-                    constraints: BoxConstraints(maxHeight: maxAllowedHeight),
-                    child: SingleChildScrollView(
-                      child: AnimatedSize(
-                        duration: const Duration(milliseconds: 220),
-                        curve: Curves.easeInOut,
-                        child: Builder(
-                          builder: (context) {
-                            final activeIndex = _tabController.index;
-                            final int dayIdx = activeIndex;
-                            final dagKey =
-                                widget.daeVanWeek[dayIdx]['key'] ?? '';
-                            return _buildDayTabContent(dagKey, daeMap);
-                          },
+                    ConstrainedBox(
+                      constraints: BoxConstraints(maxHeight: maxAllowedHeight),
+                      child: SingleChildScrollView(
+                        child: AnimatedSize(
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeInOut,
+                          child: Builder(
+                            builder: (context) {
+                              final activeIndex = _tabController.index;
+                              final int dayIdx = activeIndex;
+                              final dagKey =
+                                  widget.daeVanWeek[dayIdx]['key'] ?? '';
+                              return _buildDayTabContent(dagKey, daeMap);
+                            },
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                crossFadeState: _isExpanded
+                    ? CrossFadeState.showSecond
+                    : CrossFadeState.showFirst,
+                duration: const Duration(milliseconds: 220),
               ),
-              crossFadeState: _isExpanded
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-              duration: const Duration(milliseconds: 220),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

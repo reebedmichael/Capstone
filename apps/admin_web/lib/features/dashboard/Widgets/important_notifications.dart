@@ -295,26 +295,26 @@ class _ImportantNotificationsState extends State<ImportantNotifications> {
                               children: [
                                 Row(
                                   children: [
-                                    // Expanded(
-                                    //   child: Text(
-                                    //     notif['kennis_titel'] as String? ??
-                                    //         'Geen titel',
-                                    //     style: const TextStyle(
-                                    //       fontWeight: FontWeight.w600,
-                                    //     ),
-                                    //     overflow: TextOverflow.ellipsis,
-                                    //   ),
-                                    // ),
                                     Expanded(
                                       child: Text(
-                                        notif['kennis_beskrywing'] as String? ??
-                                            'Geen boodskap',
-                                        style: const TextStyle(fontSize: 14),
-                                        maxLines: 2,
+                                        notif['kennis_titel'] as String? ??
+                                            'Geen titel',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
 
+                                    // Expanded(
+                                    //   child: Text(
+                                    //     notif['kennis_beskrywing'] as String? ??
+                                    //         'Geen boodskap',
+                                    //     style: const TextStyle(fontSize: 14),
+                                    //     maxLines: 2,
+                                    //     overflow: TextOverflow.ellipsis,
+                                    //   ),
+                                    // ),
                                     IconButton(
                                       icon: const Icon(Icons.close, size: 16),
                                       onPressed: () =>
@@ -324,13 +324,13 @@ class _ImportantNotificationsState extends State<ImportantNotifications> {
                                   ],
                                 ),
                                 const SizedBox(height: 4),
-                                // Text(
-                                //   notif['kennis_beskrywing'] as String? ??
-                                //       'Geen boodskap',
-                                //   style: const TextStyle(fontSize: 12),
-                                //   maxLines: 2,
-                                //   overflow: TextOverflow.ellipsis,
-                                // ),
+                                Text(
+                                  notif['kennis_beskrywing'] as String? ??
+                                      'Geen boodskap',
+                                  style: const TextStyle(fontSize: 12),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                                 const SizedBox(height: 8),
                                 Row(
                                   mainAxisAlignment:
