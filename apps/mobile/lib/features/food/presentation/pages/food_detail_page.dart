@@ -6,6 +6,7 @@ import 'package:spys_api_client/spys_api_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/constants/spacing.dart';
+import '../../../../shared/state/order_refresh_notifier.dart';
 
 class FoodDetailPage extends StatefulWidget {
   const FoodDetailPage({super.key});
@@ -411,6 +412,9 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
         aantal: quantity,
         weekDagNaam: _day.isNotEmpty ? _day : null,
       );
+
+      // Trigger global refresh to update cart badge and notifications
+      OrderRefreshNotifier().triggerRefresh();
 
       if (mounted) {
         ScaffoldMessenger.of(

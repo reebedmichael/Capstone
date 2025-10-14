@@ -7,6 +7,7 @@ import '../../../../shared/constants/spacing.dart';
 import '../../../../locator.dart';
 import 'package:spys_api_client/spys_api_client.dart';
 import '../../../../shared/state/cart_badge.dart';
+import '../../../../shared/state/order_refresh_notifier.dart';
 // removed embedded widget; pickup UI now inline above
 
 // Cart item food model (includes ingredients/allergens for diet checks and detail page)
@@ -523,6 +524,9 @@ class _CartPageState extends State<CartPage> {
             .update({'qty': newQuantity})
             .eq('mand_id', itemId);
       }
+      
+      // Trigger global refresh to update cart badge and notifications
+      OrderRefreshNotifier().triggerRefresh();
     } catch (e) {
       // Rollback UI change by reloading cart
       await _loadCart();
@@ -547,6 +551,9 @@ class _CartPageState extends State<CartPage> {
           .from('mandjie')
           .delete()
           .eq('mand_id', itemId);
+      
+      // Trigger global refresh to update cart badge and notifications
+      OrderRefreshNotifier().triggerRefresh();
     } catch (e) {
       await _loadCart();
       if (mounted) {
@@ -789,6 +796,9 @@ class _CartPageState extends State<CartPage> {
 
       // 8️⃣ Clear mandjie
       await sb.from('mandjie').delete().eq('gebr_id', userId);
+
+      // Trigger global refresh to update cart badge and notifications
+      OrderRefreshNotifier().triggerRefresh();
 
       // 9️⃣ Update local state
       debugPrint('Order placement successful! Updating UI...');

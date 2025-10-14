@@ -7,6 +7,7 @@ enum OrderStatus {
   delivered,
   done,
   cancelled,
+  verstryk, // Add verstryk status
 }
 
 class OrderItem {

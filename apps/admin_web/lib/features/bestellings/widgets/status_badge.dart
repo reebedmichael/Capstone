@@ -60,6 +60,12 @@ class StatusBadge extends StatelessWidget {
       backgroundColor: Color(0xFFEF9A9A), // light red
       textColor: Color(0xFFB71C1C), // deep red
     ),
+    // Add verstryk status with glitched appearance
+    OrderStatus.verstryk: StatusConfig(
+      label: "Verstryk",
+      backgroundColor: Color(0xFFFF6B6B), // Glitched red
+      textColor: Colors.white,
+    ),
   };
 
   @override

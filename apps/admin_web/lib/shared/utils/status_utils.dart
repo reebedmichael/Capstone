@@ -106,6 +106,12 @@ StatusInfo getStatusInfo(OrderStatus status) {
         backgroundColor: Color(0xFFEF9A9A), // light red
         textColor: Color(0xFFB71C1C), // deep red
       );
+    case OrderStatus.verstryk:
+      return const StatusInfo(
+        label: "Verstryk",
+        backgroundColor: Color(0xFFFF6B6B), // Glitched red
+        textColor: Colors.white,
+      );
   }
 }
 
@@ -119,6 +125,7 @@ const Map<OrderStatus, String> statusToDatabaseName = {
   OrderStatus.readyFetch: 'Reg vir afhaal',
   OrderStatus.done: 'Afgehandel',
   OrderStatus.cancelled: 'Gekanselleer',
+  OrderStatus.verstryk: 'Verstryk',
 };
 
 /// Get database status name for an OrderStatus
@@ -141,10 +148,14 @@ OrderStatus mapStatusFromNames(List<String> names) {
     OrderStatus.readyFetch,
     OrderStatus.done,
     OrderStatus.cancelled,
+    OrderStatus.verstryk, // Add verstryk to precedence
   ];
 
   OrderStatus mapOne(String n) {
     final s = n.toLowerCase();
+    if (s.contains('verstryk') || s.contains('expired')) {
+      return OrderStatus.verstryk;
+    }
     if (s.contains('kansel') || s.contains('cancel')) {
       return OrderStatus.cancelled;
     }

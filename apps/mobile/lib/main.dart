@@ -58,6 +58,7 @@ Future<void> main() async {
       print('Order cleanup service failed: $e');
     }
 
+
     print('All services initialized, starting app...');
     runApp(const MyApp());
   } catch (e) {

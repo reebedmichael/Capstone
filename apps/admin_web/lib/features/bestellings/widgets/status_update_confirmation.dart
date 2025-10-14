@@ -315,6 +315,9 @@ class StatusUpdateConfirmationDialog extends StatelessWidget {
         return Colors.green.shade700;
       case OrderStatus.cancelled:
         return Colors.red;
+      case OrderStatus.verstryk:
+        // TODO: Handle this case.
+        throw UnimplementedError();
     }
   }
 }

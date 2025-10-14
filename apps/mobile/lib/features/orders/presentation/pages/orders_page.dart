@@ -12,6 +12,7 @@ import '../../../../locator.dart';
 import '../../../../shared/state/order_refresh_notifier.dart';
 import 'dart:math' as math;
 import 'dart:async';
+import 'package:flutter/scheduler.dart';
 
 class OrdersPage extends StatefulWidget {
   const OrdersPage({super.key});
@@ -21,14 +22,16 @@ class OrdersPage extends StatefulWidget {
 }
 
 class _OrdersPageState extends State<OrdersPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
   bool refreshing = false;
   bool isLoading = true;
+  bool _isShowingVerstrykNotification = false; // Prevent duplicate notifications
 
   List<Map<String, dynamic>> orders = [];
   StreamSubscription? _orderStatusSubscription;
   StreamSubscription? _globalRefreshSubscription;
+  Timer? _verstrykCheckTimer; // Timer for periodic verstryk checks
   Map<String, DateTime> _kosItemIdToCutoff = {};
   Map<String, DateTime> _kosItemDayToCutoff = {}; // key: "<kos_item_id>|<dayLower>"
   String? _currentSpyskaartNaam;
@@ -38,20 +41,61 @@ class _OrdersPageState extends State<OrdersPage>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) setState(() {});
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
     });
+    
+    // Add lifecycle observer to detect when app becomes active
+    WidgetsBinding.instance.addObserver(this);
+    
     _loadOrders();
     _loadCurrentWeekSpyskaartWeekdays();
     _setupOrderStatusListener();
     _setupGlobalRefreshListener();
+    
+    // Start periodic verstryk checks every 30 seconds
+    _startVerstrykCheckTimer();
   }
 
   @override
   void dispose() {
     _orderStatusSubscription?.cancel();
     _globalRefreshSubscription?.cancel();
+    _verstrykCheckTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
+
+  void _startVerstrykCheckTimer() {
+    _verstrykCheckTimer?.cancel();
+    _verstrykCheckTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
+      if (mounted) {
+        debugPrint('⏰ Periodic verstryk check triggered');
+        _updateExpiredItemStatuses();
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed && mounted) {
+      debugPrint('📱 App resumed, checking for expired items...');
+      _updateExpiredItemStatuses();
+    }
+  }
+
+
+  // Method to manually trigger verstryk check (can be called from outside)
+  void checkForVerstrykItems() {
+    if (mounted) {
+      debugPrint('🔍 Manual verstryk check triggered');
+      _updateExpiredItemStatuses();
+    }
+  }
+
+
 
   DateTime _getCurrentWeekStart() {
     final now = DateTime.now();
@@ -132,6 +176,9 @@ class _OrdersPageState extends State<OrdersPage>
       debugPrint('Global refresh triggered, reloading orders...');
       _loadOrders();
       
+      // Also check for verstryk items when global refresh happens
+      _updateExpiredItemStatuses();
+      
       if (mounted) {
         Fluttertoast.showToast(
           msg: 'Bestelling opdateer!',
@@ -175,8 +222,8 @@ class _OrdersPageState extends State<OrdersPage>
     final DateTime? bestDatumParsed = DateTime.tryParse(bestDatumIso);
     if (bestDatumParsed == null) return null;
     final DateTime bestLocal = bestDatumParsed;
-    final DateTime nextDay = bestLocal.add(const Duration(days: 1));
-    return DateTime(nextDay.year, nextDay.month, nextDay.day, 17, 0);
+    // Expire at midnight of the same day (23:59:59)
+    return DateTime(bestLocal.year, bestLocal.month, bestLocal.day, 23, 59, 59);
   }
 
   Future<void> _loadOrders() async {
@@ -221,6 +268,9 @@ class _OrdersPageState extends State<OrdersPage>
         // This will insert a status row for items past the cutoff time
         // and refresh orders if any updates were made.
         unawaited(_updateExpiredItemStatuses());
+        
+        // DEBUG: Also check for verstryk status in database
+        unawaited(_checkVerstrykStatusExists());
       }
     } catch (e) {
       debugPrint('Error loading orders: $e');
@@ -240,6 +290,8 @@ class _OrdersPageState extends State<OrdersPage>
     if (!mounted) return;
     setState(() => refreshing = true);
     _loadOrders().then((_) {
+      // Also check for verstryk items when manually refreshing
+      _updateExpiredItemStatuses();
       if (mounted) {
         setState(() => refreshing = false);
       }
@@ -447,7 +499,7 @@ class _OrdersPageState extends State<OrdersPage>
       case 'Gekanselleer':
         return Theme.of(context).colorScheme.errorContainer;
       case 'Verstryk':
-        return Colors.red.shade600;
+        return Colors.red.shade400.withOpacity(0.8); // Glitched red color
       default:
         return Theme.of(context).colorScheme.surfaceVariant;
     }
@@ -455,6 +507,7 @@ class _OrdersPageState extends State<OrdersPage>
 
   Future<void> _updateExpiredItemStatuses() async {
     try {
+      debugPrint('🔄 Checking for expired items...');
       final sb = Supabase.instance.client;
       // Lookup status id for 'Verstryk' once
       final statusRow = await sb
@@ -462,23 +515,37 @@ class _OrdersPageState extends State<OrdersPage>
           .select('kos_stat_id')
           .eq('kos_stat_naam', 'Verstryk')
           .maybeSingle();
-      if (statusRow == null) return;
+      if (statusRow == null) {
+        debugPrint('❌ Verstryk status not found in database');
+        return;
+      }
       final String verstrykStatusId = statusRow['kos_stat_id'].toString();
+      debugPrint('✅ Found Verstryk status ID: $verstrykStatusId');
 
       bool anyUpdated = false;
       final DateTime now = DateTime.now();
+      List<String> verstrykItemNames = []; // Track which items became verstryk
+
+      debugPrint('📊 Checking ${orders.length} orders for expired items...');
 
       // Iterate over all items in current orders and insert status if needed
       for (final order in orders) {
         final List items = (order['bestelling_kos_item'] as List? ?? []);
+        debugPrint('🔍 Checking order with ${items.length} items');
+        
         for (final it in items) {
           final String? bestKosId = it['best_kos_id']?.toString();
           if (bestKosId == null) continue;
 
-          // Compute cutoff: previous day 17:00 from bestelling_kos_item.best_datum
+          // Compute cutoff: midnight of the same day from bestelling_kos_item.best_datum
           final String? bestDatumIso = it['best_datum'] as String?;
           final DateTime? cutoff = _computeCutoffFromBestDatum(bestDatumIso);
-          if (cutoff == null || now.isBefore(cutoff)) continue;
+          debugPrint('📅 Item cutoff: $cutoff, Current time: $now');
+          
+          if (cutoff == null || now.isBefore(cutoff)) {
+            debugPrint('⏰ Item not expired yet');
+            continue;
+          }
 
           // Skip if item already in a terminal state or already expired
           final List statuses = (it['best_kos_item_statusse'] as List? ?? []);
@@ -489,6 +556,8 @@ class _OrdersPageState extends State<OrdersPage>
             final Map<String, dynamic> statusInfo =
                 (last['kos_item_statusse'] as Map<String, dynamic>? ?? {});
             latestName = statusInfo['kos_stat_naam'] as String?;
+            debugPrint('📋 Item current status: $latestName');
+            
             for (final s in statuses) {
               final Map<String, dynamic> info =
                   (s['kos_item_statusse'] as Map<String, dynamic>? ?? {});
@@ -499,29 +568,126 @@ class _OrdersPageState extends State<OrdersPage>
             }
           }
 
-          if (alreadyExpired || latestName == 'Afgehandel' || latestName == 'Gekanselleer') {
+          // Only apply verstryk to items that are BEFORE "Ontvang" status
+          // Skip if already expired, completed, cancelled, or already received
+          if (alreadyExpired || 
+              latestName == 'Afgehandel' || 
+              latestName == 'Gekanselleer' ||
+              latestName == 'Ontvang') {
+            debugPrint('⏭️ Skipping item - already in terminal state: $latestName');
             continue;
           }
 
-          // Insert 'Verstryk' status
+          debugPrint('💥 Item is expired! Applying Verstryk status...');
+
+          // Insert 'Verstryk' status for this individual item only
           await sb.from('best_kos_item_statusse').insert({
             'best_kos_id': bestKosId,
             'kos_stat_id': verstrykStatusId,
             'best_kos_wysig_datum': DateTime.now().toIso8601String(),
           });
+          
+          // Track the item name for notification
+          final itemName = it['kos_item']?['kos_item_naam'] as String? ?? 'Onbekende item';
+          debugPrint('📝 Item name for notification: $itemName');
+          verstrykItemNames.add(itemName);
           anyUpdated = true;
         }
       }
 
+      debugPrint('📊 Found ${verstrykItemNames.length} expired items: $verstrykItemNames');
+
       if (anyUpdated && mounted) {
+        debugPrint('🔄 Reloading orders...');
         await _loadOrders();
+        
+        // Show notification for verstryk items
+        if (verstrykItemNames.isNotEmpty) {
+          debugPrint('🔔 Showing notification for: $verstrykItemNames');
+          _showVerstrykNotification(verstrykItemNames);
+        }
+      } else {
+        debugPrint('ℹ️ No items were updated');
       }
     } catch (e) {
-      debugPrint('Error updating expired statuses: $e');
+      debugPrint('❌ Error updating expired statuses: $e');
     }
   }
 
-  
+  void _showVerstrykNotification(List<String> verstrykItemNames) {
+    debugPrint('🔔 _showVerstrykNotification called with: $verstrykItemNames');
+    if (verstrykItemNames.isEmpty) {
+      debugPrint('❌ No items to notify about');
+      return;
+    }
+    
+    // Prevent duplicate notifications
+    if (_isShowingVerstrykNotification) {
+      debugPrint('⚠️ Notification already showing, skipping duplicate');
+      return;
+    }
+    
+    _isShowingVerstrykNotification = true;
+    
+    final itemList = verstrykItemNames.join(', ');
+    final message = verstrykItemNames.length == 1 
+        ? 'Jou bestelling "$itemList" het verstryk'
+        : 'Jou bestellings het verstryk: $itemList';
+    
+    debugPrint('📱 Showing notification: $message');
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: Colors.red.shade800,
+        duration: const Duration(seconds: 5),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+    );
+    
+    // Reset flag after a delay
+    Future.delayed(const Duration(seconds: 6), () {
+      if (mounted) {
+        _isShowingVerstrykNotification = false;
+      }
+    });
+    
+    debugPrint('✅ Notification displayed');
+  }
+
+  Future<void> _checkVerstrykStatusExists() async {
+    try {
+      debugPrint('🔍 Checking if Verstryk status exists in database...');
+      final sb = Supabase.instance.client;
+      final statuses = await sb
+          .from('kos_item_statusse')
+          .select('kos_stat_id, kos_stat_naam')
+          .eq('kos_stat_naam', 'Verstryk');
+      
+      debugPrint('📊 Found ${statuses.length} Verstryk statuses: $statuses');
+      
+      if (statuses.isEmpty) {
+        debugPrint('⚠️ Verstryk status does not exist in database! Creating it...');
+        await sb.from('kos_item_statusse').insert({
+          'kos_stat_naam': 'Verstryk',
+        });
+        debugPrint('✅ Created Verstryk status');
+      } else {
+        debugPrint('✅ Verstryk status exists: ${statuses.first}');
+      }
+    } catch (e) {
+      debugPrint('❌ Error checking Verstryk status: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -960,6 +1126,15 @@ class _OrdersPageState extends State<OrdersPage>
                                         color: isPastDue
                                             ? Colors.white
                                             : (_tabController.index == 1 ? Colors.white : null),
+                                        fontWeight: isPastDue ? FontWeight.bold : FontWeight.normal,
+                                        letterSpacing: isPastDue ? 0.5 : 0.0, // Glitched spacing
+                                        shadows: isPastDue ? [
+                                          Shadow(
+                                            color: Colors.red.shade300,
+                                            offset: const Offset(1, 1),
+                                            blurRadius: 2,
+                                          ),
+                                        ] : null,
                                       ),
                                     ),
                                     if (lastUpdated != null) ...[
