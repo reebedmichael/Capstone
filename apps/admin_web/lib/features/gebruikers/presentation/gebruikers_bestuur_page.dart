@@ -1582,13 +1582,15 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                               ),
                             ]);
                           } else {
-                            return _buildActionButtons([
-                              _buildActionButton(
-                                'Deaktiveer',
-                                Icons.person_off,
-                                Colors.orange,
-                                () => _setUserActive(userId, false),
-                              ),
+                            // Check if user is active to show appropriate button
+                            if (aktief) {
+                              return _buildActionButtons([
+                                _buildActionButton(
+                                  'Deaktiveer',
+                                  Icons.person_off,
+                                  Colors.orange,
+                                  () => _setUserActive(userId, false),
+                                ),
                               _buildActionButton(
                                 'Admin Tipe',
                                 Icons.admin_panel_settings,
@@ -1602,6 +1604,29 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                                 () => _showChangeUserTypeDialog(u),
                               ),
                             ]);
+                            } else {
+                              // User is inactive - show activate button
+                              return _buildActionButtons([
+                                _buildActionButton(
+                                  'Aktiveer',
+                                  Icons.person_add,
+                                  Colors.green,
+                                  () => _setUserActive(userId, true),
+                                ),
+                                _buildActionButton(
+                                  'Admin Tipe',
+                                  Icons.admin_panel_settings,
+                                  Colors.blue,
+                                  () => _showChangeAdminTypeDialog(u),
+                                ),
+                                _buildActionButton(
+                                  'Gebruiker Tipe',
+                                  Icons.person,
+                                  Colors.purple,
+                                  () => _showChangeUserTypeDialog(u),
+                                ),
+                              ]);
+                            }
                           }
                         } else {
                           // Non-primary admins - show limited buttons based on role
@@ -1669,14 +1694,27 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                             ]);
                           } else if (!isPending) {
                             if (canManageUsers) {
-                              buttons.add(
-                                _buildActionButton(
-                                  'Deaktiveer',
-                                  Icons.person_off,
-                                  Colors.orange,
-                                  () => _setUserActive(userId, false),
-                                ),
-                              );
+                              if (aktief) {
+                                // User is active - show deactivate button
+                                buttons.add(
+                                  _buildActionButton(
+                                    'Deaktiveer',
+                                    Icons.person_off,
+                                    Colors.orange,
+                                    () => _setUserActive(userId, false),
+                                  ),
+                                );
+                              } else {
+                                // User is inactive - show activate button
+                                buttons.add(
+                                  _buildActionButton(
+                                    'Aktiveer',
+                                    Icons.person_add,
+                                    Colors.green,
+                                    () => _setUserActive(userId, true),
+                                  ),
+                                );
+                              }
                             }
                             if (canChangeAdminTypes) {
                               buttons.add(
