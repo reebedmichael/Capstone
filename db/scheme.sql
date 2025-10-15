@@ -32,6 +32,7 @@ CREATE TABLE public.bestelling_kos_item (
   item_hoev integer DEFAULT 0,
   best_datum timestamp without time zone DEFAULT now(),
   best_kos_is_liked boolean DEFAULT false,
+  best_nommer text NOT NULL,
   CONSTRAINT bestelling_kos_item_pkey PRIMARY KEY (best_kos_id),
   CONSTRAINT bestelling_kos_item_best_id_fkey FOREIGN KEY (best_id) REFERENCES public.bestelling(best_id),
   CONSTRAINT bestelling_kos_item_kos_item_id_fkey FOREIGN KEY (kos_item_id) REFERENCES public.kos_item(kos_item_id)
@@ -102,6 +103,7 @@ CREATE TABLE public.globale_kennisgewings (
   glob_kennis_beskrywing text DEFAULT ''::text,
   glob_kennis_geskep_datum timestamp without time zone DEFAULT now(),
   kennis_tipe_id uuid,
+  glob_kennis_titel text DEFAULT ''::text,
   CONSTRAINT globale_kennisgewings_pkey PRIMARY KEY (glob_kennis_id),
   CONSTRAINT globale_kennisgewings_kennis_tipe_id_fkey FOREIGN KEY (kennis_tipe_id) REFERENCES public.kennisgewing_tipes(kennis_tipe_id)
 );
@@ -123,6 +125,7 @@ CREATE TABLE public.kennisgewings (
   kennis_geskep_datum timestamp without time zone DEFAULT now(),
   gebr_id uuid,
   kennis_tipe_id uuid,
+  kennis_titel text DEFAULT ''::text,
   CONSTRAINT kennisgewings_pkey PRIMARY KEY (kennis_id),
   CONSTRAINT kennisgewings_gebr_id_fkey FOREIGN KEY (gebr_id) REFERENCES public.gebruikers(gebr_id),
   CONSTRAINT kennisgewings_kennis_tipe_id_fkey FOREIGN KEY (kennis_tipe_id) REFERENCES public.kennisgewing_tipes(kennis_tipe_id)
@@ -204,6 +207,7 @@ CREATE TABLE public.terugvoer (
   terug_id uuid NOT NULL DEFAULT gen_random_uuid(),
   terug_naam text NOT NULL DEFAULT ''::text,
   terug_beskrywing text DEFAULT ''::text,
+  terug_is_aktief boolean DEFAULT true,
   CONSTRAINT terugvoer_pkey PRIMARY KEY (terug_id)
 );
 CREATE TABLE public.transaksie_tipe (
