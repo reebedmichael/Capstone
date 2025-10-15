@@ -11,12 +11,22 @@ import 'shared/services/notification_service.dart';
 import 'shared/services/order_cleanup_service.dart';
 import 'core/services/timezone_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
     print('Starting app initialization...');
+    
+    // Initialize Firebase (if configuration exists)
+    try {
+      await Firebase.initializeApp();
+      print('Firebase initialized');
+    } catch (e) {
+      print('Firebase initialization failed (this is OK if not configured yet): $e');
+      // Continue without Firebase - it's optional until configured
+    }
     
     // Initialize Supabase with error handling
     try {
