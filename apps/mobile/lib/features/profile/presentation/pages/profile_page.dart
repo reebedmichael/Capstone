@@ -307,10 +307,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                     }
 
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
+                                      const SnackBar(
                                         content: Text(
                                             'Gebruiker Inligting Opgedateer!'),
-                                        backgroundColor: Theme.of(context).colorScheme.tertiary,
                                       ),
                                     );
 

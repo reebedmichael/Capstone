@@ -21,6 +21,10 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
   bool isFavorite = false;
   bool _initialized = false;
   int _currentImage = 0; // carousel index
+  
+  // Diet requirements state
+  List<Map<String, dynamic>> dietRequirements = [];
+  bool isLoadingDietRequirements = false;
 
   // Helper: try multiple keys and return first non-null
   dynamic _pick(Map<String, dynamic> map, List<String> keys) {
@@ -294,11 +298,61 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     item['is_past_cutoff'] = isPastCutoff;
     debugPrint('FOOD DETAIL: Item $weekDagNaam is past cutoff: $isPastCutoff');
 
+    // Load diet requirements for this food item
+    _loadDietRequirements();
+
     _initialized = true;
   }
 
   void updateQuantity(int newQty) {
     if (newQty >= 1 && newQty <= 10) setState(() => quantity = newQty);
+  }
+
+  Future<void> _loadDietRequirements() async {
+    setState(() {
+      isLoadingDietRequirements = true;
+    });
+
+    try {
+      final kosItemId = item['kos_item_id']?.toString();
+      if (kosItemId == null || kosItemId.isEmpty) {
+        setState(() {
+          dietRequirements = [];
+          isLoadingDietRequirements = false;
+        });
+        return;
+      }
+
+      // Load diet requirements for this specific food item
+      final response = await Supabase.instance.client
+          .from('kos_item_dieet_vereistes')
+          .select('''
+            dieet_vereiste:dieet_id(
+              dieet_id,
+              dieet_naam
+            )
+          ''')
+          .eq('kos_item_id', kosItemId);
+
+      final List<Map<String, dynamic>> requirements = response
+          .map<Map<String, dynamic>>((row) {
+            final dietInfo = row['dieet_vereiste'] as Map<String, dynamic>?;
+            return dietInfo ?? {};
+          })
+          .where((diet) => diet.isNotEmpty)
+          .toList();
+
+      setState(() {
+        dietRequirements = requirements;
+        isLoadingDietRequirements = false;
+      });
+    } catch (e) {
+      debugPrint('Kon nie dieet vereistes laai nie: $e');
+      setState(() {
+        dietRequirements = [];
+        isLoadingDietRequirements = false;
+      });
+    }
   }
 
   // Helper methods for week logic (same as home page)
@@ -749,7 +803,44 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                             ),
                           ),
 
-                        const SizedBox(height: 24),
+                        if (ingredients.isNotEmpty) const SizedBox(height: 16),
+
+                        // Diet Requirements
+                        if (dietRequirements.isNotEmpty || isLoadingDietRequirements)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.restaurant,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: isLoadingDietRequirements
+                                      ? const CircularProgressIndicator()
+                                      : Text(
+                                          dietRequirements.isEmpty 
+                                              ? 'Geen spesiale dieet vereistes'
+                                              : 'Dieet Vereistes: ${dietRequirements.map((diet) => diet['dieet_naam']?.toString() ?? 'Onbekende Dieet').join(', ')}',
+                                          style: TextStyle(
+                                            color: Theme.of(context).colorScheme.primary,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        if (dietRequirements.isNotEmpty || isLoadingDietRequirements) const SizedBox(height: 16),
 
                         // Availability state
                         Container(
@@ -965,6 +1056,38 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       child: Text(
         text,
         style: AppTypography.labelSmall.copyWith(color: textColor),
+      ),
+    );
+  }
+
+  Widget _buildDietPill(String dietName) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.check_circle,
+            size: 16,
+            color: Colors.white,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            dietName,
+            style: AppTypography.labelMedium.copyWith(
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

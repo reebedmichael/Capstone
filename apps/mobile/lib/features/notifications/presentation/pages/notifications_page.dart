@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:spys_api_client/spys_api_client.dart';
+import 'package:spys_api_client/src/notification_archive_service.dart';
 import '../../../../shared/state/notification_badge.dart';
 
 class NotificationsPage extends StatefulWidget {
@@ -15,19 +16,21 @@ class _NotificationsPageState extends State<NotificationsPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
-  String _primaryTab = 'all'; // all | unread | read
+  String _primaryTab = 'all'; // all | unread | read | archived
   String _secondaryTab = 'all'; // all | orders | menu | allowance
 
   List<Map<String, dynamic>> _notifications = [];
   List<Map<String, dynamic>> _globaleKennisgewings = [];
+  List<String> _archivedNotificationIds = [];
+  List<String> _deletedNotificationIds = [];
   bool _isLoading = true;
   bool _isRefreshing = false;
-  Map<String, int> _statistieke = {'totaal': 0, 'ongelees': 0, 'gelees': 0};
+  Map<String, int> _statistieke = {'totaal': 0, 'ongelees': 0, 'gelees': 0, 'geargiveer': 0};
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       setState(() {
         switch (_tabController.index) {
@@ -39,6 +42,9 @@ class _NotificationsPageState extends State<NotificationsPage>
             break;
           case 2:
             _primaryTab = 'read';
+            break;
+          case 3:
+            _primaryTab = 'archived';
             break;
         }
       });
@@ -65,26 +71,34 @@ class _NotificationsPageState extends State<NotificationsPage>
         SupabaseDb(Supabase.instance.client),
       );
 
-      // Laai beide gebruiker en globale kennisgewings
+      // Laai gebruiker en globale kennisgewings
       final kennisgewings = await kennisgewingRepo.kryKennisgewings(user.id);
       final globale = await kennisgewingRepo.kryGlobaleKennisgewings();
+      
+      // Laai geargiveerde IDs vanaf lokale stoor
+      final archivedIds = await NotificationArchiveService.getArchivedNotificationIds();
+      final deletedIds = await NotificationArchiveService.getDeletedNotificationIds();
 
       setState(() {
         _notifications = kennisgewings;
         _globaleKennisgewings = globale;
+        _archivedNotificationIds = archivedIds;
+        _deletedNotificationIds = deletedIds;
         _isLoading = false;
         _isRefreshing = false;
       });
 
       // Calculate statistics from combined notifications
       final alleKennisgewings = _alleKennisgewings;
-      final ongeleesKennisgewings = alleKennisgewings.where((k) => !(k['kennis_gelees'] ?? false)).toList();
-      final geleesKennisgewings = alleKennisgewings.where((k) => (k['kennis_gelees'] ?? false)).toList();
+      final ongeleesKennisgewings = alleKennisgewings.where((k) => !(k['kennis_gelees'] ?? false) && !(k['kennis_geargiveer'] ?? false)).toList();
+      final geleesKennisgewings = alleKennisgewings.where((k) => (k['kennis_gelees'] ?? false) && !(k['kennis_geargiveer'] ?? false)).toList();
+      final geargiveerdeKennisgewings = alleKennisgewings.where((k) => (k['kennis_geargiveer'] ?? false)).toList();
       
       final stats = {
         'totaal': alleKennisgewings.length,
         'ongelees': ongeleesKennisgewings.length,
         'gelees': geleesKennisgewings.length,
+        'geargiveer': geargiveerdeKennisgewings.length,
       };
 
       setState(() {
@@ -158,16 +172,61 @@ class _NotificationsPageState extends State<NotificationsPage>
     }
   }
 
-  // Kombineer beide gebruiker en globale kennisgewings
+  Future<void> _herstelGeargiveerdeKennisgewing(String kennisId) async {
+    try {
+      await NotificationArchiveService.restoreNotification(kennisId);
+
+      // Herlaai kennisgewings
+      await _laaiKennisgewings();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Kennisgewing herstel'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Fout met herstel kennisgewing: $e');
+    }
+  }
+
+  Future<void> _verwyderGeargiveerdeKennisgewing(String kennisId) async {
+    try {
+      await NotificationArchiveService.permanentlyDeleteNotification(kennisId);
+
+      // Herlaai kennisgewings
+      await _laaiKennisgewings();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Kennisgewing permanent verwyder'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Fout met verwyder kennisgewing: $e');
+    }
+  }
+
+  // Kombineer gebruiker en globale kennisgewings met lokale argief status
   List<Map<String, dynamic>> get _alleKennisgewings {
     final List<Map<String, dynamic>> alle = [];
     
-    // Voeg gebruiker kennisgewings by
+    // Voeg gebruiker kennisgewings by (filter uit permanent verwyderde)
     for (var k in _notifications) {
-      alle.add({
-        ...k,
-        '_kennisgewing_soort': 'gebruiker',
-      });
+      final kennisId = k['kennis_id']?.toString();
+      if (kennisId != null && !_deletedNotificationIds.contains(kennisId)) {
+        final isArchived = _archivedNotificationIds.contains(kennisId);
+        alle.add({
+          ...k,
+          '_kennisgewing_soort': 'gebruiker',
+          'kennis_geargiveer': isArchived,
+        });
+      }
     }
     
     // Voeg globale kennisgewings by (sonder gelees status)
@@ -176,6 +235,7 @@ class _NotificationsPageState extends State<NotificationsPage>
         ...k,
         '_kennisgewing_soort': 'globaal',
         'kennis_gelees': false, // Globale kennisgewings het nie gelees status nie
+        'kennis_geargiveer': false, // Globale kennisgewings kan nie geargiveer word nie
       });
     }
     
@@ -195,11 +255,12 @@ class _NotificationsPageState extends State<NotificationsPage>
 
   List<Map<String, dynamic>> get _gefilterdeKennisgewings {
     return _alleKennisgewings.where((kennisgewing) {
-      // Primêre filter (alles/ongelees/gelees)
+      // Primêre filter (alles/ongelees/gelees/geargiveer)
       final bool primereMatch =
           _primaryTab == 'all' ||
-          (_primaryTab == 'unread' && !(kennisgewing['kennis_gelees'] ?? false)) ||
-          (_primaryTab == 'read' && (kennisgewing['kennis_gelees'] ?? false));
+          (_primaryTab == 'unread' && !(kennisgewing['kennis_gelees'] ?? false) && !(kennisgewing['kennis_geargiveer'] ?? false)) ||
+          (_primaryTab == 'read' && (kennisgewing['kennis_gelees'] ?? false) && !(kennisgewing['kennis_geargiveer'] ?? false)) ||
+          (_primaryTab == 'archived' && (kennisgewing['kennis_geargiveer'] ?? false));
 
       // Sekondere filter (tipe)
       final bool sekondereMatch =
@@ -645,6 +706,72 @@ class _NotificationsPageState extends State<NotificationsPage>
     }
   }
 
+  DismissDirection _getDismissDirection(Map<String, dynamic> kennisgewing) {
+    final isGelees = kennisgewing['kennis_gelees'] ?? false;
+    final isGeargiveer = kennisgewing['kennis_geargiveer'] ?? false;
+    final soort = kennisgewing['_kennisgewing_soort'] ?? '';
+
+    if (isGeargiveer) {
+      return DismissDirection.horizontal; // Allow both directions for archived
+    } else if (isGelees || soort == 'globaal') {
+      return DismissDirection.none;
+    } else {
+      return DismissDirection.endToStart;
+    }
+  }
+
+  Widget _getDismissBackground(Map<String, dynamic> kennisgewing, String tipe) {
+    final isGeargiveer = kennisgewing['kennis_geargiveer'] ?? false;
+    
+    if (isGeargiveer) {
+      return Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 16),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(
+          Icons.delete_forever,
+          color: Colors.red,
+          size: 20,
+        ),
+      );
+    } else {
+      return Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 16),
+        decoration: BoxDecoration(
+          color: _getTipeKleur(tipe).withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          Icons.mark_email_read,
+          color: _getTipeKleur(tipe),
+          size: 20,
+        ),
+      );
+    }
+  }
+
+  void _handleDismiss(Map<String, dynamic> kennisgewing, DismissDirection direction) {
+    final isGeargiveer = kennisgewing['kennis_geargiveer'] ?? false;
+    final soort = kennisgewing['_kennisgewing_soort'] ?? '';
+
+    if (isGeargiveer) {
+      if (direction == DismissDirection.startToEnd) {
+        // Restore archived notification
+        _herstelGeargiveerdeKennisgewing(kennisgewing['kennis_id']);
+      } else if (direction == DismissDirection.endToStart) {
+        // Permanently delete archived notification
+        _verwyderGeargiveerdeKennisgewing(kennisgewing['kennis_id']);
+      }
+    } else if (!(kennisgewing['kennis_gelees'] ?? false) && soort == 'gebruiker') {
+      // Mark as read for regular notifications
+      _markeerAsGelees(kennisgewing['kennis_id']);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -801,6 +928,32 @@ class _NotificationsPageState extends State<NotificationsPage>
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: Theme.of(context).colorScheme.onTertiary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('Geargiveer'),
+                  if (_statistieke['geargiveer']! > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.outline,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${_statistieke['geargiveer']}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                     ),
@@ -1114,24 +1267,10 @@ class _NotificationsPageState extends State<NotificationsPage>
                             margin: const EdgeInsets.only(bottom: 6),
                             child: Dismissible(
                               key: Key(kennisgewing['kennis_id'] ?? kennisgewing['glob_kennis_id']),
-                              direction: isGelees ? DismissDirection.none : DismissDirection.endToStart,
-                              background: Container(
-                                alignment: Alignment.centerRight,
-                                padding: const EdgeInsets.only(right: 16),
-                                decoration: BoxDecoration(
-                                  color: _getTipeKleur(tipe).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Icon(
-                                  Icons.mark_email_read,
-                                  color: _getTipeKleur(tipe),
-                                  size: 20,
-                                ),
-                              ),
+                              direction: _getDismissDirection(kennisgewing),
+                              background: _getDismissBackground(kennisgewing, tipe),
                               onDismissed: (direction) {
-                                if (!isGelees && soort == 'gebruiker') {
-                                  _markeerAsGelees(kennisgewing['kennis_id']);
-                                }
+                                _handleDismiss(kennisgewing, direction);
                               },
                               child: Container(
                                 decoration: BoxDecoration(

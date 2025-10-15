@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:spys_api_client/spys_api_client.dart';
+import 'package:spys_api_client/src/notification_archive_service.dart';
 import '../../../../shared/services/qr_service.dart';
 import '../../../../shared/services/auth_service.dart';
 import '../../../../shared/providers/theme_provider.dart';
@@ -111,9 +112,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 onTap: () => _markAllAsRead(),
               ),
               ListTile(
-                leading: const Icon(Icons.clear_all),
-                title: const Text("Skoon Kennisgewings"),
-                subtitle: const Text("Verwyder alle gelees kennisgewings"),
+                leading: const Icon(Icons.archive),
+                title: const Text("Argiveer Kennisgewings"),
+                subtitle: const Text("Argiveer alle gelees kennisgewings"),
                 onTap: () => _clearReadNotifications(),
               ),
             ],
@@ -318,22 +319,35 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         return;
       }
 
-      // Get all read notifications and delete them
+      // Get all read notifications and archive them locally
       final kennisgewingRepo = KennisgewingRepository(SupabaseDb(Supabase.instance.client));
       final readNotifications = await kennisgewingRepo.kryKennisgewings(user.id);
       
-      int deletedCount = 0;
-      for (final notification in readNotifications) {
-        if (notification['kennis_gelees'] == true) {
-          final success = await kennisgewingRepo.verwyderKennisgewing(notification['kennis_id']);
-          if (success) deletedCount++;
-        }
-      }
+      final readNotificationIds = readNotifications
+          .where((notification) => notification['kennis_gelees'] == true)
+          .map((notification) => notification['kennis_id'].toString())
+          .toList();
       
-      Fluttertoast.showToast(
-        msg: '$deletedCount gelees kennisgewings verwyder',
-        backgroundColor: Theme.of(context).colorScheme.tertiary,
-      );
+      if (readNotificationIds.isNotEmpty) {
+        final success = await NotificationArchiveService.archiveNotifications(readNotificationIds);
+        
+        if (success) {
+          Fluttertoast.showToast(
+            msg: '${readNotificationIds.length} gelees kennisgewings geargiveer',
+            backgroundColor: Theme.of(context).colorScheme.tertiary,
+          );
+        } else {
+          Fluttertoast.showToast(
+            msg: 'Fout met argiveer kennisgewings',
+            backgroundColor: Theme.of(context).colorScheme.error,
+          );
+        }
+      } else {
+        Fluttertoast.showToast(
+          msg: 'Geen gelees kennisgewings om te argiveer',
+          backgroundColor: Theme.of(context).colorScheme.tertiary,
+        );
+      }
     } catch (e) {
       Fluttertoast.showToast(
         msg: 'Fout: ${e.toString()}',
