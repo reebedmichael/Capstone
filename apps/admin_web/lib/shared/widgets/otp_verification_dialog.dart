@@ -270,7 +270,7 @@ class _OtpVerificationDialogState extends ConsumerState<OtpVerificationDialog> {
                 letterSpacing: 8,
               ),
               decoration: InputDecoration(
-                hintText: '000000',
+                hintText: '------',
                 counterText: '',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
