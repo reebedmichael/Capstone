@@ -6,6 +6,7 @@ import 'package:spys_api_client/spys_api_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/constants/spacing.dart';
+import '../../../../shared/utils/responsive_utils.dart';
 import '../../../../shared/state/order_refresh_notifier.dart';
 
 class FoodDetailPage extends StatefulWidget {
@@ -509,7 +510,9 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 50, 16, 16),
+            padding: Spacing.screenPadding(context).copyWith(
+              top: ResponsiveUtils.getResponsiveSpacing(context, mobile: 50, tablet: 60, desktop: 70),
+            ),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
               border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.outline)),
@@ -529,7 +532,10 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                 Expanded(
                   child: Text(
                     _name,
-                    style: AppTypography.titleLarge.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                    style: AppTypography.titleLarge.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 20, tablet: 24, desktop: 28),
+                    ),
                     textAlign: TextAlign.center,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -546,9 +552,9 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                 children: [
                   // Photo with price badge (carousel + thumbnails)
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: Spacing.screenHPad,
-                      vertical: 12,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: Spacing.screenPadding(context).left,
+                      vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1060,35 +1066,4 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     );
   }
 
-  Widget _buildDietPill(String dietName) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.check_circle,
-            size: 16,
-            color: Colors.white,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            dietName,
-            style: AppTypography.labelMedium.copyWith(
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
