@@ -250,15 +250,13 @@ class _VerslaePageState extends State<VerslaePage> {
   }
 
   Future<List<Map<String, dynamic>>> _loadTerugvoerTipes() async {
-    // Only load active terugvoer types if the schema supports terug_is_aktief
+    // Load all terugvoer records (both active and inactive)
     try {
       final rows = await Supabase.instance.client
           .from('terugvoer')
-          .select('*')
-          .eq('terug_is_aktief', true);
+          .select('*');
       return List<Map<String, dynamic>>.from(rows);
     } catch (_) {
-      // Fallback for older schemas without terug_is_aktief
       return _selectAll('terugvoer');
     }
   }
@@ -341,6 +339,8 @@ class _VerslaePageState extends State<VerslaePage> {
     }).toList();
   }
 
+  // Removed week helpers (no longer used by the average per week status pie chart)
+
   List<Map<String, dynamic>> _filteredGebruikers(DateTime cutoff) {
     return gebruikers.where((g) {
       final d = DateTime.tryParse(g['gebr_geskep_datum'] as String? ?? '');
@@ -354,6 +354,12 @@ class _VerslaePageState extends State<VerslaePage> {
       return d != null && d.isAfter(cutoff);
     }).toList();
   }
+
+  // Cached aggregations for Kos Item vs Terugvoer to avoid recomputation on each build
+  DateTime? _cacheTvCutoff;
+  Map<String, Map<String, int>>? _cachePerItemTv;
+  DateTime? _cacheTotalsTvCutoff;
+  Map<String, int>? _cacheTotalsPerTv;
 
   Future<void> _exportAllTablesToCsv() async {
     setState(() {
@@ -484,26 +490,7 @@ class _VerslaePageState extends State<VerslaePage> {
     }
   }
 
-  Future<void> _deactivateTerugvoer(String terugId) async {
-    try {
-      await Supabase.instance.client
-          .from('terugvoer')
-          .update({'terug_is_aktief': false})
-          .eq('terug_id', terugId);
-      // Refresh list to only show active ones
-      final list = await _loadTerugvoerTipes();
-      setState(() {
-        terugvoerTipes = list;
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Terugvoer gedeaktiveer')));
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Kon nie deaktiveer nie: $e')));
-    }
-  }
+  // Deactivate action removed; use the toggle in the table to change terug_is_aktief
 
   Future<void> _downloadCsv(
     String tableName,
@@ -782,23 +769,30 @@ class _VerslaePageState extends State<VerslaePage> {
                   const SizedBox(height: 24),
 
                   // Charts Row
+                  // Make Verkope (sales) full-width, then show Kos Items vs Terugvoer, then the two pie charts
+                  _buildSalesChart(context),
+                  const SizedBox(height: 24),
+                  // Kos Items vs Terugvoer (stacked)
+                  _buildKosItemTerugvoerChart(context),
+                  const SizedBox(height: 24),
+                  // Top Items Chart (includes Likes vir Top Items)
+                  _buildTopItemsChart(context),
+                  const SizedBox(height: 24),
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      if (constraints.maxWidth > 1200) {
-                        // Two columns for larger screens
+                      if (constraints.maxWidth > 900) {
                         return Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(child: _buildSalesChart(context)),
+                            Expanded(child: _buildWeeklyStatusAvgPieChart(context)),
                             const SizedBox(width: 16),
                             Expanded(child: _buildOrderStatusChart(context)),
                           ],
                         );
                       } else {
-                        // Single column for smaller screens
                         return Column(
                           children: [
-                            _buildSalesChart(context),
+                            _buildWeeklyStatusAvgPieChart(context),
                             const SizedBox(height: 24),
                             _buildOrderStatusChart(context),
                           ],
@@ -809,15 +803,7 @@ class _VerslaePageState extends State<VerslaePage> {
 
                   const SizedBox(height: 24),
 
-                  // Top Items Chart
-                  _buildTopItemsChart(context),
-                  const SizedBox(height: 24),
-                  // Kos Items vs Terugvoer (stacked)
-                  _buildKosItemTerugvoerChart(context),
-
-                  // Users by types
-                  _buildUsersByTypeCharts(context),
-                  const SizedBox(height: 24),
+                  // Users by types (removed)
                   // Numerical statistics removed
 
                   // Orders per campus
@@ -1159,7 +1145,7 @@ class _VerslaePageState extends State<VerslaePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              'Bestelling Status',
+              'Bestelling Status vir Tydperk',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
@@ -1232,6 +1218,138 @@ class _VerslaePageState extends State<VerslaePage> {
     );
   }
 
+  Widget _buildWeeklyStatusAvgPieChart(BuildContext context) {
+    // Average per week per status across entire dataset (independent of current period)
+    final Map<String, int> countsByStatus = {};
+    DateTime? minDate;
+    DateTime? maxDate;
+    for (final item in bestellingItems) {
+      final List list = (item['best_kos_item_statusse'] as List? ?? []);
+      for (final s in list) {
+        final String? iso = s['best_kos_wysig_datum'] as String?;
+        final Map<String, dynamic>? statusInfo = s['kos_item_statusse'] as Map<String, dynamic>?;
+        final String statusName = (statusInfo != null ? (statusInfo['kos_stat_naam'] as String?) : null) ?? 'Onbekend';
+        if (iso == null) continue;
+        final DateTime? dt = DateTime.tryParse(iso);
+        if (dt == null) continue;
+        minDate = (minDate == null || dt.isBefore(minDate)) ? dt : minDate;
+        maxDate = (maxDate == null || dt.isAfter(maxDate)) ? dt : maxDate;
+        countsByStatus[statusName] = (countsByStatus[statusName] ?? 0) + 1;
+      }
+    }
+
+    // Compute total weeks spanned (at least 1)
+    int totalWeeks = 1;
+    if (minDate != null && maxDate != null) {
+      final int days = maxDate.difference(minDate).inDays + 1;
+      totalWeeks = (days / 7).ceil();
+      if (totalWeeks < 1) totalWeeks = 1;
+    }
+
+    // Build display data: average per week for each status
+    final List<_LabeledCount> data = countsByStatus.entries
+        .map((e) => _LabeledCount(label: e.key, count: e.value))
+        .toList()
+      ..sort((a, b) => a.label.compareTo(b.label));
+
+    // Colors for slices
+    final colors = [
+      Colors.blue,
+      Colors.orange,
+      Colors.green,
+      Colors.purple,
+      Colors.red,
+      Colors.teal,
+      Colors.indigo,
+      Colors.brown,
+      Colors.cyan,
+      Colors.deepOrange,
+    ];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'Bestelling Status Weeklikse Gemiddeld',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
+            Container(
+              height: 300,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: data.isNotEmpty
+                  ? PieChart(
+                      PieChartData(
+                        sections: data.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final d = entry.value;
+                          final color = colors[idx % colors.length];
+                          final double avgPerWeek = totalWeeks > 0 ? (d.count / totalWeeks) : d.count.toDouble();
+                          return PieChartSectionData(
+                            color: color,
+                            value: avgPerWeek,
+                            title: avgPerWeek.toStringAsFixed(1),
+                            radius: 80,
+                            titleStyle: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          );
+                        }).toList(),
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 40,
+                      ),
+                    )
+                  : const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.pie_chart, size: 48, color: Colors.grey),
+                          SizedBox(height: 8),
+                          Text('Geen data beskikbaar', style: TextStyle(color: Colors.grey)),
+                        ],
+                      ),
+                    ),
+            ),
+            if (data.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                children: data.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final d = entry.value;
+                  final color = colors[idx % colors.length];
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(d.label, style: const TextStyle(fontSize: 12)),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTopItemsChart(BuildContext context) {
     final allTopItems = topItemCountsWithFeedback.isNotEmpty
         ? topItemCountsWithFeedback
@@ -1284,72 +1402,74 @@ class _VerslaePageState extends State<VerslaePage> {
                 border: Border.all(color: Colors.grey.shade300),
               ),
               child: topItems.isNotEmpty
-                  ? BarChart(
-                      BarChartData(
-                        alignment: BarChartAlignment.spaceAround,
-                        maxY: topItems.isNotEmpty
-                            ? topItems.first.quantity * 1.2
-                            : 10,
-                        barTouchData: BarTouchData(enabled: true),
-                        titlesData: FlTitlesData(
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 40,
-                              getTitlesWidget: (value, meta) {
-                                return Text(value.toInt().toString());
-                              },
+                  ? RepaintBoundary(
+                      child: BarChart(
+                        BarChartData(
+                          alignment: BarChartAlignment.spaceAround,
+                          maxY: topItems.isNotEmpty
+                              ? topItems.first.quantity * 1.2
+                              : 10,
+                          barTouchData: BarTouchData(enabled: true),
+                          titlesData: FlTitlesData(
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 40,
+                                getTitlesWidget: (value, meta) {
+                                  return Text(value.toInt().toString());
+                                },
+                              ),
                             ),
-                          ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 140,
-                              getTitlesWidget: (value, meta) {
-                                final index = value.toInt();
-                                if (index >= 0 && index < topItems.length) {
-                                  return SideTitleWidget(
-                                    axisSide: meta.axisSide,
-                                    space: 16,
-                                    child: Transform.translate(
-                                      offset: const Offset(0, 36),
-                                      child: Transform.rotate(
-                                        angle: -1.57,
-                                        child: Text(
-                                          topItems[index].name,
-                                          style: const TextStyle(fontSize: 10),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 140,
+                                getTitlesWidget: (value, meta) {
+                                  final index = value.toInt();
+                                  if (index >= 0 && index < topItems.length) {
+                                    return SideTitleWidget(
+                                      axisSide: meta.axisSide,
+                                      space: 16,
+                                      child: Transform.translate(
+                                        offset: const Offset(0, 36),
+                                        child: Transform.rotate(
+                                          angle: -1.57,
+                                          child: Text(
+                                            topItems[index].name,
+                                            style: const TextStyle(fontSize: 10),
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  );
-                                }
-                                return const Text('');
-                              },
+                                    );
+                                  }
+                                  return const Text('');
+                                },
+                              ),
+                            ),
+                            topTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            rightTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
                             ),
                           ),
-                          topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                        ),
-                        borderData: FlBorderData(show: true),
-                        barGroups: topItems.asMap().entries.map((e) {
-                          return BarChartGroupData(
-                            x: e.key,
-                            barRods: [
-                              BarChartRodData(
-                                toY: e.value.quantity.toDouble(),
-                                color: Colors.blue.withOpacity(0.7),
-                                width: 10,
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(4),
+                          borderData: FlBorderData(show: true),
+                          barGroups: topItems.asMap().entries.map((e) {
+                            return BarChartGroupData(
+                              x: e.key,
+                              barRods: [
+                                BarChartRodData(
+                                  toY: e.value.quantity.toDouble(),
+                                  color: Colors.blue.withOpacity(0.7),
+                                  width: 10,
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(4),
+                                  ),
                                 ),
-                              ),
-                            ],
-                          );
-                        }).toList(),
+                              ],
+                            );
+                          }).toList(),
+                        ),
                       ),
                     )
                   : const Center(
@@ -1500,40 +1620,7 @@ class _VerslaePageState extends State<VerslaePage> {
     );
   }
 
-  Widget _buildUsersByTypeCharts(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Gebruikers per tipe',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 300,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _simplePie(
-                      userCountsByGebruikerTipe,
-                      'Gebruiker Tipes',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _simplePie(userCountsByAdminTipe, 'Admin Tipes'),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // Removed Gebruikers per tipe charts
 
   Widget _buildOrdersByCampusChart(BuildContext context) {
     return Card(
@@ -1548,78 +1635,85 @@ class _VerslaePageState extends State<VerslaePage> {
             ),
             const SizedBox(height: 12),
             SizedBox(
-              height: 320,
+              height: 240,
               child: orderCountsByKampus.isEmpty
                   ? const Center(child: Text('Geen data'))
-                  : BarChart(
-                      BarChartData(
-                        alignment: BarChartAlignment.spaceAround,
-                        maxY: orderCountsByKampus.first.count * 1.2,
-                        titlesData: FlTitlesData(
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 40,
-                              interval: 1.0, // Whole number intervals
-                              getTitlesWidget: (value, meta) {
-                                if (value < 0) return const Text('');
-                                final wholeNumber = value.toInt();
-                                if (wholeNumber != value)
-                                  return const Text(
-                                    '',
-                                  ); // Only show whole numbers
-                                return Text(
-                                  wholeNumber.toString(),
-                                  style: const TextStyle(fontSize: 10),
+                  : Column(
+                      children: [
+                        Expanded(
+                          child: PieChart(
+                            PieChartData(
+                              sections: orderCountsByKampus.asMap().entries.map((e) {
+                                final idx = e.key;
+                                final d = e.value;
+                                final colors = [
+                                  Colors.teal,
+                                  Colors.orange,
+                                  Colors.purple,
+                                  Colors.blue,
+                                  Colors.red,
+                                  Colors.indigo,
+                                  Colors.brown,
+                                  Colors.cyan,
+                                ];
+                                final color = colors[idx % colors.length];
+                                return PieChartSectionData(
+                                  color: color,
+                                  value: d.count.toDouble(),
+                                  title: d.count.toString(),
+                                  radius: 60,
+                                  titleStyle: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
                                 );
-                              },
+                              }).toList(),
+                              sectionsSpace: 2,
+                              centerSpaceRadius: 40,
                             ),
-                          ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (value, meta) {
-                                final index = value.toInt();
-                                if (index >= 0 &&
-                                    index < orderCountsByKampus.length) {
-                                  return Padding(
-                                    padding: const EdgeInsets.only(top: 8),
-                                    child: Text(
-                                      orderCountsByKampus[index].label,
-                                      style: const TextStyle(fontSize: 10),
-                                    ),
-                                  );
-                                }
-                                return const Text('');
-                              },
-                            ),
-                          ),
-                          topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
                           ),
                         ),
-                        barGroups: orderCountsByKampus.asMap().entries.map((e) {
-                          return BarChartGroupData(
-                            x: e.key,
-                            barRods: [
-                              BarChartRodData(
-                                toY: e.value.count.toDouble(),
-                                color: Colors.teal,
-                                width: 20,
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(4),
+                        const SizedBox(height: 8),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: orderCountsByKampus.asMap().entries.map((e) {
+                              final idx = e.key;
+                              final d = e.value;
+                              final colors = [
+                                Colors.teal,
+                                Colors.orange,
+                                Colors.purple,
+                                Colors.blue,
+                                Colors.red,
+                                Colors.indigo,
+                                Colors.brown,
+                                Colors.cyan,
+                              ];
+                              final color = colors[idx % colors.length];
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 10,
+                                      height: 10,
+                                      decoration: BoxDecoration(
+                                        color: color,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(d.label, style: const TextStyle(fontSize: 11)),
+                                  ],
                                 ),
-                                rodStackItems: const [],
-                                borderSide: BorderSide.none,
-                              ),
-                            ],
-                            showingTooltipIndicators: const [],
-                          );
-                        }).toList(),
-                      ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
                     ),
             ),
           ],
@@ -1673,6 +1767,7 @@ class _VerslaePageState extends State<VerslaePage> {
                   columns: const [
                     DataColumn(label: Text('Naam')),
                     DataColumn(label: Text('Beskrywing')),
+                    DataColumn(label: Text('Aktief')),
                     DataColumn(label: Text('Aksies')),
                   ],
                   rows:
@@ -1728,6 +1823,29 @@ class _VerslaePageState extends State<VerslaePage> {
                                   ),
                                 ),
                                 DataCell(
+                                  Switch(
+                                    value: (tv['terug_is_aktief'] as bool?) ?? true,
+                                    onChanged: (val) async {
+                                      try {
+                                        await Supabase.instance.client
+                                            .from('terugvoer')
+                                            .update({'terug_is_aktief': val})
+                                            .eq('terug_id', tv['terug_id']);
+                                        final list = await _loadTerugvoerTipes();
+                                        if (mounted) {
+                                          setState(() {
+                                            terugvoerTipes = list;
+                                          });
+                                        }
+                                      } catch (e) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Kon nie opdateer nie: $e')),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                ),
+                                DataCell(
                                   SizedBox(
                                     width: actionsWidth,
                                     child: Row(
@@ -1757,15 +1875,6 @@ class _VerslaePageState extends State<VerslaePage> {
                                           label: const Text('Stoor'),
                                         ),
                                         const SizedBox(width: 8),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.delete_outline,
-                                          ),
-                                          onPressed: () => _deactivateTerugvoer(
-                                            tv['terug_id'] as String,
-                                          ),
-                                          tooltip: 'Deaktiveer',
-                                        ),
                                       ],
                                     ),
                                   ),
@@ -1841,67 +1950,7 @@ class _VerslaePageState extends State<VerslaePage> {
     );
   }
 
-  Widget _simplePie(List<_LabeledCount> data, String title) {
-    if (data.isEmpty) return const Center(child: Text('Geen data'));
-    final colors = [
-      Colors.blue,
-      Colors.orange,
-      Colors.green,
-      Colors.purple,
-      Colors.red,
-      Colors.teal,
-      Colors.indigo,
-    ];
-    return Column(
-      children: [
-        Expanded(
-          child: PieChart(
-            PieChartData(
-              sections: data.asMap().entries.map((e) {
-                final color = colors[e.key % colors.length];
-                return PieChartSectionData(
-                  color: color,
-                  value: e.value.count.toDouble(),
-                  title: '${e.value.count}',
-                  radius: 70,
-                  titleStyle: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                );
-              }).toList(),
-              sectionsSpace: 2,
-              centerSpaceRadius: 40,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          children: data.asMap().entries.map((e) {
-            final color = colors[e.key % colors.length];
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Text(e.value.label, style: const TextStyle(fontSize: 12)),
-              ],
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
+  // Removed _simplePie helper
 
   // Data processing methods
   List<_SalesData> _getSalesData(int numDays) {
@@ -2295,29 +2344,14 @@ class _VerslaePageState extends State<VerslaePage> {
                         alignment: BarChartAlignment.spaceBetween,
                         maxY: maxY,
                         minY: 0,
-                        gridData: FlGridData(
-                          show: true,
-                          drawVerticalLine: false,
-                          horizontalInterval: maxY > 10
-                              ? (maxY / 5).ceilToDouble()
-                              : 1,
-                          getDrawingHorizontalLine: (value) {
-                            return FlLine(
-                              color: Colors.grey.withOpacity(0.3),
-                              strokeWidth: 1,
-                            );
-                          },
-                        ),
+                        gridData: const FlGridData(show: true, drawVerticalLine: false),
                         titlesData: FlTitlesData(
                           leftTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
                               reservedSize: 40,
-                              interval: maxY > 10
-                                  ? (maxY / 5).ceilToDouble()
-                                  : 1,
-                              getTitlesWidget: (value, meta) =>
-                                  Text(value.toInt().toString()),
+                              interval: maxY > 10 ? (maxY / 5).ceilToDouble() : 1,
+                              getTitlesWidget: (value, meta) => Text(value.toInt().toString()),
                             ),
                           ),
                           bottomTitles: AxisTitles(
@@ -2326,18 +2360,15 @@ class _VerslaePageState extends State<VerslaePage> {
                               getTitlesWidget: (value, meta) {
                                 final index = value.toInt();
                                 if (index >= 0 && index < topItems.length) {
+                                  if (index % 2 == 1) return const SizedBox.shrink();
                                   return SideTitleWidget(
                                     axisSide: meta.axisSide,
                                     space: 16,
-                                    child: Transform.translate(
-                                      offset: const Offset(0, 36),
-                                      child: Transform.rotate(
-                                        angle: -1.57,
-                                        child: Text(
-                                          topItems[index].key,
-                                          style: const TextStyle(fontSize: 10),
-                                        ),
-                                      ),
+                                    child: Text(
+                                      topItems[index].key,
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                      style: const TextStyle(fontSize: 10),
                                     ),
                                   );
                                 }
@@ -2425,6 +2456,9 @@ class _VerslaePageState extends State<VerslaePage> {
     // Map: kos_item_name -> (terug_naam -> count) for selected period
     final Map<String, Map<String, int>> result = {};
     final cutoff = _cutoffDate();
+    if (_cacheTvCutoff != null && _cachePerItemTv != null && _cacheTvCutoff == cutoff) {
+      return _cachePerItemTv!;
+    }
     final filteredBT = _filteredBestellingTerugvoer(cutoff);
     // Feedback linked to bestelling_kos_item
     for (final bt in filteredBT) {
@@ -2452,6 +2486,8 @@ class _VerslaePageState extends State<VerslaePage> {
       final map = result.putIfAbsent(kosName, () => <String, int>{});
       map[label] = (map[label] ?? 0) + 1;
     }
+    _cacheTvCutoff = cutoff;
+    _cachePerItemTv = result;
     return result;
   }
 
@@ -2460,13 +2496,21 @@ class _VerslaePageState extends State<VerslaePage> {
     BuildContext context,
     Map<String, Map<String, int>> perItemData,
   ) {
-    // Flatten per-item map into totals per terugvoer label
-    final Map<String, int> totals = {};
-    perItemData.forEach((_, tvMap) {
-      for (final entry in tvMap.entries) {
-        totals[entry.key] = (totals[entry.key] ?? 0) + entry.value;
-      }
-    });
+    // Flatten per-item map into totals per terugvoer label (with cache)
+    final cutoff = _cutoffDate();
+    Map<String, int> totals;
+    if (_cacheTotalsTvCutoff != null && _cacheTotalsPerTv != null && _cacheTotalsTvCutoff == cutoff) {
+      totals = _cacheTotalsPerTv!;
+    } else {
+      totals = {};
+      perItemData.forEach((_, tvMap) {
+        for (final entry in tvMap.entries) {
+          totals[entry.key] = (totals[entry.key] ?? 0) + entry.value;
+        }
+      });
+      _cacheTotalsTvCutoff = cutoff;
+      _cacheTotalsPerTv = totals;
+    }
     final labels = totals.keys.toList()..sort();
     final values = labels.map((l) => totals[l] ?? 0).toList();
     final maxVal = values.isEmpty ? 0 : values.reduce((a, b) => a > b ? a : b);
@@ -2482,25 +2526,17 @@ class _VerslaePageState extends State<VerslaePage> {
       Colors.brown,
     ];
 
-    return BarChart(
+    return RepaintBoundary(child: BarChart(
       BarChartData(
         alignment: BarChartAlignment.spaceBetween,
         maxY: maxY,
         minY: 0,
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: maxY > 10 ? (maxY / 5).ceilToDouble() : 1,
-          getDrawingHorizontalLine: (value) {
-            return FlLine(color: Colors.grey.withOpacity(0.3), strokeWidth: 1);
-          },
-        ),
+        gridData: const FlGridData(show: true, drawVerticalLine: false),
         titlesData: FlTitlesData(
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
               reservedSize: 40,
-              interval: maxY > 10 ? (maxY / 5).ceilToDouble() : 1,
               getTitlesWidget: (value, meta) => Text(value.toInt().toString()),
             ),
           ),
@@ -2510,19 +2546,11 @@ class _VerslaePageState extends State<VerslaePage> {
               getTitlesWidget: (value, meta) {
                 final index = value.toInt();
                 if (index >= 0 && index < labels.length) {
+                  if (index % 2 == 1) return const SizedBox.shrink();
                   return SideTitleWidget(
                     axisSide: meta.axisSide,
                     space: 16,
-                    child: Transform.translate(
-                      offset: const Offset(0, 36),
-                      child: Transform.rotate(
-                        angle: -1.57,
-                        child: Text(
-                          labels[index],
-                          style: const TextStyle(fontSize: 10),
-                        ),
-                      ),
-                    ),
+                    child: Text(labels[index], overflow: TextOverflow.ellipsis, maxLines: 1, style: const TextStyle(fontSize: 10)),
                   );
                 }
                 return const Text('');
@@ -2557,7 +2585,7 @@ class _VerslaePageState extends State<VerslaePage> {
           );
         }).toList(),
       ),
-    );
+    ));
   }
 
   @override
