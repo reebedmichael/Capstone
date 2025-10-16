@@ -126,7 +126,9 @@ class KositemFormModal extends StatelessWidget {
                       // --- Categories: multi-select chips with validation ---
                       Text(
                         "Kategorieë *",
-                        style: Theme.of(context).textTheme.bodyLarge,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyLarge?.copyWith(color: Colors.black),
                       ),
                       const SizedBox(height: 8),
                       FormField<List<String>>(
@@ -160,7 +162,7 @@ class KositemFormModal extends StatelessWidget {
                                       state.didChange(newList);
                                       onCategoriesChanged(newList);
                                     },
-                                    selectedColor: Colors.orange.shade100,
+                                    selectedColor: Colors.deepOrange,
                                     showCheckmark: true,
                                   );
                                 }).toList(),
@@ -202,7 +204,9 @@ class KositemFormModal extends StatelessWidget {
                       // Image Picker
                       Text(
                         "Kos Prent",
-                        style: Theme.of(context).textTheme.bodyLarge,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyLarge?.copyWith(color: Colors.black),
                       ),
                       const SizedBox(height: 8),
                       if (selectedImage != null && selectedImage!.isNotEmpty)
@@ -305,9 +309,12 @@ class KositemFormModal extends StatelessWidget {
       controller: controller,
       keyboardType: keyboardType,
       maxLines: maxLines,
+      style: const TextStyle(color: Colors.black),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
+        labelStyle: const TextStyle(color: Colors.black),
+        hintStyle: const TextStyle(color: Colors.black54),
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),

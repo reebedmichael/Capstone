@@ -202,27 +202,61 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
                                           ],
                                         ),
                                         const SizedBox(height: 6),
-                                        Wrap(
-                                          spacing: 6,
-                                          runSpacing: 6,
-                                          children: [
-                                            if (item.dieetKategorie.isNotEmpty)
-                                              ...item.dieetKategorie.map(
-                                                (cat) => Chip(label: Text(cat)),
-                                              ),
-                                            if (isAlreeds)
-                                              Chip(
-                                                backgroundColor: Colors.green,
-                                                label: Row(
-                                                  children: const [
-                                                    Icon(Icons.check, size: 12),
-                                                    SizedBox(width: 6),
-                                                    Text('Bygevoeg'),
-                                                  ],
+                                        if (item.dieetKategorie.isNotEmpty) ...[
+                                          Text(
+                                            'Kategorieë:',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                              color: Theme.of(
+                                                context,
+                                              ).hintColor,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            item.dieetKategorie.join(', '),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Theme.of(
+                                                context,
+                                              ).textTheme.bodySmall?.color,
+                                            ),
+                                          ),
+                                        ],
+                                        if (isAlreeds) ...[
+                                          const SizedBox(height: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green,
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: const [
+                                                Icon(
+                                                  Icons.check,
+                                                  size: 12,
+                                                  color: Colors.white,
                                                 ),
-                                              ),
-                                          ],
-                                        ),
+                                                SizedBox(width: 6),
+                                                Text(
+                                                  'Bygevoeg',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
                                         // if (beskrywing.isNotEmpty) ...[
                                         //   const SizedBox(height: 6),
                                         //   Text(

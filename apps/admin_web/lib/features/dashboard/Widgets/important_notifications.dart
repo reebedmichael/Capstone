@@ -144,7 +144,7 @@ class _ImportantNotificationsState extends State<ImportantNotifications> {
       } else if (difference.inHours < 24) {
         return '${difference.inHours} uur terug';
       } else {
-        return '${difference.inDays} dag${difference.inDays > 1 ? 'e' : ''} terug';
+        return '${difference.inDays} da${difference.inDays > 1 ? 'e' : 'g'} terug';
       }
     } catch (e) {
       return 'Onbekend';
@@ -301,6 +301,7 @@ class _ImportantNotificationsState extends State<ImportantNotifications> {
                                             'Geen titel',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w600,
+                                          color: Colors.black,
                                         ),
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -327,7 +328,10 @@ class _ImportantNotificationsState extends State<ImportantNotifications> {
                                 Text(
                                   notif['kennis_beskrywing'] as String? ??
                                       'Geen boodskap',
-                                  style: const TextStyle(fontSize: 12),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[800],
+                                  ),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),

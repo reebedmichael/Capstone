@@ -97,54 +97,53 @@ class InstellingsPage extends ConsumerWidget {
 
                   const SizedBox(height: 16),
 
-                  // Taal Instellings
-                  _buildCard(
-                    context,
-                    icon: Icons.language,
-                    title: "Taal Voorkeure",
-                    description: "Kies jou voorkeur taal vir die stelsel",
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Stelsel Taal",
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          value: "afrikaans",
-                          items: const [
-                            DropdownMenuItem(
-                              value: "afrikaans",
-                              child: Text("Afrikaans"),
-                            ),
-                            DropdownMenuItem(
-                              value: "engels",
-                              child: Text("Engels"),
-                            ),
-                          ],
-                          onChanged: (_) {
-                            // 🔹 Koppel aan app state vir taal
-                          },
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          "Hierdie instelling sal plaaslik gestoor word en geld net vir hierdie sessie",
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-
+                  // // Taal Instellings
+                  // _buildCard(
+                  //   context,
+                  //   icon: Icons.language,
+                  //   title: "Taal Voorkeure",
+                  //   description: "Kies jou voorkeur taal vir die stelsel",
+                  //   child: Column(
+                  //     crossAxisAlignment: CrossAxisAlignment.start,
+                  //     children: [
+                  //       const Text(
+                  //         "Stelsel Taal",
+                  //         style: TextStyle(
+                  //           fontWeight: FontWeight.w600,
+                  //           fontSize: 16,
+                  //         ),
+                  //       ),
+                  //       const SizedBox(height: 8),
+                  //       DropdownButtonFormField<String>(
+                  //         value: "afrikaans",
+                  //         items: const [
+                  //           DropdownMenuItem(
+                  //             value: "afrikaans",
+                  //             child: Text("Afrikaans"),
+                  //           ),
+                  //           DropdownMenuItem(
+                  //             value: "engels",
+                  //             child: Text("Engels"),
+                  //           ),
+                  //         ],
+                  //         onChanged: (_) {
+                  //           // 🔹 Koppel aan app state vir taal
+                  //         },
+                  //         decoration: const InputDecoration(
+                  //           border: OutlineInputBorder(),
+                  //           contentPadding: EdgeInsets.symmetric(
+                  //             horizontal: 12,
+                  //           ),
+                  //         ),
+                  //       ),
+                  //       const SizedBox(height: 6),
+                  //       const Text(
+                  //         "Hierdie instelling sal plaaslik gestoor word en geld net vir hierdie sessie",
+                  //         style: TextStyle(fontSize: 12),
+                  //       ),
+                  //     ],
+                  //   ),
+                  // ),
                   const SizedBox(height: 16),
 
                   // Wagwoord herstel
@@ -164,11 +163,17 @@ class InstellingsPage extends ConsumerWidget {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: cooldownSeconds > 0
                               ? Colors.grey
-                              : Theme.of(context).primaryColor,
+                              : Colors.deepOrange,
                         ),
                         child: cooldownSeconds > 0
-                            ? Text("Wag ${cooldownSeconds}s")
-                            : const Text("Stuur herstel e-pos"),
+                            ? Text(
+                                "Wag ${cooldownSeconds}s",
+                                style: TextStyle(color: Colors.white),
+                              )
+                            : const Text(
+                                "Stuur herstel e-pos",
+                                style: TextStyle(color: Colors.white),
+                              ),
                       ),
                     ),
                   ),

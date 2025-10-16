@@ -168,7 +168,9 @@ class _WagwoordHerstelPageState extends ConsumerState<WagwoordHerstelPage> {
               const SizedBox(height: 16),
               Text(
                 'Verifieer wagwoord herstel sessie...',
-                style: AppTypography.bodyMedium,
+                style: AppTypography.bodyMedium.copyWith(
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
               ),
             ],
           ),
@@ -187,7 +189,9 @@ class _WagwoordHerstelPageState extends ConsumerState<WagwoordHerstelPage> {
               const SizedBox(height: 16),
               Text(
                 'Verifieer wagwoord herstel sessie...',
-                style: AppTypography.bodyMedium,
+                style: AppTypography.bodyMedium.copyWith(
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                ),
               ),
             ],
           ),
@@ -247,7 +251,9 @@ class _WagwoordHerstelPageState extends ConsumerState<WagwoordHerstelPage> {
                       Text(
                         'Stel Nuwe Wagwoord',
                         style: AppTypography.headlineMedium.copyWith(
-                          color: AppColors.secondary,
+                          color: Theme.of(
+                            context,
+                          ).textTheme.headlineMedium?.color,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -257,7 +263,7 @@ class _WagwoordHerstelPageState extends ConsumerState<WagwoordHerstelPage> {
                       Text(
                         'Kies \'n sterk wagwoord vir $_email',
                         style: AppTypography.bodyMedium.copyWith(
-                          color: AppColors.onSurfaceVariant,
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -326,7 +332,9 @@ class _WagwoordHerstelPageState extends ConsumerState<WagwoordHerstelPage> {
                                   ? null
                                   : () => context.go('/teken_in'),
                               style: OutlinedButton.styleFrom(
-                                side: BorderSide(color: AppColors.secondary),
+                                side: BorderSide(
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -337,7 +345,7 @@ class _WagwoordHerstelPageState extends ConsumerState<WagwoordHerstelPage> {
                               child: Text(
                                 'Kanselleer',
                                 style: AppTypography.labelLarge.copyWith(
-                                  color: AppColors.secondary,
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
                               ),
                             ),
@@ -361,7 +369,7 @@ class _WagwoordHerstelPageState extends ConsumerState<WagwoordHerstelPage> {
                       Text(
                         "Jy sal na die aanmeld bladsy geredigeer word na suksesvolle opdatering",
                         style: AppTypography.bodySmall.copyWith(
-                          color: AppColors.onSurfaceVariant,
+                          color: Theme.of(context).textTheme.bodySmall?.color,
                         ),
                         textAlign: TextAlign.center,
                       ),

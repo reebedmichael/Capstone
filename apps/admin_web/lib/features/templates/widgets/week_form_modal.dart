@@ -87,7 +87,7 @@ class LargeFoodChip extends StatelessWidget {
               Expanded(
                 child: Text(
                   food.naam,
-                  style: const TextStyle(fontSize: 16),
+                  style: const TextStyle(fontSize: 16, color: Colors.black),
                   softWrap: true,
                 ),
               ),

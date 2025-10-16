@@ -479,7 +479,7 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  "Spyskaart Templaaie",
+                                  "Spyskaart Templaate",
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
@@ -557,7 +557,7 @@ class _WeekTemplaatPageState extends State<WeekTemplaatPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Spyskaart Templaaie",
+                                "Spyskaart Templaate",
                                 style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,

@@ -326,6 +326,7 @@ class _KositemTemplateCardState extends State<KositemTemplateCard> {
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
+                            color: Colors.black,
                           ),
                         ),
                       );

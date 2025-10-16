@@ -233,7 +233,7 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                       Text(
                         "Kennisgewings Bestuur",
                         style: TextStyle(
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Theme.of(context).colorScheme.primary,
                         ),
@@ -241,8 +241,10 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                       Text(
                         "Bestuur kennisgewings en kennisgewings",
                         style: TextStyle(
+                          fontSize: 12,
                           color: Theme.of(context).textTheme.bodySmall?.color,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -254,7 +256,7 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                   OutlinedButton.icon(
                     onPressed: _openSkepDialog,
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Skep'),
+                    label: const Text('Skep Kennisgewing'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -343,8 +345,10 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                             Expanded(
                               child: Text(
                                 'Filters',
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
@@ -544,8 +548,10 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                           children: [
                             Text(
                               'Kennisgewings',
-                              style: Theme.of(context).textTheme.titleLarge
-                                  ?.copyWith(fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Container(
@@ -573,8 +579,11 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                         const SizedBox(height: 8),
                         Text(
                           '${_gefilterde.length} van ${_all.length} kennisgewings',
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: Colors.grey[600]),
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).textTheme.bodyMedium?.color,
+                          ),
                         ),
                         const SizedBox(height: 20),
 
@@ -587,14 +596,20 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                                   Icon(
                                     Icons.notifications_none,
                                     size: 64,
-                                    color: Colors.grey[400],
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.color
+                                        ?.withOpacity(0.5),
                                   ),
                                   const SizedBox(height: 12),
                                   Text(
                                     'Geen Kennisgewings',
                                     style: TextStyle(
                                       fontSize: 18,
-                                      color: Colors.grey[600],
+                                      color: Theme.of(
+                                        context,
+                                      ).textTheme.bodyMedium?.color,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -717,9 +732,9 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                 children: <Widget>[
                   Text(
                     title,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+                    style: TextStyle(
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -878,10 +893,12 @@ class AnnouncementGroupCard extends StatelessWidget {
                                     if (titel.isNotEmpty) ...[
                                       Text(
                                         titel,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 19,
                                           fontWeight: FontWeight.bold,
-                                          color: Colors.black87,
+                                          color: Theme.of(
+                                            context,
+                                          ).textTheme.titleLarge?.color,
                                         ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
@@ -896,8 +913,12 @@ class AnnouncementGroupCard extends StatelessWidget {
                                             ? FontWeight.normal
                                             : FontWeight.bold,
                                         color: titel.isNotEmpty
-                                            ? Colors.grey[700]
-                                            : Colors.black87,
+                                            ? Theme.of(
+                                                context,
+                                              ).textTheme.bodyMedium?.color
+                                            : Theme.of(
+                                                context,
+                                              ).textTheme.titleLarge?.color,
                                       ),
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
@@ -941,7 +962,9 @@ class AnnouncementGroupCard extends StatelessWidget {
                               Icon(
                                 Icons.person_outline,
                                 size: 16,
-                                color: Colors.grey[600],
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color,
                               ),
                               const SizedBox(width: 6),
                               Expanded(
@@ -949,7 +972,9 @@ class AnnouncementGroupCard extends StatelessWidget {
                                   ontvanger,
                                   style: TextStyle(
                                     fontSize: 13,
-                                    color: Colors.grey[700],
+                                    color: Theme.of(
+                                      context,
+                                    ).textTheme.bodyMedium?.color,
                                     fontWeight: FontWeight.w500,
                                   ),
                                   maxLines: 1,
@@ -964,14 +989,18 @@ class AnnouncementGroupCard extends StatelessWidget {
                               Icon(
                                 Icons.access_time,
                                 size: 16,
-                                color: Colors.grey[600],
+                                color: Theme.of(
+                                  context,
+                                ).textTheme.bodyMedium?.color,
                               ),
                               const SizedBox(width: 6),
                               Text(
                                 _formatDate(datum),
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Colors.grey[700],
+                                  color: Theme.of(
+                                    context,
+                                  ).textTheme.bodyMedium?.color,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -1100,14 +1129,18 @@ class AnnouncementGroupCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
-                              color: Colors.grey[800],
+                              color: Theme.of(
+                                context,
+                              ).textTheme.titleLarge?.color,
                             ),
                           ),
                           Text(
                             '${kennisgewings.length} kennisgewings gestuur saam',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Colors.grey[600],
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color,
                             ),
                           ),
                         ],
@@ -1164,7 +1197,9 @@ class AnnouncementGroupCard extends StatelessWidget {
                             Icon(
                               Icons.person_outline,
                               size: 20,
-                              color: Colors.grey[600],
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color,
                             ),
                             const SizedBox(width: 8),
                             Expanded(
@@ -1179,7 +1214,9 @@ class AnnouncementGroupCard extends StatelessWidget {
                             Icon(
                               Icons.arrow_forward_ios,
                               size: 16,
-                              color: Colors.grey[400],
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color?.withOpacity(0.5),
                             ),
                           ],
                         ),
@@ -1243,12 +1280,15 @@ class AnnouncementGroupCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
+                      color: Theme.of(context).textTheme.titleLarge?.color,
                     ),
                   ),
                   Text(
                     _formatDate(datum),
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
+                    ),
                   ),
                 ],
               ),
@@ -1323,10 +1363,11 @@ class AnnouncementGroupCard extends StatelessWidget {
                     if (titel.isNotEmpty) ...[
                       Text(
                         titel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                           height: 1.3,
+                          color: Theme.of(context).textTheme.titleLarge?.color,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -1339,6 +1380,7 @@ class AnnouncementGroupCard extends StatelessWidget {
                             ? FontWeight.normal
                             : FontWeight.w600,
                         height: 1.5,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
                       ),
                     ),
                   ],
@@ -1347,12 +1389,19 @@ class AnnouncementGroupCard extends StatelessWidget {
               const SizedBox(height: 20),
               Row(
                 children: [
-                  Icon(Icons.person_outline, size: 20, color: Colors.grey[600]),
+                  Icon(
+                    Icons.person_outline,
+                    size: 20,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       'Ontvanger: $ontvanger',
-                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                      ),
                     ),
                   ),
                 ],
@@ -1360,11 +1409,18 @@ class AnnouncementGroupCard extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(Icons.access_time, size: 20, color: Colors.grey[600]),
+                  Icon(
+                    Icons.access_time,
+                    size: 20,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
                   const SizedBox(width: 12),
                   Text(
                     'Gestuur op: ${_formatDate(datum)}',
-                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
+                    ),
                   ),
                 ],
               ),

@@ -454,7 +454,7 @@ Tyd: ${DateTime.now().toString().split('.')[0]}
         child: Column(
           children: const [
             ListTile(
-              leading: Icon(Icons.phone, color: Colors.black),
+              leading: Icon(Icons.phone),
               title: Text(
                 "Kontak Besonderhede",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
@@ -612,7 +612,7 @@ Tyd: ${DateTime.now().toString().split('.')[0]}
                       filled: true,
                       // fillColor: Colors.grey,
                     ),
-                    style: const TextStyle(color: Colors.black87),
+                    // style: const TextStyle(color: Colors.black87),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -626,7 +626,7 @@ Tyd: ${DateTime.now().toString().split('.')[0]}
                       filled: true,
                       // fillColor: Colors.grey,
                     ),
-                    style: const TextStyle(color: Colors.black87),
+                    // style: const TextStyle(color: Colors.black87),
                   ),
                 ),
               ],

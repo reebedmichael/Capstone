@@ -161,7 +161,11 @@ class _SidebarState extends ConsumerState<Sidebar>
 
                   // Other navigation items (excluding Toelae)
                   _buildNavItem(
-                    _NavEntry('Gebruikers', Icons.group_outlined, '/gebruikers'),
+                    _NavEntry(
+                      'Gebruikers',
+                      Icons.group_outlined,
+                      '/gebruikers',
+                    ),
                     currentRoute,
                     theme,
                     isDark,
@@ -332,7 +336,7 @@ class _SidebarState extends ConsumerState<Sidebar>
     final children = [
       _NavEntry('Week Spyskaart', Icons.calendar_today, '/week_spyskaart'),
       _NavEntry('Kositems', Icons.list_alt, '/templates/kositem'),
-      _NavEntry('Templaaie', Icons.view_week, '/templates/week'),
+      _NavEntry('Templaate', Icons.view_week, '/templates/week'),
     ];
 
     return Container(
@@ -516,11 +520,7 @@ class _SidebarState extends ConsumerState<Sidebar>
     );
   }
 
-  Widget _buildToelaeGroup(
-    String currentRoute,
-    ThemeData theme,
-    bool isDark,
-  ) {
+  Widget _buildToelaeGroup(String currentRoute, ThemeData theme, bool isDark) {
     final isSelected = _isToelaeRoute(currentRoute);
     final children = [
       _NavEntry('Gebruiker Tipes', Icons.group_work, '/toelae/gebruiker_tipes'),

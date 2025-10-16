@@ -351,7 +351,7 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
                           },
                           icon: const Icon(Icons.add, size: 18),
                           label: const Text(
-                            'Skep Templaat',
+                            'Skep Kositem',
                             style: TextStyle(fontSize: 12),
                           ),
                           style: ElevatedButton.styleFrom(
@@ -415,7 +415,7 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
                           setState(() => toonVormModal = true);
                         },
                         icon: const Icon(Icons.add),
-                        label: const Text('Skep Templaat'),
+                        label: const Text('Skep kositem'),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -546,61 +546,86 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
 
     return Column(
       children: [
+        // Filter heading
+        const SizedBox(height: 12),
         Card(
           elevation: 2,
           clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.orange.shade100, width: 1),
-          ),
+          // shape: RoundedRectangleBorder(
+          //   borderRadius: BorderRadius.circular(16),
+          //   side: BorderSide(color: Colors.orange.shade100, width: 1),
+          // ),
           child: Padding(
             padding: const EdgeInsets.all(12.0),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                // Use a Row layout for wider screens
-                if (constraints.maxWidth > 700) {
-                  return Row(
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: Row(
-                          children: [
-                            Expanded(child: _buildSearchField()),
-                            const SizedBox(width: 12),
-                            Expanded(child: _buildCategoryFilter()),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      if (isFiltered) ...[
-                        OutlinedButton(
-                          onPressed: _clearFilters,
-                          child: const Text('Maak Skoon'),
-                        ),
-                        const SizedBox(width: 12),
-                      ],
-                    ],
-                  );
-                }
-                // Use a Column layout for narrower screens
-                return Column(
+            child: Column(
+              children: [
+                Row(
                   children: [
-                    _buildSearchField(),
-                    const SizedBox(height: 12),
-                    _buildCategoryFilter(),
-                    if (isFiltered) ...[
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          onPressed: _clearFilters,
-                          child: const Text('Maak Filters Skoon'),
-                        ),
+                    Icon(
+                      Icons.filter_list,
+                      size: 25,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Filter',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary,
                       ),
-                    ],
+                    ),
                   ],
-                );
-              },
+                ),
+                SizedBox(height: 12),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Use a Row layout for wider screens
+                    if (constraints.maxWidth > 700) {
+                      return Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: Row(
+                              children: [
+                                Expanded(child: _buildSearchField()),
+                                const SizedBox(width: 12),
+                                Expanded(child: _buildCategoryFilter()),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          if (isFiltered) ...[
+                            OutlinedButton(
+                              onPressed: _clearFilters,
+                              child: const Text('Maak Skoon'),
+                            ),
+                            const SizedBox(width: 12),
+                          ],
+                        ],
+                      );
+                    }
+                    // Use a Column layout for narrower screens
+                    return Column(
+                      children: [
+                        _buildSearchField(),
+                        const SizedBox(height: 12),
+                        _buildCategoryFilter(),
+                        if (isFiltered) ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              onPressed: _clearFilters,
+                              child: const Text('Maak Filters Skoon'),
+                            ),
+                          ),
+                        ],
+                      ],
+                    );
+                  },
+                ),
+              ],
             ),
           ),
         ),
@@ -671,8 +696,8 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.orange.shade200),
         ),
-        filled: true,
-        fillColor: Colors.white70,
+        // filled: true,
+        // fillColor: Colors.white70,
         contentPadding: const EdgeInsets.symmetric(horizontal: 12),
       ),
     );
@@ -700,8 +725,8 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.orange.shade200),
         ),
-        filled: true,
-        fillColor: Colors.white70,
+        // filled: true,
+        // fillColor: Colors.white70,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 15,

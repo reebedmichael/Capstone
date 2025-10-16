@@ -233,18 +233,21 @@ class _TemplateItemsDialogState extends State<TemplateItemsDialog> {
                     const SizedBox(width: 8),
                     const Text(
                       "Bulk instellings:",
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
                     ),
                     const SizedBox(width: 16),
                     ElevatedButton(
-                      onPressed: () => _setQuantityForAll(1),
+                      onPressed: () => _setQuantityForAll(0),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
                           vertical: 8,
                         ),
                       ),
-                      child: const Text("Hoeveelheid = 1"),
+                      child: const Text("Hoeveelheid = 0"),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
@@ -346,6 +349,7 @@ class _TemplateItemsDialogState extends State<TemplateItemsDialog> {
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w600,
                                           fontSize: 16,
+                                          color: Colors.black,
                                         ),
                                       ),
                                       Text(
@@ -377,6 +381,7 @@ class _TemplateItemsDialogState extends State<TemplateItemsDialog> {
                                             style: TextStyle(
                                               fontSize: 13,
                                               fontWeight: FontWeight.w500,
+                                              color: Colors.black,
                                             ),
                                           ),
                                           const SizedBox(width: 4),
@@ -409,6 +414,7 @@ class _TemplateItemsDialogState extends State<TemplateItemsDialog> {
                                           templateItem.quantity =
                                               int.tryParse(value) ?? 1;
                                         },
+                                        style: TextStyle(color: Colors.black),
                                       ),
                                     ],
                                   ),
@@ -428,6 +434,7 @@ class _TemplateItemsDialogState extends State<TemplateItemsDialog> {
                                             style: TextStyle(
                                               fontSize: 13,
                                               fontWeight: FontWeight.w500,
+                                              color: Colors.black,
                                             ),
                                           ),
                                           const SizedBox(width: 4),
@@ -459,6 +466,7 @@ class _TemplateItemsDialogState extends State<TemplateItemsDialog> {
                                             "${templateItem.cutoffTime.year}-${templateItem.cutoffTime.month.toString().padLeft(2, '0')}-${templateItem.cutoffTime.day.toString().padLeft(2, '0')} "
                                             "${templateItem.cutoffTime.hour.toString().padLeft(2, '0')}:${templateItem.cutoffTime.minute.toString().padLeft(2, '0')}",
                                             style: const TextStyle(
+                                              color: Colors.black,
                                               fontSize: 14,
                                             ),
                                           ),

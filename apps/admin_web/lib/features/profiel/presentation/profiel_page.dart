@@ -146,6 +146,7 @@ class _ProfielPageState extends ConsumerState<ProfielPage> {
                                           status == true
                                               ? "Aktief"
                                               : "Wag Goedkeuring",
+                                          style: TextStyle(color: Colors.black),
                                         ),
                                         backgroundColor: status == true
                                             ? Colors.green.shade50

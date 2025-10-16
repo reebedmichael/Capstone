@@ -161,7 +161,10 @@ class KositemDetailDialog extends StatelessWidget {
                         (ingredient) => Chip(
                           label: Text(
                             ingredient,
-                            style: const TextStyle(fontSize: 12),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.black,
+                            ),
                           ),
                           backgroundColor: Colors.grey.shade100,
                         ),

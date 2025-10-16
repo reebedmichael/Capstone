@@ -12,13 +12,14 @@ class GebruikerTipesToelaePage extends StatefulWidget {
 
 class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
   final ToelaeRepository _toelaeRepo = GetIt.instance<ToelaeRepository>();
-  final InstellingsRepository _instellingsRepo = GetIt.instance<InstellingsRepository>();
+  final InstellingsRepository _instellingsRepo =
+      GetIt.instance<InstellingsRepository>();
 
   List<Map<String, dynamic>> _gebruikerTipes = [];
   bool _isLoading = true;
   String? _error;
   bool _isDistributing = false;
-  
+
   // Settings
   int _verspreidingDag = 1;
   bool _loadingSettings = false;
@@ -29,7 +30,7 @@ class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
     _loadGebruikerTipes();
     _loadSettings();
   }
-  
+
   Future<void> _loadSettings() async {
     try {
       final dag = await _instellingsRepo.kryToelaeVerspreidingDag();
@@ -45,19 +46,21 @@ class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
 
   Future<void> _updateVerspreidingDag(int nieuweDag) async {
     setState(() => _loadingSettings = true);
-    
+
     try {
       await _instellingsRepo.updateToelaeVerspreidingDag(nieuweDag);
-      
+
       if (mounted) {
         setState(() {
           _verspreidingDag = nieuweDag;
           _loadingSettings = false;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Toelae sal nou versprei word op dag $nieuweDag van elke maand'),
+            content: Text(
+              'Toelae sal nou versprei word op dag $nieuweDag van elke maand',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -65,21 +68,18 @@ class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
     } catch (e) {
       if (mounted) {
         setState(() => _loadingSettings = false);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Fout: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Fout: $e'), backgroundColor: Colors.red),
         );
       }
     }
   }
-  
+
   String _getNextDistributionDate() {
     final now = DateTime.now();
     DateTime nextDate;
-    
+
     if (now.day < _verspreidingDag) {
       // Next distribution is this month
       nextDate = DateTime(now.year, now.month, _verspreidingDag);
@@ -87,14 +87,27 @@ class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
       // Next distribution is next month
       nextDate = DateTime(now.year, now.month + 1, _verspreidingDag);
     }
-    
-    final months = ['Jan', 'Feb', 'Mrt', 'Apr', 'Mei', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des'];
+
+    final months = [
+      'Jan',
+      'Feb',
+      'Mrt',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
+    ];
     return '${nextDate.day} ${months[nextDate.month - 1]} ${nextDate.year}';
   }
 
   void _showVerspreidingDagDialog() {
     int selectedDag = _verspreidingDag;
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -116,7 +129,11 @@ class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.orange.shade700, size: 20),
+                  Icon(
+                    Icons.info_outline,
+                    color: Colors.orange.shade700,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -141,10 +158,7 @@ class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
                 ),
                 items: List.generate(28, (index) {
                   final dag = index + 1;
-                  return DropdownMenuItem(
-                    value: dag,
-                    child: Text('Dag $dag'),
-                  );
+                  return DropdownMenuItem(value: dag, child: Text('Dag $dag'));
                 }),
                 onChanged: (value) {
                   if (value != null) {
@@ -397,7 +411,7 @@ class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
                       Text(
                         "Gebruiker Tipes & Toelaes",
                         style: TextStyle(
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Theme.of(context).colorScheme.primary,
                         ),
@@ -405,8 +419,10 @@ class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
                       Text(
                         "Bestuur maandelikse toelaes vir elke gebruiker tipe",
                         style: TextStyle(
+                          fontSize: 12,
                           color: Theme.of(context).textTheme.bodySmall?.color,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -427,14 +443,15 @@ class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
                           )
                         : const Icon(Icons.send),
                     label: Text(
-                      _isDistributing
-                          ? 'Besig...'
-                          : 'Distribueer Nou',
+                      _isDistributing ? 'Besig...' : 'Distribueer Nou',
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 16,
+                      ),
                     ),
                   ),
                 ],
@@ -449,272 +466,326 @@ class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-
-            // Settings Card - Verspreiding Dag
-            Card(
-              elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                // Settings Card - Verspreiding Dag
+                Card(
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.settings, 
-                            size: 24, 
-                            color: Theme.of(context).colorScheme.primary),
-                        const SizedBox(width: 12),
-                        Text(
-                          'Outomatiese Verspreiding Instellings',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.settings,
+                              size: 24,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Outomatiese Verspreiding Instellings',
+                              style: const TextStyle(
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.blue.shade200,
+                              width: 2,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.calendar_today,
+                                  color: Colors.blue.shade700,
+                                  size: 32,
+                                ),
+                              ),
+                              const SizedBox(width: 20),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Maandelikse Verspreiding Dag',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Toelae word outomaties versprei op dag $_verspreidingDag van elke maand om middernag',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.grey[700],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Volgende verspreiding: ${_getNextDistributionDate()}',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.blue.shade900,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 20),
+                              ElevatedButton.icon(
+                                onPressed: _loadingSettings
+                                    ? null
+                                    : () {
+                                        _showVerspreidingDagDialog();
+                                      },
+                                icon: _loadingSettings
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.edit),
+                                label: const Text('Verander Dag'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 16,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue.shade200, width: 2),
-                      ),
-                      child: Row(
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                if (_isLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (_error != null)
+                  Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Fout: $_error',
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton(
+                          onPressed: _loadGebruikerTipes,
+                          child: const Text('Probeer Weer'),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Card(
+                    elevation: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade100,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Icon(Icons.calendar_today, 
-                                color: Colors.blue.shade700, size: 32),
-                          ),
-                          const SizedBox(width: 20),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Maandelikse Verspreiding Dag',
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Toelae word outomaties versprei op dag $_verspreidingDag van elke maand om middernag',
-                                  style: Theme.of(context).textTheme.bodyLarge,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Volgende verspreiding: ${_getNextDistributionDate()}',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.blue.shade900,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
+                          Text(
+                            'Gebruiker Tipes',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(width: 20),
-                          ElevatedButton.icon(
-                            onPressed: _loadingSettings ? null : () {
-                              _showVerspreidingDagDialog();
-                            },
-                            icon: _loadingSettings 
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.edit),
-                            label: const Text('Verander Dag'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          const SizedBox(height: 16),
+                          Theme(
+                            data: Theme.of(context).copyWith(
+                              dividerColor: const Color(
+                                0xFFE7D9CF,
+                              ), // subtle warm divider like screenshot
+                            ),
+                            child: DataTableTheme(
+                              data: DataTableThemeData(
+                                dividerThickness: 1,
+                                headingRowColor: MaterialStateProperty.all(
+                                  Colors.grey.shade100,
+                                ),
+                                headingTextStyle: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                dataRowMinHeight: 60,
+                                dataRowMaxHeight: 68,
+                              ),
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: DataTable(
+                                  columnSpacing: 64,
+                                  horizontalMargin: 24,
+                                  columns: [
+                                    DataColumn(
+                                      label: Text(
+                                        'Gebruiker Tipe',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      numeric: false,
+                                    ),
+                                    DataColumn(
+                                      label: Text(
+                                        'Beskrywing',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      numeric: false,
+                                    ),
+                                    DataColumn(
+                                      label: Text(
+                                        'Maandelikse Toelae',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      numeric: false,
+                                    ),
+                                  ],
+                                  rows: _gebruikerTipes.map((tipe) {
+                                    final naam =
+                                        tipe['gebr_tipe_naam'] ?? 'Onbekend';
+                                    final beskrywing =
+                                        tipe['gebr_tipe_beskrywing'] ?? '-';
+                                    final toelaag =
+                                        (tipe['gebr_toelaag'] as num?)
+                                            ?.toDouble() ??
+                                        0.0;
+
+                                    return DataRow(
+                                      cells: [
+                                        DataCell(
+                                          Text(
+                                            naam,
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          Text(
+                                            beskrywing.isEmpty
+                                                ? '-'
+                                                : beskrywing,
+                                            style: TextStyle(
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          Align(
+                                            alignment: Alignment.centerRight,
+                                            child: InkWell(
+                                              onTap: () =>
+                                                  _showEditDialog(tipe),
+                                              child: ConstrainedBox(
+                                                constraints:
+                                                    const BoxConstraints(
+                                                      minWidth: 220,
+                                                    ),
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 16,
+                                                        vertical: 12,
+                                                      ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.green.shade50,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          18,
+                                                        ),
+                                                    border: Border.all(
+                                                      color:
+                                                          Colors.green.shade400,
+                                                      width: 1.2,
+                                                    ),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .center,
+                                                    children: [
+                                                      Text(
+                                                        'R${toelaag.toStringAsFixed(2)}',
+                                                        style: Theme.of(context)
+                                                            .textTheme
+                                                            .titleMedium
+                                                            ?.copyWith(
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700,
+                                                              color: Colors
+                                                                  .green
+                                                                  .shade800,
+                                                            ),
+                                                      ),
+                                                      const SizedBox(width: 10),
+                                                      Icon(
+                                                        Icons.edit,
+                                                        size: 18,
+                                                        color: Colors
+                                                            .green
+                                                            .shade700,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-            
-            const SizedBox(height: 24),
-
-          if (_isLoading)
-            const Center(child: CircularProgressIndicator())
-          else if (_error != null)
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Fout: $_error',
-                    style: const TextStyle(color: Colors.red),
                   ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _loadGebruikerTipes,
-                    child: const Text('Probeer Weer'),
-                  ),
-                ],
-              ),
-            )
-          else
-            Card(
-              elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Gebruiker Tipes',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                    const SizedBox(height: 16),
-                    Theme(
-                      data: Theme.of(context).copyWith(
-                        dividerColor: const Color(0xFFE7D9CF), // subtle warm divider like screenshot
-                      ),
-                      child: DataTableTheme(
-                        data: DataTableThemeData(
-                          dividerThickness: 1,
-                          headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
-                          headingTextStyle: const TextStyle(fontWeight: FontWeight.w700),
-                          dataRowMinHeight: 60,
-                          dataRowMaxHeight: 68,
-                        ),
-                        child: SizedBox(
-                          width: double.infinity,
-                          child: DataTable(
-                            columnSpacing: 64,
-                            horizontalMargin: 24,
-                            columns: [
-                              DataColumn(
-                                label: Text(
-                                  'Gebruiker Tipe',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.w700),
-                                ),
-                                numeric: false,
-                              ),
-                              DataColumn(
-                                label: Text(
-                                  'Beskrywing',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.w700),
-                                ),
-                                numeric: false,
-                              ),
-                              DataColumn(
-                                label: Text(
-                                  'Maandelikse Toelae',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.w700),
-                                ),
-                                numeric: false,
-                              ),
-                            ],
-                            rows: _gebruikerTipes.map((tipe) {
-                              final naam = tipe['gebr_tipe_naam'] ?? 'Onbekend';
-                              final beskrywing = tipe['gebr_tipe_beskrywing'] ?? '-';
-                              final toelaag =
-                                  (tipe['gebr_toelaag'] as num?)?.toDouble() ?? 0.0;
- 
-                              return DataRow(
-                                cells: [
-                                  DataCell(
-                                    Text(
-                                      naam,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(fontWeight: FontWeight.w600),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      beskrywing.isEmpty ? '-' : beskrywing,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodyLarge
-                                          ?.copyWith(color: Colors.black.withOpacity(0.6)),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Align(
-                                      alignment: Alignment.centerRight,
-                                      child: InkWell(
-                                        onTap: () => _showEditDialog(tipe),
-                                        child: ConstrainedBox(
-                                          constraints: const BoxConstraints(minWidth: 220),
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 16,
-                                              vertical: 12,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.green.shade50,
-                                              borderRadius: BorderRadius.circular(18),
-                                              border: Border.all(
-                                                color: Colors.green.shade400,
-                                                width: 1.2,
-                                              ),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: [
-                                                Text(
-                                                  'R${toelaag.toStringAsFixed(2)}',
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .titleMedium
-                                                      ?.copyWith(
-                                                        fontWeight: FontWeight.w700,
-                                                        color: Colors.green.shade800,
-                                                      ),
-                                                ),
-                                                const SizedBox(width: 10),
-                                                Icon(
-                                                  Icons.edit,
-                                                  size: 18,
-                                                  color: Colors.green.shade700,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
               ],
             ),
           ),

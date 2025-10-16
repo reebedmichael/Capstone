@@ -84,7 +84,9 @@ class RegistreerAdminPage extends ConsumerWidget {
                       Text(
                         'Registreer as Admin',
                         style: AppTypography.headlineMedium.copyWith(
-                          color: AppColors.secondary,
+                          color: Theme.of(
+                            context,
+                          ).textTheme.headlineMedium?.color,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -94,7 +96,7 @@ class RegistreerAdminPage extends ConsumerWidget {
                       Text(
                         "Vul alle besonderhede in om 'n admin rekening aan te vra",
                         style: AppTypography.bodyMedium.copyWith(
-                          color: AppColors.onSurfaceVariant,
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -310,11 +312,7 @@ class RegistreerAdminPage extends ConsumerWidget {
                       Spacing.vGap24,
 
                       // Divider
-                      Divider(
-                        color: AppColors.onSurfaceVariant.withValues(
-                          alpha: 0.2,
-                        ),
-                      ),
+                      Divider(color: Theme.of(context).dividerColor),
 
                       Spacing.vGap16,
 
@@ -324,7 +322,9 @@ class RegistreerAdminPage extends ConsumerWidget {
                           Text(
                             "Het jy reeds 'n rekening?",
                             style: AppTypography.bodyMedium.copyWith(
-                              color: AppColors.onSurfaceVariant,
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color,
                             ),
                           ),
                           Spacing.vGap8,
@@ -333,7 +333,7 @@ class RegistreerAdminPage extends ConsumerWidget {
                             child: Text(
                               StringsAfAdmin.goLogin,
                               style: AppTypography.linkText.copyWith(
-                                color: AppColors.secondary,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
                           ),

@@ -424,7 +424,10 @@ class _NextWeeksMenuState extends State<NextWeeksMenu> {
                                     ),
                                     child: Text(
                                       '$total',
-                                      style: const TextStyle(fontSize: 12),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.black,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 8),

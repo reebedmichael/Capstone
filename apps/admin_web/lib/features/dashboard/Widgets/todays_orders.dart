@@ -849,7 +849,10 @@ class _TodaysOrdersState extends State<TodaysOrders> {
                       ),
                       child: Text(
                         '$count',
-                        style: const TextStyle(fontSize: 12),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black,
+                        ),
                       ),
                     ),
                   ],
@@ -921,7 +924,10 @@ class _TodaysOrdersState extends State<TodaysOrders> {
                       color: Colors.grey.shade200,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text('$count', style: const TextStyle(fontSize: 12)),
+                    child: Text(
+                      '$count',
+                      style: const TextStyle(fontSize: 12, color: Colors.black),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   if (nextStatus != null && !_isUpdating)
