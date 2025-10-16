@@ -6,6 +6,7 @@ import 'package:spys_api_client/spys_api_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/constants/spacing.dart';
+import '../../../../shared/utils/responsive_utils.dart';
 import '../../../../shared/state/order_refresh_notifier.dart';
 
 class FoodDetailPage extends StatefulWidget {
@@ -21,6 +22,10 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
   bool isFavorite = false;
   bool _initialized = false;
   int _currentImage = 0; // carousel index
+  
+  // Diet requirements state
+  List<Map<String, dynamic>> dietRequirements = [];
+  bool isLoadingDietRequirements = false;
 
   // Helper: try multiple keys and return first non-null
   dynamic _pick(Map<String, dynamic> map, List<String> keys) {
@@ -294,11 +299,61 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     item['is_past_cutoff'] = isPastCutoff;
     debugPrint('FOOD DETAIL: Item $weekDagNaam is past cutoff: $isPastCutoff');
 
+    // Load diet requirements for this food item
+    _loadDietRequirements();
+
     _initialized = true;
   }
 
   void updateQuantity(int newQty) {
     if (newQty >= 1 && newQty <= 10) setState(() => quantity = newQty);
+  }
+
+  Future<void> _loadDietRequirements() async {
+    setState(() {
+      isLoadingDietRequirements = true;
+    });
+
+    try {
+      final kosItemId = item['kos_item_id']?.toString();
+      if (kosItemId == null || kosItemId.isEmpty) {
+        setState(() {
+          dietRequirements = [];
+          isLoadingDietRequirements = false;
+        });
+        return;
+      }
+
+      // Load diet requirements for this specific food item
+      final response = await Supabase.instance.client
+          .from('kos_item_dieet_vereistes')
+          .select('''
+            dieet_vereiste:dieet_id(
+              dieet_id,
+              dieet_naam
+            )
+          ''')
+          .eq('kos_item_id', kosItemId);
+
+      final List<Map<String, dynamic>> requirements = response
+          .map<Map<String, dynamic>>((row) {
+            final dietInfo = row['dieet_vereiste'] as Map<String, dynamic>?;
+            return dietInfo ?? {};
+          })
+          .where((diet) => diet.isNotEmpty)
+          .toList();
+
+      setState(() {
+        dietRequirements = requirements;
+        isLoadingDietRequirements = false;
+      });
+    } catch (e) {
+      debugPrint('Kon nie dieet vereistes laai nie: $e');
+      setState(() {
+        dietRequirements = [];
+        isLoadingDietRequirements = false;
+      });
+    }
   }
 
   // Helper methods for week logic (same as home page)
@@ -455,7 +510,9 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 50, 16, 16),
+            padding: Spacing.screenPadding(context).copyWith(
+              top: ResponsiveUtils.getResponsiveSpacing(context, mobile: 50, tablet: 60, desktop: 70),
+            ),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
               border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.outline)),
@@ -475,7 +532,10 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                 Expanded(
                   child: Text(
                     _name,
-                    style: AppTypography.titleLarge.copyWith(color: Theme.of(context).colorScheme.onSurface),
+                    style: AppTypography.titleLarge.copyWith(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 20, tablet: 24, desktop: 28),
+                    ),
                     textAlign: TextAlign.center,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -492,9 +552,9 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                 children: [
                   // Photo with price badge (carousel + thumbnails)
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: Spacing.screenHPad,
-                      vertical: 12,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: Spacing.screenPadding(context).left,
+                      vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -749,7 +809,44 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                             ),
                           ),
 
-                        const SizedBox(height: 24),
+                        if (ingredients.isNotEmpty) const SizedBox(height: 16),
+
+                        // Diet Requirements
+                        if (dietRequirements.isNotEmpty || isLoadingDietRequirements)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.restaurant,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: isLoadingDietRequirements
+                                      ? const CircularProgressIndicator()
+                                      : Text(
+                                          dietRequirements.isEmpty 
+                                              ? 'Geen spesiale dieet vereistes'
+                                              : 'Dieet Vereistes: ${dietRequirements.map((diet) => diet['dieet_naam']?.toString() ?? 'Onbekende Dieet').join(', ')}',
+                                          style: TextStyle(
+                                            color: Theme.of(context).colorScheme.primary,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                        if (dietRequirements.isNotEmpty || isLoadingDietRequirements) const SizedBox(height: 16),
 
                         // Availability state
                         Container(
@@ -968,4 +1065,5 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       ),
     );
   }
+
 }

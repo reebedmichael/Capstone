@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/responsive_utils.dart';
 
 class Spacing {
   // Common gaps
@@ -12,7 +13,12 @@ class Spacing {
   static const double gap40 = 40.0;
   static const double gap48 = 48.0;
   
-  // Screen padding
+  // Responsive screen padding
+  static EdgeInsets screenPadding(BuildContext context) {
+    return ResponsiveUtils.getScreenPadding(context);
+  }
+  
+  // Legacy static values for backward compatibility
   static const double screenHPad = 24.0;
   static const double screenVPad = 16.0;
   
@@ -58,4 +64,67 @@ class Spacing {
   static const SizedBox hGap32 = SizedBox(width: gap32);
   static const SizedBox hGap40 = SizedBox(width: gap40);
   static const SizedBox hGap48 = SizedBox(width: gap48);
+  
+  // Responsive spacing methods
+  static double responsiveGap(BuildContext context, {
+    required double mobile,
+    double? tablet,
+    double? desktop,
+  }) {
+    return ResponsiveUtils.getResponsiveSpacing(
+      context,
+      mobile: mobile,
+      tablet: tablet,
+      desktop: desktop,
+    );
+  }
+  
+  static double responsiveFontSize(BuildContext context, {
+    required double mobile,
+    double? tablet,
+    double? desktop,
+  }) {
+    return ResponsiveUtils.getResponsiveFontSize(
+      context,
+      mobile: mobile,
+      tablet: tablet,
+      desktop: desktop,
+    );
+  }
+  
+  // Responsive widgets
+  static Widget responsiveVGap(BuildContext context, {
+    required double mobile,
+    double? tablet,
+    double? desktop,
+  }) {
+    return SizedBox(
+      height: responsiveGap(context, mobile: mobile, tablet: tablet, desktop: desktop),
+    );
+  }
+  
+  static Widget responsiveHGap(BuildContext context, {
+    required double mobile,
+    double? tablet,
+    double? desktop,
+  }) {
+    return SizedBox(
+      width: responsiveGap(context, mobile: mobile, tablet: tablet, desktop: desktop),
+    );
+  }
+  
+  // Responsive padding
+  static EdgeInsets responsivePadding(BuildContext context, {
+    required EdgeInsets mobile,
+    EdgeInsets? tablet,
+    EdgeInsets? desktop,
+  }) {
+    if (ResponsiveUtils.isDesktop(context) && desktop != null) {
+      return desktop;
+    } else if (ResponsiveUtils.isTablet(context) && tablet != null) {
+      return tablet;
+    } else {
+      return mobile;
+    }
+  }
 }

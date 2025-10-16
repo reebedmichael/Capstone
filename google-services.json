@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "329677538571",
+    "project_id": "spys-9b075",
+    "storage_bucket": "spys-9b075.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:329677538571:android:6b67c685807ef0b6520e0e",
+        "android_client_info": {
+          "package_name": "com.reebedmichael.capstone_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFIFMj5T8BhCCwWf8NUdaAAZtZKl2He-4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

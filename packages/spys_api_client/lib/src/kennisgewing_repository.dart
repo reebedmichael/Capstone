@@ -442,7 +442,7 @@ class KennisgewingRepository {
       
       final totaal = alleKennisgewings.length;
       final ongelees = alleKennisgewings.where((k) => !(k['kennis_gelees'] ?? false)).length;
-      final gelees = totaal - ongelees;
+      final gelees = alleKennisgewings.where((k) => (k['kennis_gelees'] ?? false)).length;
 
       return {
         'totaal': totaal,

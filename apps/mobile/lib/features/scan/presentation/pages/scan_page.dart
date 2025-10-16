@@ -262,7 +262,7 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
           MobileScanner(
             controller: _scannerController,
             onDetect: _handleBarcode,
-            errorBuilder: (context, error, child) {
+            errorBuilder: (context, error) {
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24),

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:spys_api_client/spys_api_client.dart';
+import 'package:spys_api_client/src/notification_archive_service.dart';
 import '../../../../shared/services/qr_service.dart';
 import '../../../../shared/services/auth_service.dart';
 import '../../../../shared/providers/theme_provider.dart';
@@ -18,7 +19,6 @@ class SettingsPage extends ConsumerStatefulWidget {
 }
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
-  String language = 'af';
   bool isDeleting = false;
   bool _isTertiaryAdmin = false;
   bool _isLoadingAdminStatus = true;
@@ -75,21 +75,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   );
                 },
               ),
-              ListTile(
-                leading: const Icon(Icons.language),
-                title: const Text("Taal"),
-                subtitle: const Text("Kies jou voorkeur taal"),
-                trailing: DropdownButton<String>(
-                  value: language,
-                  items: const [
-                    DropdownMenuItem(value: 'af', child: Text("Afrikaans")),
-                    DropdownMenuItem(value: 'en', child: Text("English")),
-                  ],
-                  onChanged: (val) {
-                    if (val != null) setState(() => language = val);
-                  },
-                ),
-              ),
+          
             ],
           ),
 
@@ -111,9 +97,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 onTap: () => _markAllAsRead(),
               ),
               ListTile(
-                leading: const Icon(Icons.clear_all),
-                title: const Text("Skoon Kennisgewings"),
-                subtitle: const Text("Verwyder alle gelees kennisgewings"),
+                leading: const Icon(Icons.archive),
+                title: const Text("Argiveer Kennisgewings"),
+                subtitle: const Text("Argiveer alle gelees kennisgewings"),
                 onTap: () => _clearReadNotifications(),
               ),
             ],
@@ -251,7 +237,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Bevestig'),
-          content: const Text('Is jy seker jy wil jou rekening verwyder?'),
+          content: const Text('Is jy seker jy wil jou rekening verwyder? Dit sal jou rekening deaktiveer.'),
           actions: <Widget>[
             TextButton(
               onPressed: () {
@@ -262,9 +248,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ),
             TextButton(
               onPressed: () {
-                // Navigate to the registration screen when confirmed
-                Navigator.of(context).pop(); // Close the dialog
-                context.go('/auth/register'); // Navigate to register screen
+                Navigator.of(context).pop();
+                _deactivateAccount();
               },
               child: const Text('Ja'),
             ),
@@ -272,6 +257,33 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         );
       },
     );
+  }
+
+  Future<void> _deactivateAccount() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        _showToast('Geen aangemelde gebruiker gevind nie', Colors.red);
+        return;
+      }
+
+      // Set is_aktief = FALSE on the gebruiker record
+      await Supabase.instance.client
+          .from('gebruikers')
+          .update({'is_aktief': false})
+          .eq('gebr_id', user.id);
+
+      // Sign the user out
+      await Supabase.instance.client.auth.signOut();
+
+      // Navigate to login page
+      if (mounted) {
+        _showToast('Rekening gedeaktiveer', Colors.green);
+        context.go('/auth/login');
+      }
+    } catch (e) {
+      _showToast('Kon nie rekening deaktiveer nie: ${e.toString()}', Colors.red);
+    }
   }
 
   Future<void> _markAllAsRead() async {
@@ -318,22 +330,35 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         return;
       }
 
-      // Get all read notifications and delete them
+      // Get all read notifications and archive them locally
       final kennisgewingRepo = KennisgewingRepository(SupabaseDb(Supabase.instance.client));
       final readNotifications = await kennisgewingRepo.kryKennisgewings(user.id);
       
-      int deletedCount = 0;
-      for (final notification in readNotifications) {
-        if (notification['kennis_gelees'] == true) {
-          final success = await kennisgewingRepo.verwyderKennisgewing(notification['kennis_id']);
-          if (success) deletedCount++;
-        }
-      }
+      final readNotificationIds = readNotifications
+          .where((notification) => notification['kennis_gelees'] == true)
+          .map((notification) => notification['kennis_id'].toString())
+          .toList();
       
-      Fluttertoast.showToast(
-        msg: '$deletedCount gelees kennisgewings verwyder',
-        backgroundColor: Theme.of(context).colorScheme.tertiary,
-      );
+      if (readNotificationIds.isNotEmpty) {
+        final success = await NotificationArchiveService.archiveNotifications(readNotificationIds);
+        
+        if (success) {
+          Fluttertoast.showToast(
+            msg: '${readNotificationIds.length} gelees kennisgewings geargiveer',
+            backgroundColor: Theme.of(context).colorScheme.tertiary,
+          );
+        } else {
+          Fluttertoast.showToast(
+            msg: 'Fout met argiveer kennisgewings',
+            backgroundColor: Theme.of(context).colorScheme.error,
+          );
+        }
+      } else {
+        Fluttertoast.showToast(
+          msg: 'Geen gelees kennisgewings om te argiveer',
+          backgroundColor: Theme.of(context).colorScheme.tertiary,
+        );
+      }
     } catch (e) {
       Fluttertoast.showToast(
         msg: 'Fout: ${e.toString()}',

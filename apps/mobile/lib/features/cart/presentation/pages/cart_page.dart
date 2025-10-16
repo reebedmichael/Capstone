@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/constants/spacing.dart';
+import '../../../../shared/utils/responsive_utils.dart';
 import '../../../../locator.dart';
 import 'package:spys_api_client/spys_api_client.dart';
 import '../../../../shared/state/cart_badge.dart';
@@ -913,10 +914,8 @@ class _CartPageState extends State<CartPage> {
         ),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.only(
-              left: Spacing.screenHPad,
-              right: Spacing.screenHPad,
-              bottom: 120,
+            padding: Spacing.screenPadding(context).copyWith(
+              bottom: ResponsiveUtils.getResponsiveSpacing(context, mobile: 120, tablet: 140, desktop: 160),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -933,6 +932,7 @@ class _CartPageState extends State<CartPage> {
                       'Mandjie (${cart.length})',
                       style: AppTypography.titleMedium.copyWith(
                         fontWeight: FontWeight.w600,
+                        fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 18, tablet: 20, desktop: 22),
                       ),
                     ),
                     const SizedBox(width: 40),

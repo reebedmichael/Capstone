@@ -11,6 +11,7 @@ import '../../../../shared/providers/auth_providers.dart';
 import '../../../../shared/widgets/auth_header.dart';
 import '../../../../shared/widgets/email_field.dart';
 import '../../../../shared/widgets/password_field.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LoginPage extends ConsumerWidget 
 {
@@ -103,14 +104,30 @@ class LoginPage extends ConsumerWidget
                           password: 'Game4sloop'
                         );
 
-                        // User data is now managed by Supabase authentication
-                        // No need for manual SharedPreferences storage
+                        // After successful sign-in, verify gebruikers.is_aktief
+                        final user = Supabase.instance.client.auth.currentUser;
+                        if (user != null) {
+                          final row = await Supabase.instance.client
+                              .from('gebruikers')
+                              .select('is_aktief')
+                              .eq('gebr_id', user.id)
+                              .maybeSingle();
+                          final bool isAktief = (row == null)
+                              ? true // if no row, allow by default
+                              : ((row['is_aktief'] as bool?) ?? true);
+                          if (!isAktief) {
+                            await Supabase.instance.client.auth.signOut();
+                            throw Exception('ACCOUNT_DEACTIVATED');
+                          }
+                        }
 
                         if (context.mounted) { context.go('/home'); }
                       } catch (e) {
                         String errorMessage = 'Demo teken in het gefaal';
                         if (e.toString().contains('Invalid login credentials')) {
                           errorMessage = 'Demo rekening bestaan nie - registreer eers';
+                        } else if (e.toString().contains('ACCOUNT_DEACTIVATED')) {
+                          errorMessage = 'Jou rekening is gedeaktiveer';
                         }
                         ref.read(authErrorProvider.notifier).state = errorMessage;
                       } finally {
@@ -218,8 +235,22 @@ class LoginPage extends ConsumerWidget
                               final authService = ref.read(authServiceProvider);
                               await authService.signInWithEmail(email: email, password: password);
 
-                              // User data is now managed by Supabase authentication
-                              // No need for manual SharedPreferences storage
+                              // After successful sign-in, verify gebruikers.is_aktief
+                              final user = Supabase.instance.client.auth.currentUser;
+                              if (user != null) {
+                                final row = await Supabase.instance.client
+                                    .from('gebruikers')
+                                    .select('is_aktief')
+                                    .eq('gebr_id', user.id)
+                                    .maybeSingle();
+                                final bool isAktief = (row == null)
+                                    ? true // if no row, allow by default
+                                    : ((row['is_aktief'] as bool?) ?? true);
+                                if (!isAktief) {
+                                  await Supabase.instance.client.auth.signOut();
+                                  throw Exception('ACCOUNT_DEACTIVATED');
+                                }
+                              }
 
                               if (context.mounted) { context.go('/home'); }
                             } catch (e) {
@@ -228,6 +259,8 @@ class LoginPage extends ConsumerWidget
                                 errorMessage = 'Verkeerde e-pos of wagwoord';
                               } else if (e.toString().contains('Email not confirmed')) {
                                 errorMessage = 'E-pos nog nie bevestig nie';
+                              } else if (e.toString().contains('ACCOUNT_DEACTIVATED')) {
+                                errorMessage = 'Jou rekening is gedeaktiveer';
                               }
                               ref.read(authErrorProvider.notifier).state = errorMessage;
                             } finally {

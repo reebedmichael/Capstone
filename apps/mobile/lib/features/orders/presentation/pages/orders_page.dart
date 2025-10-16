@@ -264,13 +264,9 @@ class _OrdersPageState extends State<OrdersPage>
           orders = ordersData;
           isLoading = false;
         });
-        // After loading, ensure expired items are marked as 'Verstryk'
-        // This will insert a status row for items past the cutoff time
-        // and refresh orders if any updates were made.
-        unawaited(_updateExpiredItemStatuses());
-        
-        // DEBUG: Also check for verstryk status in database
-        unawaited(_checkVerstrykStatusExists());
+        // Ensure 'Verstryk' status exists first, then update expired items
+        await _checkVerstrykStatusExists();
+        await _updateExpiredItemStatuses();
       }
     } catch (e) {
       debugPrint('Error loading orders: $e');
@@ -837,6 +833,26 @@ class _OrdersPageState extends State<OrdersPage>
     }
   }
 
+  bool _orderHasReadyForPickup(Map<String, dynamic> order) {
+    try {
+      final List items = (order['bestelling_kos_item'] as List? ?? []);
+      for (final it in items) {
+        final List statuses = (it['best_kos_item_statusse'] as List? ?? []);
+        if (statuses.isEmpty) continue;
+        final latest = statuses.last;
+        final Map<String, dynamic> statusInfo =
+            (latest['kos_item_statusse'] as Map<String, dynamic>? ?? {});
+        final String? statusName = statusInfo['kos_stat_naam'] as String?;
+        if (statusName == 'Reg vir afhaal') {
+          return true;
+        }
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Widget _buildOrderCard(Map<String, dynamic> order) {
     // Only render this order if it has items visible in the current tab
     final List<dynamic> orderItems = (order['bestelling_kos_item'] as List? ?? []);
@@ -1050,9 +1066,41 @@ class _OrdersPageState extends State<OrdersPage>
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  food['kos_item_naam'] ?? '',
-                                  style: const TextStyle(fontSize: 14),
+                                Builder(
+                                  builder: (_) {
+                                    final String itemName = (food['kos_item_naam'] as String?) ?? '';
+                                    final String bestNommer = (item['best_nommer'] as String?) ?? '';
+                                    if (bestNommer.isEmpty) {
+                                      return Text(
+                                        itemName,
+                                        style: const TextStyle(fontSize: 14),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 2,
+                                      );
+                                    }
+                                    return Row(
+                                      children: [
+                                        Text(
+                                          'Nommer: $bestNommer',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            itemName,
+                                            style: const TextStyle(fontSize: 14),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 2,
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
                                 ),
                                 Text(
                                   '${item['item_hoev'] ?? 1} x R${food['kos_item_koste']}',
@@ -1210,7 +1258,7 @@ class _OrdersPageState extends State<OrdersPage>
             const Divider(height: 20),
             Row(
               children: [
-                if (_tabController.index == 0)
+                if (_tabController.index == 0 && _orderHasReadyForPickup(order))
                   Expanded(
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(

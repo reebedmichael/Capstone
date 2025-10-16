@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../locator.dart';
 import '../../../../shared/constants/spacing.dart';
+import '../../../../shared/utils/responsive_utils.dart';
 import '../../../app/presentation/widgets/app_bottom_nav.dart';
 import '../../../../shared/state/notification_badge.dart';
 import '../../../../shared/state/order_refresh_notifier.dart';
@@ -36,6 +37,11 @@ class _HomePageState extends State<HomePage> {
   bool isLoading = true;
   String searchQuery = '';
   Map<String, List<String>> itemDietMapping = {}; // kosItemId -> list of dietIds
+  
+  // User diet preferences for auto-filtering
+  List<String> userDietPreferences = [];
+  bool isAutoFiltering = false;
+  bool isLoadingUserDiets = false;
   
   // Menu date and week transition logic
   DateTime? currentMenuDate;
@@ -143,6 +149,7 @@ void initState() {
   super.initState();
   _loadGebrNaam();
   _loadDietTypes();
+  _loadUserDietPreferences();
   _fetchMenu();
   _loadUnreadNotificationsCount();
   _startCartCleanupTimer();
@@ -152,6 +159,7 @@ void initState() {
     _loadGebrNaam();
     _loadMandjieCount();
     _loadUnreadNotificationsCount();
+    _loadUserDietPreferences();
   });
 }
 
@@ -333,11 +341,78 @@ Future<void> _checkAndCleanExpiredCartItems() async {
     try {
       final allDiets = await sl<DieetRepository>().getAllDietTypes();
       setState(() {
-        dietTypes = <Map<String, dynamic>>[{'dieet_id': 'alle', 'dieet_naam': 'Alle'}] + allDiets;
+        // Add special option for user's diet requirements
+        final dietOptions = <Map<String, dynamic>>[
+          {'dieet_id': 'alle', 'dieet_naam': 'Alle'},
+          {'dieet_id': 'my_dieet_vereistes', 'dieet_naam': 'My Dieet Vereistes'},
+        ];
+        dietTypes = dietOptions + allDiets;
       });
     } catch (e) {
       debugPrint('Kon nie dieet tipes laai nie: $e');
-      // Keep default 'Alle' option
+      // Keep default options
+      setState(() {
+        dietTypes = [
+          {'dieet_id': 'alle', 'dieet_naam': 'Alle'},
+          {'dieet_id': 'my_dieet_vereistes', 'dieet_naam': 'My Dieet Vereistes'},
+        ];
+      });
+    }
+  }
+
+  Future<void> _loadUserDietPreferences() async {
+    setState(() {
+      isLoadingUserDiets = true;
+    });
+
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        setState(() {
+          userDietPreferences = [];
+          isAutoFiltering = false;
+          isLoadingUserDiets = false;
+        });
+        return;
+      }
+
+      // Load user's diet preferences
+      final rows = await Supabase.instance.client
+          .from('gebruiker_dieet_vereistes')
+          .select('dieet_id')
+          .eq('gebr_id', user.id);
+
+      final List<String> preferences = rows
+          .map<String>((row) => row['dieet_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toList();
+
+      setState(() {
+        userDietPreferences = preferences;
+        isAutoFiltering = preferences.isNotEmpty;
+        isLoadingUserDiets = false;
+      });
+
+      // If user has diet preferences, automatically filter by them
+      if (preferences.isNotEmpty) {
+        _applyAutoFiltering();
+      }
+    } catch (e) {
+      debugPrint('Kon nie gebruiker dieet voorkeure laai nie: $e');
+      setState(() {
+        userDietPreferences = [];
+        isAutoFiltering = false;
+        isLoadingUserDiets = false;
+      });
+    }
+  }
+
+  void _applyAutoFiltering() {
+    if (userDietPreferences.isNotEmpty) {
+      setState(() {
+        selectedDietType = 'my_dieet_vereistes'; // Use the special option for user's diet requirements
+        _applyFilters();
+      });
     }
   }
 
@@ -496,7 +571,28 @@ Future<void> _checkAndCleanExpiredCartItems() async {
         final kosItemId = item['kos_item_id']?.toString();
         if (kosItemId != null && itemDietMapping.containsKey(kosItemId)) {
           final itemDiets = itemDietMapping[kosItemId] ?? [];
-          matchesDietType = itemDiets.contains(selectedDietType);
+          
+          // Special handling for "My Dieet Vereistes" option
+          if (selectedDietType == 'my_dieet_vereistes') {
+            // Check if item satisfies at least one of user's diet preferences
+            matchesDietType = userDietPreferences.isNotEmpty && 
+                userDietPreferences.any((userDietId) => itemDiets.contains(userDietId));
+          } else {
+            // Regular diet type filtering
+            matchesDietType = itemDiets.contains(selectedDietType);
+          }
+        }
+      }
+      
+      // If auto-filtering is active, also check against user's diet preferences
+      if (isAutoFiltering && userDietPreferences.isNotEmpty) {
+        final kosItemId = item['kos_item_id']?.toString();
+        if (kosItemId != null && itemDietMapping.containsKey(kosItemId)) {
+          final itemDiets = itemDietMapping[kosItemId] ?? [];
+          // Check if item satisfies at least one of user's diet preferences
+          final satisfiesUserDiet = userDietPreferences.any((userDietId) => 
+              itemDiets.contains(userDietId));
+          if (!satisfiesUserDiet) return false;
         }
       }
       
@@ -538,11 +634,9 @@ Future<void> _checkAndCleanExpiredCartItems() async {
             // Header
             Container(
               color: Theme.of(context).colorScheme.primary,
-              padding: const EdgeInsets.fromLTRB(
-                Spacing.screenHPad,
-                20,
-                Spacing.screenHPad,
-                16,
+              padding: Spacing.screenPadding(context).copyWith(
+                top: ResponsiveUtils.getResponsiveSpacing(context, mobile: 20, tablet: 24, desktop: 28),
+                bottom: ResponsiveUtils.getResponsiveSpacing(context, mobile: 16, tablet: 20, desktop: 24),
               ),
               child: Column(
                 children: [
@@ -558,6 +652,11 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                 : 'Welkom, ${gebrNaam != null && gebrNaam!.isNotEmpty ? gebrNaam : 'Gebruiker'}!',
                             style: AppTypography.titleLarge.copyWith(
                               color: Theme.of(context).colorScheme.onPrimary,
+                              fontSize: ResponsiveUtils.getResponsiveFontSize(context, 
+                                mobile: 24, 
+                                tablet: 28, 
+                                desktop: 32
+                              ),
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -565,6 +664,11 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                             'Wat gaan jy vandag eet?',
                             style: AppTypography.bodySmall.copyWith(
                               color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
+                              fontSize: ResponsiveUtils.getResponsiveFontSize(context, 
+                                mobile: 14, 
+                                tablet: 16, 
+                                desktop: 18
+                              ),
                             ),
                           ),
                           if (currentMenuDate != null) ...[
@@ -665,70 +769,254 @@ Future<void> _checkAndCleanExpiredCartItems() async {
               ),
             ),
 
-        // Day Tabs
-SizedBox(
-  height: 48,
-  child: Scrollbar(
-    thumbVisibility: true,
-    child: ListView.separated(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: Spacing.screenHPad),
-      itemCount: days.length,
-      separatorBuilder: (_, __) => const SizedBox(width: 8),
-      itemBuilder: (context, index) {
-        final day = days[index];
-        final isSelected = day == selectedDay;
-        return ChoiceChip(
-          label: Text(day),
-          selected: isSelected,
-          onSelected: (_) => setState(() {
-            selectedDay = day;
-            _applyFilters();
-          }),
-          selectedColor: Theme.of(context).colorScheme.primary,
-          labelStyle: TextStyle(
-            color: isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurfaceVariant,
+        // Filter Dropdowns
+        Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: Spacing.screenPadding(context).left,
+            vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20),
           ),
-          labelPadding: const EdgeInsets.symmetric(horizontal: 12),
-        );
-      },
-    ),
-  ),
-),
-
-// Dieet tipe Filters (same style as day tabs)
-SizedBox(
-  height: 48,
-  child: Scrollbar(
-    thumbVisibility: true,
-    child: ListView.separated(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: Spacing.screenHPad),
-      itemCount: dietTypes.length,
-      separatorBuilder: (_, __) => const SizedBox(width: 8),
-      itemBuilder: (context, index) {
-        final diet = dietTypes[index];
-        final dietId = diet['dieet_id']?.toString() ?? '';
-        final dietName = diet['dieet_naam']?.toString() ?? '';
-        final isSelected = dietId == selectedDietType;
-        return ChoiceChip(
-          label: Text(dietName),
-          selected: isSelected,
-          onSelected: (_) => setState(() {
-            selectedDietType = dietId;
-            _applyFilters();
-          }),
-          selectedColor: Theme.of(context).colorScheme.primary,
-          labelStyle: TextStyle(
-            color: isSelected ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.primary,
+          child: Column(
+            children: [
+              // Auto-filtering indicator
+              if (isAutoFiltering) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.filter_alt,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Outomaties gefilter volgens jou dieet vereistes',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setState(() {
+                            selectedDietType = 'alle';
+                            isAutoFiltering = false;
+                            _applyFilters();
+                          });
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          'Wys Alles',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              
+              // Filter dropdowns row
+              ResponsiveUtils.isMobile(context) 
+                ? Column(
+                    children: [
+                      // Day filter dropdown
+                      Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Theme.of(context).colorScheme.outline),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: selectedDay,
+                            isExpanded: true,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20),
+                              vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 8, tablet: 12, desktop: 16),
+                            ),
+                            items: days.map((String day) {
+                              return DropdownMenuItem<String>(
+                                value: day,
+                                child: Text(
+                                  day,
+                                  style: TextStyle(
+                                    fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 14, tablet: 16, desktop: 18),
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              if (newValue != null) {
+                                setState(() {
+                                  selectedDay = newValue;
+                                  _applyFilters();
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Diet type filter dropdown
+                      Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Theme.of(context).colorScheme.outline),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: selectedDietType,
+                            isExpanded: true,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20),
+                              vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 8, tablet: 12, desktop: 16),
+                            ),
+                            items: dietTypes.map((Map<String, dynamic> diet) {
+                              final dietId = diet['dieet_id']?.toString() ?? '';
+                              final dietName = diet['dieet_naam']?.toString() ?? '';
+                              return DropdownMenuItem<String>(
+                                value: dietId,
+                                child: Text(
+                                  dietName,
+                                  style: TextStyle(
+                                    fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 14, tablet: 16, desktop: 18),
+                                    color: Theme.of(context).colorScheme.onSurface,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              if (newValue != null) {
+                                setState(() {
+                                  selectedDietType = newValue;
+                                  // If user selects "My Dieet Vereistes", keep auto-filtering active
+                                  // If they select anything else, disable auto-filtering
+                                  isAutoFiltering = newValue == 'my_dieet_vereistes' && userDietPreferences.isNotEmpty;
+                                  _applyFilters();
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      // Day filter dropdown
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Theme.of(context).colorScheme.outline),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: selectedDay,
+                              isExpanded: true,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20),
+                                vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 8, tablet: 12, desktop: 16),
+                              ),
+                              items: days.map((String day) {
+                                return DropdownMenuItem<String>(
+                                  value: day,
+                                  child: Text(
+                                    day,
+                                    style: TextStyle(
+                                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 14, tablet: 16, desktop: 18),
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (String? newValue) {
+                                if (newValue != null) {
+                                  setState(() {
+                                    selectedDay = newValue;
+                                    _applyFilters();
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      
+                      SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20)),
+                      
+                      // Diet type filter dropdown
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Theme.of(context).colorScheme.outline),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: selectedDietType,
+                              isExpanded: true,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20),
+                                vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 8, tablet: 12, desktop: 16),
+                              ),
+                              items: dietTypes.map((Map<String, dynamic> diet) {
+                                final dietId = diet['dieet_id']?.toString() ?? '';
+                                final dietName = diet['dieet_naam']?.toString() ?? '';
+                                return DropdownMenuItem<String>(
+                                  value: dietId,
+                                  child: Text(
+                                    dietName,
+                                    style: TextStyle(
+                                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 14, tablet: 16, desktop: 18),
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (String? newValue) {
+                                if (newValue != null) {
+                                  setState(() {
+                                    selectedDietType = newValue;
+                                    // If user selects "My Dieet Vereistes", keep auto-filtering active
+                                    // If they select anything else, disable auto-filtering
+                                    isAutoFiltering = newValue == 'my_dieet_vereistes' && userDietPreferences.isNotEmpty;
+                                    _applyFilters();
+                                  });
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+            ],
           ),
-          side: BorderSide(color: Theme.of(context).colorScheme.primary),
-          labelPadding: const EdgeInsets.symmetric(horizontal: 12),
-        );
-      },
-    ),
-  ),
-),
+        ),
 
             // Food Items List
             Expanded(
@@ -766,7 +1054,7 @@ SizedBox(
                       ),
                     )
                   : ListView.builder(
-                      padding: const EdgeInsets.all(Spacing.screenHPad),
+                      padding: Spacing.screenPadding(context),
                       itemCount: filteredMenuItems.length,
                       itemBuilder: (context, index) {
                         final wrapper = filteredMenuItems[index];

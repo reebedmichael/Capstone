@@ -1,6 +1,7 @@
 import 'package:capstone_mobile/locator.dart';
 import 'package:capstone_mobile/shared/providers/auth_form_providers.dart';
 import 'package:capstone_mobile/shared/constants/spacing.dart';
+import 'package:capstone_mobile/shared/utils/responsive_utils.dart';
 import 'package:capstone_mobile/shared/widgets/spys_primary_button.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -59,17 +60,38 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         return;
       }
 
-      final repository = sl<GebruikersRepository>();
-      final data = await repository.kryGebruiker(user.id);
+      // Load user data directly from database like other pages
+      final userData = await Supabase.instance.client
+          .from('gebruikers')
+          .select('''
+            gebr_naam,
+            gebr_van,
+            gebr_epos,
+            gebr_selfoon,
+            beursie_balans,
+            kampus:kampus_id(
+              kampus_naam
+            )
+          ''')
+          .eq('gebr_id', user.id)
+          .maybeSingle();
 
-      if (data != null) {
+      if (userData != null) {
         setState(() {
-          ref.read(firstNameProvider.notifier).state = data['gebr_naam'] ?? '';
-          ref.read(lastNameProvider.notifier).state = data['gebr_van'] ?? '';
-          ref.read(emailProvider.notifier).state = data['gebr_epos'] ?? '';
-          ref.read(cellphoneProvider.notifier).state = data["gebr_selfoon"] ?? '';
-          ref.read(locationProvider.notifier).state = data["kampus_naam"] ?? '';
-          ref.read(walletBalanceProvider.notifier).state = data['beursie_balans'] ?? '';
+          ref.read(firstNameProvider.notifier).state = userData['gebr_naam'] ?? '';
+          ref.read(lastNameProvider.notifier).state = userData['gebr_van'] ?? '';
+          ref.read(emailProvider.notifier).state = userData['gebr_epos'] ?? '';
+          ref.read(cellphoneProvider.notifier).state = userData["gebr_selfoon"] ?? '';
+          
+          // Extract kampus name from joined data
+          final kampusData = userData['kampus'] as Map<String, dynamic>?;
+          ref.read(locationProvider.notifier).state = kampusData?['kampus_naam'] ?? '';
+          
+          // Extract wallet balance and convert to double
+          final rawBalance = userData['beursie_balans'];
+          final balance = rawBalance is num ? rawBalance.toDouble() : (double.tryParse('$rawBalance') ?? 0.0);
+          ref.read(walletBalanceProvider.notifier).state = balance;
+          
           isLoading = false;
         });
         await _loadDietData(user.id);
@@ -153,17 +175,23 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           children: [
             // Header
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: EdgeInsets.symmetric(
+                horizontal: Spacing.screenPadding(context).left,
+                vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20),
+              ),
               decoration: BoxDecoration(
                 border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.outline)),
                 color: Theme.of(context).colorScheme.surface,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   Text(
                     "My Profiel",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 20, tablet: 24, desktop: 28),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -171,7 +199,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                padding: Spacing.screenPadding(context).copyWith(
+                  top: ResponsiveUtils.getResponsiveSpacing(context, mobile: 8, tablet: 12, desktop: 16),
+                ),
                 child: Column(
                   children: [
                     // Profile Card
@@ -307,10 +337,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                                     }
 
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
+                                      const SnackBar(
                                         content: Text(
                                             'Gebruiker Inligting Opgedateer!'),
-                                        backgroundColor: Theme.of(context).colorScheme.tertiary,
                                       ),
                                     );
 
@@ -382,22 +411,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
   }
 
-  Widget _buildField({
-    required String label,
-    required TextEditingController controller,
-    bool enabled = false,
-    IconData? icon,
-  }) {
-    return TextField(
-      controller: controller,
-      enabled: enabled,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: icon != null ? Icon(icon) : null,
-        border: const OutlineInputBorder(),
-      ),
-    );
-  }
 }
 
 class _DietMultiSelect extends StatelessWidget {

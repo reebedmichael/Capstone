@@ -51,8 +51,10 @@ dependencies:
   shared_preferences: ^2.1.1
   get_it: ^7.6.7
   flutter_local_notifications: ^18.0.1
+  firebase_core: ^3.8.1
+  firebase_messaging: ^15.1.5
   qr_flutter: ^4.1.0
-  mobile_scanner: ^5.2.3
+  mobile_scanner: ^7.0.0
   crypto: ^3.0.3
   timezone: ^0.9.2
   intl: ^0.20.2
