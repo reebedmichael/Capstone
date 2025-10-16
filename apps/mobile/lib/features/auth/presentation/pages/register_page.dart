@@ -16,11 +16,47 @@ import '../../../../shared/widgets/cellphone_field.dart';
 import '../../../../shared/widgets/location_dropdown.dart';
 import '../../../../shared/widgets/password_field.dart';
 
-class RegisterPage extends ConsumerWidget {
+class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RegisterPage> createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends ConsumerState<RegisterPage> {
+  bool isLoadingDiets = true;
+  List<Map<String, dynamic>> _allDiets = const [];
+  Set<String> _selectedDietIds = <String>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDietData();
+  }
+
+  Future<void> _loadDietData() async {
+    setState(() {
+      isLoadingDiets = true;
+    });
+    try {
+      final rows = await Supabase.instance.client
+          .from('dieet_vereiste')
+          .select('dieet_id, dieet_naam')
+          .order('dieet_naam');
+      setState(() {
+        _allDiets = List<Map<String, dynamic>>.from(rows as List);
+        isLoadingDiets = false;
+      });
+    } catch (_) {
+      setState(() {
+        _allDiets = const [];
+        isLoadingDiets = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final isFormValid = ref.watch(registerFormValidProvider);
     final isLoading = ref.watch(authLoadingProvider);
     final authError = ref.watch(authErrorProvider);
@@ -112,6 +148,18 @@ class RegisterPage extends ConsumerWidget {
                         // Location dropdown
                         const LocationDropdown(),
                         Spacing.vGap16,
+                        // Diet requirements selection
+                        _DietMultiSelect(
+                          isLoading: isLoadingDiets,
+                          allDiets: _allDiets,
+                          selectedDietIds: _selectedDietIds,
+                          onChanged: (ids) {
+                            setState(() {
+                              _selectedDietIds = ids;
+                            });
+                          },
+                        ),
+                        Spacing.vGap16,
                         // Password field
                         const PasswordField(),
                         Spacing.vGap16,
@@ -196,8 +244,22 @@ class RegisterPage extends ConsumerWidget {
                               );
 
                               if (response.user != null) {
-                                // User creation is handled by AuthService._createUserInDatabase()
-                                // No need for duplicate user creation logic here
+                                // Link selected diet requirements to the new gebruiker
+                                try {
+                                  final userId = response.user!.id;
+                                  if (_selectedDietIds.isNotEmpty) {
+                                    final inserts = _selectedDietIds
+                                        .map((id) => {
+                                              'gebr_id': userId,
+                                              'dieet_id': id,
+                                            })
+                                        .toList();
+                                    await Supabase.instance.client
+                                        .from('gebruiker_dieet_vereistes')
+                                        .insert(inserts);
+                                  }
+                                } catch (_) {}
+
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -258,6 +320,79 @@ class RegisterPage extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DietMultiSelect extends StatelessWidget {
+  const _DietMultiSelect({
+    required this.isLoading,
+    required this.allDiets,
+    required this.selectedDietIds,
+    required this.onChanged,
+  });
+
+  final bool isLoading;
+  final List<Map<String, dynamic>> allDiets;
+  final Set<String> selectedDietIds;
+  final ValueChanged<Set<String>> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: const [
+            Icon(Icons.restaurant_menu, size: 20),
+            SizedBox(width: 8),
+            Text(
+              "Dieet Vereistes",
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (isLoading)
+          const LinearProgressIndicator(minHeight: 2)
+        else ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: allDiets.map((d) {
+              final id = d['dieet_id'].toString();
+              final naam = d['dieet_naam'].toString();
+              final isSelected = selectedDietIds.contains(id);
+              return FilterChip(
+                label: Text(naam),
+                labelStyle: TextStyle(
+                  color: isSelected
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.onSurface,
+                ),
+                selected: isSelected,
+                onSelected: (sel) {
+                  final next = Set<String>.from(selectedDietIds);
+                  if (sel) {
+                    next.add(id);
+                  } else {
+                    next.remove(id);
+                  }
+                  onChanged(next);
+                },
+              );
+            }).toList(),
+          ),
+          if (allDiets.isEmpty)
+            Text(
+              'Geen dieet opsies beskikbaar nie',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
+        ],
+      ],
     );
   }
 }

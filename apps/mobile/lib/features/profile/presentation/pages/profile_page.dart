@@ -60,17 +60,38 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         return;
       }
 
-      final repository = sl<GebruikersRepository>();
-      final data = await repository.kryGebruiker(user.id);
+      // Load user data directly from database like other pages
+      final userData = await Supabase.instance.client
+          .from('gebruikers')
+          .select('''
+            gebr_naam,
+            gebr_van,
+            gebr_epos,
+            gebr_selfoon,
+            beursie_balans,
+            kampus:kampus_id(
+              kampus_naam
+            )
+          ''')
+          .eq('gebr_id', user.id)
+          .maybeSingle();
 
-      if (data != null) {
+      if (userData != null) {
         setState(() {
-          ref.read(firstNameProvider.notifier).state = data['gebr_naam'] ?? '';
-          ref.read(lastNameProvider.notifier).state = data['gebr_van'] ?? '';
-          ref.read(emailProvider.notifier).state = data['gebr_epos'] ?? '';
-          ref.read(cellphoneProvider.notifier).state = data["gebr_selfoon"] ?? '';
-          ref.read(locationProvider.notifier).state = data["kampus_naam"] ?? '';
-          ref.read(walletBalanceProvider.notifier).state = data['beursie_balans'] ?? '';
+          ref.read(firstNameProvider.notifier).state = userData['gebr_naam'] ?? '';
+          ref.read(lastNameProvider.notifier).state = userData['gebr_van'] ?? '';
+          ref.read(emailProvider.notifier).state = userData['gebr_epos'] ?? '';
+          ref.read(cellphoneProvider.notifier).state = userData["gebr_selfoon"] ?? '';
+          
+          // Extract kampus name from joined data
+          final kampusData = userData['kampus'] as Map<String, dynamic>?;
+          ref.read(locationProvider.notifier).state = kampusData?['kampus_naam'] ?? '';
+          
+          // Extract wallet balance and convert to double
+          final rawBalance = userData['beursie_balans'];
+          final balance = rawBalance is num ? rawBalance.toDouble() : (double.tryParse('$rawBalance') ?? 0.0);
+          ref.read(walletBalanceProvider.notifier).state = balance;
+          
           isLoading = false;
         });
         await _loadDietData(user.id);
