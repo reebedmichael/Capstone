@@ -15,8 +15,11 @@ class Sidebar extends ConsumerStatefulWidget {
 class _SidebarState extends ConsumerState<Sidebar>
     with TickerProviderStateMixin {
   bool spyskaartExpanded = false;
+  bool toelaeExpanded = false;
   late AnimationController _expandController;
+  late AnimationController _toelaeExpandController;
   late Animation<double> _expandAnimation;
+  late Animation<double> _toelaeExpandAnimation;
 
   @override
   void initState() {
@@ -29,11 +32,20 @@ class _SidebarState extends ConsumerState<Sidebar>
       parent: _expandController,
       curve: Curves.easeInOut,
     );
+    _toelaeExpandController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _toelaeExpandAnimation = CurvedAnimation(
+      parent: _toelaeExpandController,
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
   void dispose() {
     _expandController.dispose();
+    _toelaeExpandController.dispose();
     super.dispose();
   }
 
@@ -54,9 +66,10 @@ class _SidebarState extends ConsumerState<Sidebar>
   void _maybeAutoExpandForRoute() {
     final currentUri = GoRouterState.of(context).uri;
     final path = currentUri.path;
-    final shouldExpand = _isSpyskaartRoute(path);
+    final shouldExpandSpyskaart = _isSpyskaartRoute(path);
+    final shouldExpandToelae = _isToelaeRoute(path);
 
-    if (!widget.isCollapsed && shouldExpand && !spyskaartExpanded) {
+    if (!widget.isCollapsed && shouldExpandSpyskaart && !spyskaartExpanded) {
       setState(() => spyskaartExpanded = true);
       _expandController.forward();
     }
@@ -64,12 +77,28 @@ class _SidebarState extends ConsumerState<Sidebar>
       setState(() => spyskaartExpanded = false);
       _expandController.reverse();
     }
+
+    if (!widget.isCollapsed && shouldExpandToelae && !toelaeExpanded) {
+      setState(() => toelaeExpanded = true);
+      _toelaeExpandController.forward();
+    }
+    if (widget.isCollapsed && toelaeExpanded) {
+      setState(() => toelaeExpanded = false);
+      _toelaeExpandController.reverse();
+    }
   }
 
   bool _isSpyskaartRoute(String path) {
     return path == '/spyskaart' ||
         path == '/week_spyskaart' ||
         path.startsWith('/templates');
+  }
+
+  bool _isToelaeRoute(String path) {
+    return path == '/toelae' ||
+        path == '/toelae/bestuur' ||
+        path == '/toelae/gebruiker_tipes' ||
+        path == '/toelae/transaksies';
   }
 
   @override
@@ -130,8 +159,19 @@ class _SidebarState extends ConsumerState<Sidebar>
                   // Spyskaart group
                   _buildSpyskaartGroup(currentRoute, theme, isDark),
 
-                  // Other navigation items
-                  ..._getOtherNavEntries().map(
+                  // Other navigation items (excluding Toelae)
+                  _buildNavItem(
+                    _NavEntry('Gebruikers', Icons.group_outlined, '/gebruikers'),
+                    currentRoute,
+                    theme,
+                    isDark,
+                  ),
+
+                  // Toelae group
+                  _buildToelaeGroup(currentRoute, theme, isDark),
+
+                  // Remaining navigation items
+                  ..._getRemainingNavEntries().map(
                     (e) => _buildNavItem(e, currentRoute, theme, isDark),
                   ),
                 ],
@@ -476,6 +516,199 @@ class _SidebarState extends ConsumerState<Sidebar>
     );
   }
 
+  Widget _buildToelaeGroup(
+    String currentRoute,
+    ThemeData theme,
+    bool isDark,
+  ) {
+    final isSelected = _isToelaeRoute(currentRoute);
+    final children = [
+      _NavEntry('Gebruiker Tipes', Icons.group_work, '/toelae/gebruiker_tipes'),
+      _NavEntry('Individueel', Icons.person_add_alt_1, '/toelae/bestuur'),
+      _NavEntry('Transaksies', Icons.history, '/toelae/transaksies'),
+    ];
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Parent tile
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                if (widget.isCollapsed) {
+                  context.go('/toelae');
+                } else {
+                  setState(() {
+                    toelaeExpanded = !toelaeExpanded;
+                    if (toelaeExpanded) {
+                      _toelaeExpandController.forward();
+                    } else {
+                      _toelaeExpandController.reverse();
+                    }
+                  });
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: EdgeInsets.symmetric(
+                  horizontal: widget.isCollapsed ? 16 : 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppColors.primary.withOpacity(0.1)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  border: isSelected
+                      ? Border.all(
+                          color: AppColors.primary.withOpacity(0.3),
+                          width: 1,
+                        )
+                      : null,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: widget.isCollapsed ? 24 : 32,
+                      height: widget.isCollapsed ? 24 : 32,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.getOnSurfaceVariantColor(
+                                isDark,
+                              ).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.account_balance_wallet,
+                        size: widget.isCollapsed ? 16 : 18,
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.getOnSurfaceVariantColor(isDark),
+                      ),
+                    ),
+                    if (!widget.isCollapsed) ...[
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          'Toelae',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.getOnSurfaceColor(isDark),
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                      AnimatedRotation(
+                        turns: toelaeExpanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 300),
+                        child: Icon(
+                          Icons.keyboard_arrow_down,
+                          color: AppColors.getOnSurfaceVariantColor(isDark),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Submenu items
+          if (!widget.isCollapsed)
+            SizeTransition(
+              sizeFactor: _toelaeExpandAnimation,
+              child: Container(
+                margin: const EdgeInsets.only(left: 24, top: 4),
+                child: Column(
+                  children: children.map((child) {
+                    final isChildSelected = currentRoute == child.path;
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 2),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () => context.go(child.path),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isChildSelected
+                                  ? AppColors.primary.withOpacity(0.1)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                              border: isChildSelected
+                                  ? Border.all(
+                                      color: AppColors.primary.withOpacity(0.3),
+                                      width: 1,
+                                    )
+                                  : null,
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    color: isChildSelected
+                                        ? AppColors.primary
+                                        : AppColors.getOnSurfaceVariantColor(
+                                            isDark,
+                                          ).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(
+                                    child.icon,
+                                    size: 12,
+                                    color: isChildSelected
+                                        ? Colors.white
+                                        : AppColors.getOnSurfaceVariantColor(
+                                            isDark,
+                                          ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    child.label,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: isChildSelected
+                                          ? AppColors.primary
+                                          : AppColors.getOnSurfaceVariantColor(
+                                              isDark,
+                                            ),
+                                      fontWeight: isChildSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLogoutSection(ThemeData theme, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -537,10 +770,8 @@ class _SidebarState extends ConsumerState<Sidebar>
     );
   }
 
-  List<_NavEntry> _getOtherNavEntries() {
+  List<_NavEntry> _getRemainingNavEntries() {
     return [
-      _NavEntry('Gebruikers', Icons.group_outlined, '/gebruikers'),
-      _NavEntry('Toelae', Icons.account_balance_wallet, '/toelae'),
       _NavEntry(
         'Kennisgewings',
         Icons.notifications_outlined,

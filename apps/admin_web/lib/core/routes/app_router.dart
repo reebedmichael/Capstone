@@ -15,6 +15,9 @@ import 'package:capstone_admin/features/templates/presentation/week_templaat_pag
 import 'package:capstone_admin/features/bestellings/presentation/bestelling_bestuur_page.dart';
 import 'package:capstone_admin/features/gebruikers/presentation/gebruikers_bestuur_page.dart';
 import 'package:capstone_admin/features/toelae/presentation/toelae_main_page.dart';
+import 'package:capstone_admin/features/toelae/presentation/toelae_bestuur_page.dart';
+import 'package:capstone_admin/features/toelae/presentation/gebruiker_tipes_toelae_page.dart';
+import 'package:capstone_admin/features/toelae/presentation/transaksie_geskiedenis_page.dart';
 import 'package:capstone_admin/features/kennisgewings/presentation/kennisgewings_page.dart';
 import 'package:capstone_admin/features/verslae/presentation/verslae_page.dart';
 import 'package:capstone_admin/features/instellings/presentation/instellings_page.dart';
@@ -29,17 +32,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/teken_in',
         name: 'teken_in',
-        builder: _builder(const TekenInPage()),
+        pageBuilder: (context, state) => _noTransitionPage(const TekenInPage(), state),
       ),
       GoRoute(
         path: '/registreer_admin',
         name: 'registreer_admin',
-        builder: _builder(const RegistreerAdminPage()),
+        pageBuilder: (context, state) => _noTransitionPage(const RegistreerAdminPage(), state),
       ),
       GoRoute(
         path: '/wagwoord_herstel',
         name: 'wagwoord_herstel',
-        builder: _builder(const WagwoordHerstelPage()),
+        pageBuilder: (context, state) => _noTransitionPage(const WagwoordHerstelPage(), state),
       ),
       // Handle root URL with code parameter (for password reset emails)
       GoRoute(
@@ -62,83 +65,92 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/wag_goedkeuring',
         name: 'wag_goedkeuring',
-        builder: _builder(const WagVirGoedkeuringPage()),
+        pageBuilder: (context, state) => _noTransitionPage(const WagVirGoedkeuringPage(), state),
       ),
       GoRoute(
         path: '/dashboard',
         name: 'dashboard',
-        builder: _builder(const AdminAccessGuard(child: DashboardPage())),
+        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: DashboardPage()), state),
       ),
       GoRoute(
         path: '/spyskaart',
         name: 'spyskaart',
-        builder: _builder(
-          const AdminAccessGuard(child: SpyskaartBestuurPage()),
-        ),
+        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: SpyskaartBestuurPage()), state),
       ),
       GoRoute(
         path: '/week_spyskaart',
         name: 'week_spyskaart',
-        builder: _builder(const AdminAccessGuard(child: WeekSpyskaartPage())),
+        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: WeekSpyskaartPage()), state),
       ),
       GoRoute(
         path: '/templates/kositem',
         name: 'templates_kositem',
-        builder: _builder(const AdminAccessGuard(child: KositemTemplaatPage())),
+        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: KositemTemplaatPage()), state),
       ),
       GoRoute(
         path: '/templates/week',
         name: 'templates_week',
-        builder: _builder(const AdminAccessGuard(child: WeekTemplaatPage())),
+        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: WeekTemplaatPage()), state),
       ),
       GoRoute(
         path: '/bestellings',
         name: 'bestellings',
-        builder: _builder(
-          const AdminAccessGuard(child: BestellingBestuurPage()),
-        ),
+        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: BestellingBestuurPage()), state),
       ),
       GoRoute(
         path: '/gebruikers',
         name: 'gebruikers',
-        builder: _builder(
-          const AdminAccessGuard(child: GebruikersBestuurPage()),
-        ),
+        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: GebruikersBestuurPage()), state),
       ),
       GoRoute(
         path: '/toelae',
         name: 'toelae',
-        builder: _builder(const AdminAccessGuard(child: ToelaeMainPage())),
+        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: ToelaeMainPage()), state),
+      ),
+      GoRoute(
+        path: '/toelae/bestuur',
+        name: 'toelae_bestuur',
+        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: ToelaeBestuurPage()), state),
+      ),
+      GoRoute(
+        path: '/toelae/gebruiker_tipes',
+        name: 'toelae_gebruiker_tipes',
+        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: GebruikerTipesToelaePage()), state),
+      ),
+      GoRoute(
+        path: '/toelae/transaksies',
+        name: 'toelae_transaksies',
+        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: TransaksieGeskiedenisPage()), state),
       ),
       GoRoute(
         path: '/kennisgewings',
         name: 'kennisgewings',
-        builder: _builder(const AdminAccessGuard(child: KennisgewingsPage())),
+        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: KennisgewingsPage()), state),
       ),
       GoRoute(
         path: '/verslae',
         name: 'verslae',
-        builder: _builder(const AdminAccessGuard(child: VerslaePage())),
+        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: VerslaePage()), state),
       ),
       GoRoute(
         path: '/instellings',
         name: 'instellings',
-        builder: _builder(const AdminAccessGuard(child: InstellingsPage())),
+        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: InstellingsPage()), state),
       ),
       GoRoute(
         path: '/hulp',
         name: 'hulp',
-        builder: _builder(const AdminAccessGuard(child: HulpPage())),
+        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: HulpPage()), state),
       ),
       GoRoute(
         path: '/profiel',
         name: 'profiel',
-        builder: _builder(const AdminAccessGuard(child: ProfielPage())),
+        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: ProfielPage()), state),
       ),
       GoRoute(
         path: '/db-test',
         name: 'db_test',
-        builder: _builder(const AdminAccessGuard(child: DbTestPage())),
+        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: DbTestPage()), state),
       ),
     ],
   );
@@ -147,3 +159,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 GoRouterWidgetBuilder _builder(Widget child) =>
     (BuildContext context, GoRouterState state) =>
         PageScaffold(title: state.name ?? '', child: child);
+
+// Custom page builder with no transition animation
+Page<dynamic> _noTransitionPage(Widget child, GoRouterState state) {
+  return CustomTransitionPage(
+    key: state.pageKey,
+    child: PageScaffold(title: state.name ?? '', child: child),
+    transitionDuration: Duration.zero,
+    reverseTransitionDuration: Duration.zero,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return child; // No animation, instant transition
+    },
+  );
+}

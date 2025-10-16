@@ -360,63 +360,95 @@ class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header
-            Row(
-              children: [
-                Icon(Icons.group_work, 
-                    size: 32, 
-                    color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
+    return Column(
+      children: [
+        // Header
+        Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            border: Border(
+              bottom: BorderSide(color: Theme.of(context).dividerColor),
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Left section: logo + title
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.group_work,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Gebruiker Tipes & Toelaes',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        "Gebruiker Tipes & Toelaes",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                       ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Bestuur maandelikse toelaes vir elke gebruiker tipe',
-                        style: TextStyle(color: Colors.grey),
+                      Text(
+                        "Bestuur maandelikse toelaes vir elke gebruiker tipe",
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                        ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton.icon(
-                  onPressed: _isDistributing
-                      ? null
-                      : _distribueeMaandelikseToelaes,
-                  icon: _isDistributing
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.send),
-                  label: Text(
-                    _isDistributing
-                        ? 'Besig...'
-                        : 'Distribueer Nou',
+                ],
+              ),
+              // Right section: action button
+              Row(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: _isDistributing
+                        ? null
+                        : _distribueeMaandelikseToelaes,
+                    icon: _isDistributing
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send),
+                    label: Text(
+                      _isDistributing
+                          ? 'Besig...'
+                          : 'Distribueer Nou',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    ),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
+                ],
+              ),
+            ],
+          ),
+        ),
+        // Main content
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
 
             // Settings Card - Verspreiding Dag
             Card(
@@ -683,128 +715,11 @@ class _GebruikerTipesToelaePageState extends State<GebruikerTipesToelaePage> {
                 ),
               ),
             ),
-
-            const SizedBox(height: 24),
-
-            // Quick setup and Info - Full width cards
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Card(
-                    elevation: 2,
-                    color: Colors.orange.shade50,
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.flash_on, color: Colors.orange.shade700, size: 28),
-                              const SizedBox(width: 12),
-                              Text(
-                                'Vinnige Opset',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.orange.shade900,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Klik op die toelae bedrag om die maandelikse toelae te verander.',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.orange.shade700,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Wrap(
-                            spacing: 12,
-                            runSpacing: 12,
-                            children: [
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.edit, size: 18),
-                                label: const Text('Stel Student → R1000'),
-                                onPressed: () =>
-                                    _setQuickToelaag('Student', 1000),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.orange.shade600,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 20, vertical: 14),
-                                ),
-                              ),
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.edit, size: 18),
-                                label: const Text('Stel Personeel → R15000'),
-                                onPressed: () =>
-                                    _setQuickToelaag('Personeel', 15000),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.orange.shade600,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 20, vertical: 14),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 24),
-                Expanded(
-                  child: Card(
-                    elevation: 2,
-                    color: Colors.blue.shade50,
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Row(
-                        children: [
-                          Icon(Icons.info_outline, color: Colors.blue.shade700, size: 32),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Hoe Dit Werk',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.blue.shade900,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '1. Stel maandelikse toelae per tipe\n'
-                                  '2. Druk "Distribueer Nou" vir onmiddellike distribusie\n'
-                                  '3. Outomatiese distribusie gebeur op dag $_verspreidingDag van elke maand\n'
-                                  '4. Alle aktiewe gebruikers ontvang toelae volgens hulle tipe',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.blue.shade700,
-                                    height: 1.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
               ],
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }
