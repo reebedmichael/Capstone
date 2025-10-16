@@ -54,22 +54,22 @@ class _HulpPageState extends ConsumerState<HulpPage> {
     {
       "vraag": "Hoe voeg ek 'n nuwe kositem by die spyskaart?",
       "antwoord":
-          "Gaan na 'Spyskaart Bestuur' vanaf die dashboard. Klik op 'Voeg Nuwe Item By' en vul alle velde in. Maak seker om bestanddele en allergene te spesifiseer.",
+          "Gaan na 'Spyskaart' en dan 'Kositems' vanaf die paneelbord. Klik op 'Voeg Nuwe Item By' en vul alle velde in. Maak seker om bestanddele en allergene te spesifiseer.",
     },
     {
       "vraag": "Hoe kan ek bestellings se status verander?",
       "antwoord":
-          "In 'Bestelling Bestuur', klik op die wysig ikoon langs die bestelling. Kies die nuwe status en voeg 'n rede by indien nodig.",
+          "In 'Bestelling Bestuur', klik op die pyl ikoon langs die bestelling status. Vir massa status opdateerings klik op die bovorder bestellings na knoppie en kies dan die status waarna die bestellings moet opgedateer word.",
     },
     {
       "vraag": "Wat doen ek as ek my wagwoord vergeet het?",
       "antwoord":
-          "Klik op 'Vergeet wagwoord?' op die tekenin skerm. 'n Herstel skakel sal na jou geregistreerde e-pos gestuur word.",
+          "Klik op 'Vergeet wagwoord?' op die tekenin skerm of die Instellings skerm. 'n Herstel skakel sal na jou geregistreerde e-pos gestuur word.",
     },
     {
       "vraag": "Hoe keur ek nuwe admin gebruikers goed?",
       "antwoord":
-          "Gaan na 'Gebruikers Bestuur' en soek vir gebruikers met 'Wag Goedkeuring' status. Klik op die groen vinkje om hulle goed te keur.",
+          "Gaan na 'Gebruikers Bestuur' en soek vir gebruikers met 'Wag Goedkeuring' status. Klik op die admin tipe om hulle goed te keur.",
     },
     {
       "vraag": "Kan ek templates vir gereelde spyskaart items skep?",
@@ -79,7 +79,7 @@ class _HulpPageState extends ConsumerState<HulpPage> {
     {
       "vraag": "Hoe genereer ek verslae?",
       "antwoord":
-          "Die 'Verslae' skerm bied gedetailleerde analise. Kies jou tydperk en klik 'Genereer Verslag' om data as PDF of Excel af te laai.",
+          "Die 'Verslae' skerm bied gedetailleerde analise. Kies jou tydperk en klik 'Eksporteer CSV' om data as CSV af te laai.",
     },
   ];
 
