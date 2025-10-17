@@ -836,7 +836,7 @@ class _NotificationsPageState extends State<NotificationsPage>
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/home'),
+          onPressed: () => context.go('/settings'),
         ),
         title: const Text('Kennisgewings'),
         backgroundColor: Theme.of(context).colorScheme.surface,
