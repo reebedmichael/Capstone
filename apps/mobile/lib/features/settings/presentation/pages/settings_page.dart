@@ -85,6 +85,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             icon: Icons.notifications,
             children: [
               ListTile(
+                leading: const Icon(Icons.settings),
+                title: const Text("Kennisgewing Instellings"),
+                subtitle: const Text("Konfigueer jou kennisgewing voorkeure"),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () => context.go('/notification-settings'),
+              ),
+              const Divider(height: 1),
+              ListTile(
                 leading: const Icon(Icons.notifications),
                 title: const Text("Kennisgewings Beheer"),
                 subtitle: const Text("Bekyk en beheer jou kennisgewings"),

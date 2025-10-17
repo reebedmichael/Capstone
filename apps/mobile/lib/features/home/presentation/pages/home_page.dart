@@ -674,106 +674,113 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                          Text(
-                            gebrNaamLoading
-                                ? 'Welkom...'
-                                : 'Welkom, ${gebrNaam != null && gebrNaam!.isNotEmpty ? gebrNaam : 'Gebruiker'}!',
-                            style: AppTypography.titleLarge.copyWith(
-                              color: Theme.of(context).colorScheme.onPrimary,
-                              fontSize: ResponsiveUtils.getResponsiveFontSize(context, 
-                                mobile: 24, 
-                                tablet: 28, 
-                                desktop: 32
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Wat gaan jy vandag eet?',
-                            style: AppTypography.bodySmall.copyWith(
-                              color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
-                              fontSize: ResponsiveUtils.getResponsiveFontSize(context, 
-                                mobile: 14, 
-                                tablet: 16, 
-                                desktop: 18
-                              ),
-                            ),
-                          ),
-                          if (currentMenuDate != null) ...[
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surface,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.calendar_today,
-                                    size: 16,
-                                    color: Theme.of(context).colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Huidige Week: ${_formatMenuDate(currentMenuDate!)}',
-                                    style: AppTypography.labelMedium.copyWith(
-                                      color: Theme.of(context).colorScheme.onSurface,
-                                      fontWeight: FontWeight.w500,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    gebrNaamLoading
+                                        ? 'Welkom...'
+                                        : 'Welkom, ${gebrNaam != null && gebrNaam!.isNotEmpty ? gebrNaam : 'Gebruiker'}!',
+                                    style: AppTypography.titleLarge.copyWith(
+                                      color: Theme.of(context).colorScheme.onPrimary,
+                                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, 
+                                        mobile: 24, 
+                                        tablet: 28, 
+                                        desktop: 32
+                                      ),
                                     ),
                                   ),
-                                ],
+                                ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      onPressed: () => context.go('/notifications'),
+                                      iconSize: ResponsiveUtils.isSmallScreen(context) ? 20 : 24,
+                                      icon: Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          Icon(
+                                            Icons.notifications_outlined,
+                                            color: Theme.of(context).colorScheme.onPrimary,
+                                          ),
+                                          Positioned(
+                                            right: -2,
+                                            top: -2,
+                                            child: _buildNotificationBadge(),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      onPressed: () => context.go('/cart'),
+                                      iconSize: ResponsiveUtils.isSmallScreen(context) ? 20 : 24,
+                                      icon: Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          Icon(
+                                            Icons.shopping_cart_outlined,
+                                            color: Theme.of(context).colorScheme.onPrimary,
+                                          ),
+                                          Positioned(
+                                            right: -2,
+                                            top: -2,
+                                            child: _buildBadgeMandjie(),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Wat gaan jy vandag eet?',
+                              style: AppTypography.bodySmall.copyWith(
+                                color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
+                                fontSize: ResponsiveUtils.getResponsiveFontSize(context, 
+                                  mobile: 14, 
+                                  tablet: 16, 
+                                  desktop: 18
+                                ),
                               ),
                             ),
+                            if (currentMenuDate != null) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.calendar_today,
+                                      size: 16,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Huidige Week: ${_formatMenuDate(currentMenuDate!)}',
+                                      style: AppTypography.labelMedium.copyWith(
+                                        color: Theme.of(context).colorScheme.onSurface,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
                         ),
-                      ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            onPressed: () => context.go('/notifications'),
-                            iconSize: ResponsiveUtils.isSmallScreen(context) ? 20 : 24,
-                            icon: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Icon(
-                                  Icons.notifications_outlined,
-                                  color: Theme.of(context).colorScheme.onPrimary,
-                                ),
-                                Positioned(
-                                  right: -2,
-                                  top: -2,
-                                  child: _buildNotificationBadge(),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () => context.go('/cart'),
-                            iconSize: ResponsiveUtils.isSmallScreen(context) ? 20 : 24,
-                            icon: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Icon(
-                                  Icons.shopping_cart_outlined,
-                                  color: Theme.of(context).colorScheme.onPrimary,
-                                ),
-                                Positioned(
-                                  right: -2,
-                                  top: -2,
-                                  child: _buildBadgeMandjie(),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ),
@@ -805,67 +812,10 @@ Future<void> _checkAndCleanExpiredCartItems() async {
         Container(
           padding: EdgeInsets.symmetric(
             horizontal: Spacing.screenPadding(context).left,
-            vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20),
+            vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 8, tablet: 10, desktop: 12),
           ),
           child: Column(
             children: [
-              // Auto-filtering indicator
-              if (isAutoFiltering) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.filter_alt,
-                        size: 16,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Outomaties gefilter volgens jou dieet vereistes',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).colorScheme.onPrimaryContainer,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          setState(() {
-                            selectedDietType = 'alle';
-                            isAutoFiltering = false;
-                            _applyFilters();
-                          });
-                        },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Wys Alles',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
               
               // Filter dropdowns row
               ResponsiveUtils.isMobile(context) 
@@ -894,7 +844,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                       onTap: () {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text('Wys menu items vir \'n spesifieke dag van die week'),
+                                            content: Text('Wys spyskaart vir \'n spesifieke dag van die week'),
                                             duration: const Duration(seconds: 2),
                                             behavior: SnackBarBehavior.floating,
                                             margin: const EdgeInsets.all(16),
@@ -913,7 +863,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 4),
                                 Container(
                                   decoration: BoxDecoration(
                                     border: Border.all(color: Theme.of(context).colorScheme.outline),
@@ -923,14 +873,14 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                     child: DropdownButton<String>(
                                       value: selectedDay,
                                       isExpanded: true,
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                                       items: days.map((String day) {
                                         return DropdownMenuItem<String>(
                                           value: day,
                                           child: Text(
                                             day,
                                             style: TextStyle(
-                                              fontSize: 12,
+                                              fontSize: 11,
                                               color: Theme.of(context).colorScheme.onSurface,
                                             ),
                                           ),
@@ -951,7 +901,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                             ),
                           ),
                           
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           
                           // Diet type filter
                           Expanded(
@@ -973,7 +923,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                       onTap: () {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text('Filter menu items volgens jou dieet vereistes'),
+                                            content: Text('Filter spyskaart volgens jou dieet vereistes'),
                                             duration: const Duration(seconds: 2),
                                             behavior: SnackBarBehavior.floating,
                                             margin: const EdgeInsets.all(16),
@@ -992,7 +942,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 6),
+                                const SizedBox(height: 4),
                                 Container(
                                   decoration: BoxDecoration(
                                     border: Border.all(color: Theme.of(context).colorScheme.outline),
@@ -1002,7 +952,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                     child: DropdownButton<String>(
                                       value: selectedDietType,
                                       isExpanded: true,
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                                       items: dietTypes.map((Map<String, dynamic> diet) {
                                         final dietId = diet['dieet_id']?.toString() ?? '';
                                         final dietName = diet['dieet_naam']?.toString() ?? '';
@@ -1011,7 +961,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                           child: Text(
                                             dietName,
                                             style: TextStyle(
-                                              fontSize: 12,
+                                              fontSize: 11,
                                               color: Theme.of(context).colorScheme.onSurface,
                                             ),
                                           ),
@@ -1061,7 +1011,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                       onTap: () {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text('Wys menu items vir \'n spesifieke dag van die week'),
+                                            content: Text('Wys spyskaart vir \'n spesifieke dag van die week'),
                                             duration: const Duration(seconds: 2),
                                             behavior: SnackBarBehavior.floating,
                                             margin: const EdgeInsets.all(16),
@@ -1142,7 +1092,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                       onTap: () {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text('Filter menu items volgens jou dieet vereistes'),
+                                            content: Text('Filter spyskaart volgens jou dieet vereistes'),
                                             duration: const Duration(seconds: 2),
                                             behavior: SnackBarBehavior.floating,
                                             margin: const EdgeInsets.all(16),
