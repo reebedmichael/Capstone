@@ -191,10 +191,17 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
             icon: const Icon(Icons.arrow_back),
             onPressed: () => context.go('/settings'),
           ),
-          title: const Text('Skandeer QR Kode'),
-          backgroundColor: Theme.of(context).colorScheme.surface,
-          foregroundColor: Theme.of(context).colorScheme.onSurface,
-          elevation: 1,
+          title: Text(
+            'Skandeer QR Kode',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
+          ),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+          elevation: 0,
         ),
         body: Center(
           child: Padding(
@@ -239,10 +246,17 @@ class _ScanPageState extends State<ScanPage> with WidgetsBindingObserver {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/settings'),
         ),
-        title: const Text('Skandeer QR Kode'),
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        foregroundColor: Theme.of(context).colorScheme.onSurface,
-        elevation: 1,
+        title: Text(
+          'Skandeer QR Kode',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
+        ),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        elevation: 0,
         actions: [
           IconButton(
             icon: Icon(_scannerController.torchEnabled

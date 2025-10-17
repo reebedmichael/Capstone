@@ -838,9 +838,16 @@ class _NotificationsPageState extends State<NotificationsPage>
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/settings'),
         ),
-        title: const Text('Kennisgewings'),
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        foregroundColor: Theme.of(context).colorScheme.onSurface,
+        title: Text(
+          'Kennisgewings',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
+        ),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         elevation: 0,
         actions: [
           // Filter button

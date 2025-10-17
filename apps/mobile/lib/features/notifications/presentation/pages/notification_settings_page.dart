@@ -137,11 +137,20 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () => context.go('/settings'),
           ),
-          title: const Text('Kennisgewing Instellings'),
+          title: Text(
+            'Kennisgewing Instellings',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
+          ),
         ),
         body: const Center(
           child: CircularProgressIndicator(),
@@ -151,11 +160,20 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/settings'),
         ),
-        title: const Text('Kennisgewing Instellings'),
+        title: Text(
+          'Kennisgewing Instellings',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
+        ),
         elevation: 0,
       ),
       body: ListView(

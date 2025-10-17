@@ -817,10 +817,7 @@ class _CartPageState extends State<CartPage> {
         body: Column(
           children: <Widget>[
             Container(
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.outline.withOpacity(0.1))),
-                color: Theme.of(context).colorScheme.surface,
-              ),
+              color: Theme.of(context).colorScheme.primary,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: SafeArea(
                 bottom: false,
@@ -828,13 +825,15 @@ class _CartPageState extends State<CartPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: <Widget>[
                     IconButton(
-                      icon: const Icon(Icons.arrow_back),
+                      icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.onPrimary),
                       onPressed: () => context.go('/home'),
                     ),
                     Text(
                       'Mandjie',
-                      style: AppTypography.titleMedium.copyWith(
-                        fontWeight: FontWeight.w600,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.onPrimary,
                       ),
                     ),
                     const SizedBox(width: 40),
