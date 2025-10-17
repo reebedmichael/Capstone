@@ -10,7 +10,8 @@ import '../widgets/kositem_form_modal.dart';
 import '../widgets/delete_modal.dart';
 
 class KositemTemplaatPage extends StatefulWidget {
-  const KositemTemplaatPage({super.key});
+  final String? initialEditKosItemId;
+  const KositemTemplaatPage({super.key, this.initialEditKosItemId});
 
   @override
   State<KositemTemplaatPage> createState() => _KositemTemplaatPageState();
@@ -40,6 +41,7 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
 
   late final KosTemplaatRepository repo;
   late final DieetRepository dieetRepo;
+  bool _handledInitialEdit = false;
 
   @override
   void initState() {
@@ -110,6 +112,31 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
       }).toList();
 
       applyFilters(); // Apply search and filter criteria
+
+      // If requested, open the edit modal for a specific item once
+      if (!_handledInitialEdit && widget.initialEditKosItemId != null) {
+        final match = templates.firstWhere(
+          (t) => t.id == widget.initialEditKosItemId,
+          orElse: () => KositemTemplate(
+            id: '',
+            naam: '',
+            beskrywing: '',
+            bestanddele: const [],
+            allergene: const [],
+            prys: 0.0,
+            dieetKategorie: const [],
+            prent: null,
+            likes: 0,
+          ),
+        );
+        if (match.id.isNotEmpty) {
+          laaiTemplateInVorm(match);
+          setState(() {
+            toonVormModal = true;
+            _handledInitialEdit = true;
+          });
+        }
+      }
     } catch (e) {
       setState(() => foutBoodskap = e.toString());
     } finally {

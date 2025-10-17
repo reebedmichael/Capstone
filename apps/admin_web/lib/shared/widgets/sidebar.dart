@@ -16,10 +16,13 @@ class _SidebarState extends ConsumerState<Sidebar>
     with TickerProviderStateMixin {
   bool spyskaartExpanded = false;
   bool toelaeExpanded = false;
+  bool verslaeExpanded = false;
   late AnimationController _expandController;
   late AnimationController _toelaeExpandController;
+  late AnimationController _verslaeExpandController;
   late Animation<double> _expandAnimation;
   late Animation<double> _toelaeExpandAnimation;
+  late Animation<double> _verslaeExpandAnimation;
 
   @override
   void initState() {
@@ -40,12 +43,21 @@ class _SidebarState extends ConsumerState<Sidebar>
       parent: _toelaeExpandController,
       curve: Curves.easeInOut,
     );
+    _verslaeExpandController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _verslaeExpandAnimation = CurvedAnimation(
+      parent: _verslaeExpandController,
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
   void dispose() {
     _expandController.dispose();
     _toelaeExpandController.dispose();
+    _verslaeExpandController.dispose();
     super.dispose();
   }
 
@@ -68,6 +80,7 @@ class _SidebarState extends ConsumerState<Sidebar>
     final path = currentUri.path;
     final shouldExpandSpyskaart = _isSpyskaartRoute(path);
     final shouldExpandToelae = _isToelaeRoute(path);
+    final shouldExpandVerslae = _isVerslaeRoute(path);
 
     if (!widget.isCollapsed && shouldExpandSpyskaart && !spyskaartExpanded) {
       setState(() => spyskaartExpanded = true);
@@ -86,6 +99,15 @@ class _SidebarState extends ConsumerState<Sidebar>
       setState(() => toelaeExpanded = false);
       _toelaeExpandController.reverse();
     }
+
+    if (!widget.isCollapsed && shouldExpandVerslae && !verslaeExpanded) {
+      setState(() => verslaeExpanded = true);
+      _verslaeExpandController.forward();
+    }
+    if (widget.isCollapsed && verslaeExpanded) {
+      setState(() => verslaeExpanded = false);
+      _verslaeExpandController.reverse();
+    }
   }
 
   bool _isSpyskaartRoute(String path) {
@@ -99,6 +121,10 @@ class _SidebarState extends ConsumerState<Sidebar>
         path == '/toelae/bestuur' ||
         path == '/toelae/gebruiker_tipes' ||
         path == '/toelae/transaksies';
+  }
+
+  bool _isVerslaeRoute(String path) {
+    return path == '/verslae' || path.startsWith('/verslae/');
   }
 
   @override
@@ -173,6 +199,9 @@ class _SidebarState extends ConsumerState<Sidebar>
 
                   // Toelae group
                   _buildToelaeGroup(currentRoute, theme, isDark),
+
+                  // Verslae group
+                  _buildVerslaeGroup(currentRoute, theme, isDark),
 
                   // Remaining navigation items
                   ..._getRemainingNavEntries().map(
@@ -709,6 +738,198 @@ class _SidebarState extends ConsumerState<Sidebar>
     );
   }
 
+  Widget _buildVerslaeGroup(
+    String currentRoute,
+    ThemeData theme,
+    bool isDark,
+  ) {
+    final isSelected = _isVerslaeRoute(currentRoute);
+    final children = [
+      _NavEntry('Statistiek', Icons.insights_outlined, '/verslae'),
+      _NavEntry('Terugvoer', Icons.feedback_outlined, '/verslae/terugvoer'),
+    ];
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Parent tile
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                if (widget.isCollapsed) {
+                  context.go('/verslae');
+                } else {
+                  setState(() {
+                    verslaeExpanded = !verslaeExpanded;
+                    if (verslaeExpanded) {
+                      _verslaeExpandController.forward();
+                    } else {
+                      _verslaeExpandController.reverse();
+                    }
+                  });
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: EdgeInsets.symmetric(
+                  horizontal: widget.isCollapsed ? 16 : 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppColors.primary.withOpacity(0.1)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  border: isSelected
+                      ? Border.all(
+                          color: AppColors.primary.withOpacity(0.3),
+                          width: 1,
+                        )
+                      : null,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: widget.isCollapsed ? 24 : 32,
+                      height: widget.isCollapsed ? 24 : 32,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.primary
+                            : AppColors.getOnSurfaceVariantColor(
+                                isDark,
+                              ).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.query_stats,
+                        size: widget.isCollapsed ? 16 : 18,
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.getOnSurfaceVariantColor(isDark),
+                      ),
+                    ),
+                    if (!widget.isCollapsed) ...[
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          'Verslae',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.getOnSurfaceColor(isDark),
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                      AnimatedRotation(
+                        turns: verslaeExpanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 300),
+                        child: Icon(
+                          Icons.keyboard_arrow_down,
+                          color: AppColors.getOnSurfaceVariantColor(isDark),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Submenu items
+          if (!widget.isCollapsed)
+            SizeTransition(
+              sizeFactor: _verslaeExpandAnimation,
+              child: Container(
+                margin: const EdgeInsets.only(left: 24, top: 4),
+                child: Column(
+                  children: children.map((child) {
+                    final isChildSelected = currentRoute == child.path;
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 2),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () => context.go(child.path),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isChildSelected
+                                  ? AppColors.primary.withOpacity(0.1)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(8),
+                              border: isChildSelected
+                                  ? Border.all(
+                                      color: AppColors.primary.withOpacity(0.3),
+                                      width: 1,
+                                    )
+                                  : null,
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    color: isChildSelected
+                                        ? AppColors.primary
+                                        : AppColors.getOnSurfaceVariantColor(
+                                            isDark,
+                                          ).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Icon(
+                                    child.icon,
+                                    size: 12,
+                                    color: isChildSelected
+                                        ? Colors.white
+                                        : AppColors.getOnSurfaceVariantColor(
+                                            isDark,
+                                          ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    child.label,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: isChildSelected
+                                          ? AppColors.primary
+                                          : AppColors.getOnSurfaceVariantColor(
+                                              isDark,
+                                            ),
+                                      fontWeight: isChildSelected
+                                          ? FontWeight.w600
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLogoutSection(ThemeData theme, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -777,7 +998,6 @@ class _SidebarState extends ConsumerState<Sidebar>
         Icons.notifications_outlined,
         '/kennisgewings',
       ),
-      _NavEntry('Verslae', Icons.insights_outlined, '/verslae'),
       _NavEntry('Instellings', Icons.settings_outlined, '/instellings'),
       _NavEntry('Hulp', Icons.help_outline, '/hulp'),
       _NavEntry('Profiel', Icons.person_outline, '/profiel'),
