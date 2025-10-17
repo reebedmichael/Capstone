@@ -25,7 +25,12 @@ class _NotificationsPageState extends State<NotificationsPage>
   List<String> _deletedNotificationIds = [];
   bool _isLoading = true;
   bool _isRefreshing = false;
-  Map<String, int> _statistieke = {'totaal': 0, 'ongelees': 0, 'gelees': 0, 'geargiveer': 0};
+  Map<String, int> _statistieke = {
+    'totaal': 0,
+    'ongelees': 0,
+    'gelees': 0,
+    'geargiveer': 0,
+  };
 
   @override
   void initState() {
@@ -74,10 +79,12 @@ class _NotificationsPageState extends State<NotificationsPage>
       // Laai gebruiker en globale kennisgewings
       final kennisgewings = await kennisgewingRepo.kryKennisgewings(user.id);
       final globale = await kennisgewingRepo.kryGlobaleKennisgewings();
-      
+
       // Laai geargiveerde IDs vanaf lokale stoor
-      final archivedIds = await NotificationArchiveService.getArchivedNotificationIds();
-      final deletedIds = await NotificationArchiveService.getDeletedNotificationIds();
+      final archivedIds =
+          await NotificationArchiveService.getArchivedNotificationIds();
+      final deletedIds =
+          await NotificationArchiveService.getDeletedNotificationIds();
 
       setState(() {
         _notifications = kennisgewings;
@@ -90,10 +97,24 @@ class _NotificationsPageState extends State<NotificationsPage>
 
       // Calculate statistics from combined notifications
       final alleKennisgewings = _alleKennisgewings;
-      final ongeleesKennisgewings = alleKennisgewings.where((k) => !(k['kennis_gelees'] ?? false) && !(k['kennis_geargiveer'] ?? false)).toList();
-      final geleesKennisgewings = alleKennisgewings.where((k) => (k['kennis_gelees'] ?? false) && !(k['kennis_geargiveer'] ?? false)).toList();
-      final geargiveerdeKennisgewings = alleKennisgewings.where((k) => (k['kennis_geargiveer'] ?? false)).toList();
-      
+      final ongeleesKennisgewings = alleKennisgewings
+          .where(
+            (k) =>
+                !(k['kennis_gelees'] ?? false) &&
+                !(k['kennis_geargiveer'] ?? false),
+          )
+          .toList();
+      final geleesKennisgewings = alleKennisgewings
+          .where(
+            (k) =>
+                (k['kennis_gelees'] ?? false) &&
+                !(k['kennis_geargiveer'] ?? false),
+          )
+          .toList();
+      final geargiveerdeKennisgewings = alleKennisgewings
+          .where((k) => (k['kennis_geargiveer'] ?? false))
+          .toList();
+
       final stats = {
         'totaal': alleKennisgewings.length,
         'ongelees': ongeleesKennisgewings.length,
@@ -132,7 +153,7 @@ class _NotificationsPageState extends State<NotificationsPage>
 
       // Herlaai kennisgewings
       await _laaiKennisgewings();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -158,7 +179,7 @@ class _NotificationsPageState extends State<NotificationsPage>
 
       // Herlaai kennisgewings
       await _laaiKennisgewings();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -178,7 +199,7 @@ class _NotificationsPageState extends State<NotificationsPage>
 
       // Herlaai kennisgewings
       await _laaiKennisgewings();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -198,7 +219,7 @@ class _NotificationsPageState extends State<NotificationsPage>
 
       // Herlaai kennisgewings
       await _laaiKennisgewings();
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -215,7 +236,7 @@ class _NotificationsPageState extends State<NotificationsPage>
   // Kombineer gebruiker en globale kennisgewings met lokale argief status
   List<Map<String, dynamic>> get _alleKennisgewings {
     final List<Map<String, dynamic>> alle = [];
-    
+
     // Voeg gebruiker kennisgewings by (filter uit permanent verwyderde)
     for (var k in _notifications) {
       final kennisId = k['kennis_id']?.toString();
@@ -228,28 +249,30 @@ class _NotificationsPageState extends State<NotificationsPage>
         });
       }
     }
-    
+
     // Voeg globale kennisgewings by (sonder gelees status)
     for (var k in _globaleKennisgewings) {
       alle.add({
         ...k,
         '_kennisgewing_soort': 'globaal',
-        'kennis_gelees': false, // Globale kennisgewings het nie gelees status nie
-        'kennis_geargiveer': false, // Globale kennisgewings kan nie geargiveer word nie
+        'kennis_gelees':
+            false, // Globale kennisgewings het nie gelees status nie
+        'kennis_geargiveer':
+            false, // Globale kennisgewings kan nie geargiveer word nie
       });
     }
-    
+
     // Sorteer op datum (nuutste eerste)
     alle.sort((a, b) {
       final dateA = DateTime.parse(
-        a['kennis_geskep_datum'] ?? a['glob_kennis_geskep_datum']
+        a['kennis_geskep_datum'] ?? a['glob_kennis_geskep_datum'],
       );
       final dateB = DateTime.parse(
-        b['kennis_geskep_datum'] ?? b['glob_kennis_geskep_datum']
+        b['kennis_geskep_datum'] ?? b['glob_kennis_geskep_datum'],
       );
       return dateB.compareTo(dateA);
     });
-    
+
     return alle;
   }
 
@@ -258,9 +281,14 @@ class _NotificationsPageState extends State<NotificationsPage>
       // Primêre filter (alles/ongelees/gelees/geargiveer)
       final bool primereMatch =
           _primaryTab == 'all' ||
-          (_primaryTab == 'unread' && !(kennisgewing['kennis_gelees'] ?? false) && !(kennisgewing['kennis_geargiveer'] ?? false)) ||
-          (_primaryTab == 'read' && (kennisgewing['kennis_gelees'] ?? false) && !(kennisgewing['kennis_geargiveer'] ?? false)) ||
-          (_primaryTab == 'archived' && (kennisgewing['kennis_geargiveer'] ?? false));
+          (_primaryTab == 'unread' &&
+              !(kennisgewing['kennis_gelees'] ?? false) &&
+              !(kennisgewing['kennis_geargiveer'] ?? false)) ||
+          (_primaryTab == 'read' &&
+              (kennisgewing['kennis_gelees'] ?? false) &&
+              !(kennisgewing['kennis_geargiveer'] ?? false)) ||
+          (_primaryTab == 'archived' &&
+              (kennisgewing['kennis_geargiveer'] ?? false));
 
       // Sekondere filter (tipe)
       final bool sekondereMatch =
@@ -293,17 +321,27 @@ class _NotificationsPageState extends State<NotificationsPage>
 
   String _formatDate(DateTime date) {
     const months = [
-      'Jan', 'Feb', 'Mrt', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Des',
+      'Jan',
+      'Feb',
+      'Mrt',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
     ];
     return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} '
         '${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
-  
+
   String _formatTimeAgo(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
-    
+
     if (difference.inDays > 7) {
       return _formatDate(date);
     } else if (difference.inDays > 0) {
@@ -317,16 +355,18 @@ class _NotificationsPageState extends State<NotificationsPage>
     }
   }
 
-  Widget _compactStatCard(String title, String value, IconData icon, Color color) {
+  Widget _compactStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.05),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: color.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: color.withOpacity(0.2), width: 1),
       ),
       child: Column(
         children: [
@@ -337,11 +377,7 @@ class _NotificationsPageState extends State<NotificationsPage>
               color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 14,
-            ),
+            child: Icon(icon, color: color, size: 14),
           ),
           const SizedBox(height: 4),
           Text(
@@ -398,12 +434,17 @@ class _NotificationsPageState extends State<NotificationsPage>
   void _toonKennisgewingDetail(Map<String, dynamic> kennisgewing) {
     final soort = kennisgewing['_kennisgewing_soort'] ?? 'gebruiker';
     final isGelees = kennisgewing['kennis_gelees'] ?? false;
-    final tipe = kennisgewing['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info';
-    final titel = kennisgewing['kennis_titel'] ?? kennisgewing['glob_kennis_titel'] ?? '';
-    final beskrywing = kennisgewing['kennis_beskrywing'] ?? 
-        kennisgewing['glob_kennis_beskrywing'] ?? 'Kennisgewing';
+    final tipe =
+        kennisgewing['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info';
+    final titel =
+        kennisgewing['kennis_titel'] ?? kennisgewing['glob_kennis_titel'] ?? '';
+    final beskrywing =
+        kennisgewing['kennis_beskrywing'] ??
+        kennisgewing['glob_kennis_beskrywing'] ??
+        'Kennisgewing';
     final datum = DateTime.parse(
-      kennisgewing['kennis_geskep_datum'] ?? kennisgewing['glob_kennis_geskep_datum']
+      kennisgewing['kennis_geskep_datum'] ??
+          kennisgewing['glob_kennis_geskep_datum'],
     );
 
     showModalBottomSheet(
@@ -427,11 +468,13 @@ class _NotificationsPageState extends State<NotificationsPage>
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.onSurfaceVariant.withOpacity(0.4),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurfaceVariant.withOpacity(0.4),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            
+
             // Content
             Expanded(
               child: SingleChildScrollView(
@@ -472,24 +515,26 @@ class _NotificationsPageState extends State<NotificationsPage>
                                       vertical: 5,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: soort == 'globaal' 
-                                        ? Colors.green.withOpacity(0.15)
-                                        : Colors.blue.withOpacity(0.15),
+                                      color: soort == 'globaal'
+                                          ? Colors.green.withOpacity(0.15)
+                                          : Colors.blue.withOpacity(0.15),
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
                                         color: soort == 'globaal'
-                                          ? Colors.green
-                                          : Colors.blue,
+                                            ? Colors.green
+                                            : Colors.blue,
                                       ),
                                     ),
                                     child: Text(
-                                      soort == 'globaal' ? 'GLOBAAL' : 'PERSOONLIK',
+                                      soort == 'globaal'
+                                          ? 'GLOBAAL'
+                                          : 'PERSOONLIK',
                                       style: TextStyle(
                                         fontSize: 10,
                                         fontWeight: FontWeight.bold,
                                         color: soort == 'globaal'
-                                          ? Colors.green
-                                          : Colors.blue,
+                                            ? Colors.green
+                                            : Colors.blue,
                                       ),
                                     ),
                                   ),
@@ -510,7 +555,9 @@ class _NotificationsPageState extends State<NotificationsPage>
                                 _formatTimeAgo(datum),
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -518,21 +565,22 @@ class _NotificationsPageState extends State<NotificationsPage>
                         ),
                       ],
                     ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Titel (as dit bestaan)
                     if (titel.isNotEmpty) ...[
                       Text(
                         titel,
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
                       ),
                       const SizedBox(height: 12),
                     ],
-                    
+
                     // Beskrywing
                     Container(
                       width: double.infinity,
@@ -569,22 +617,22 @@ class _NotificationsPageState extends State<NotificationsPage>
                           const SizedBox(height: 16),
                           Text(
                             beskrywing,
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              height: 1.6,
-                              fontSize: 16,
-                            ),
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(height: 1.6, fontSize: 16),
                           ),
                         ],
                       ),
                     ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Meta inligting
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceVariant.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Column(
@@ -594,14 +642,18 @@ class _NotificationsPageState extends State<NotificationsPage>
                               Icon(
                                 Icons.access_time,
                                 size: 18,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                               const SizedBox(width: 12),
                               Text(
                                 'Gestuur op: ${_formatDate(datum)}',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -611,20 +663,22 @@ class _NotificationsPageState extends State<NotificationsPage>
                             Row(
                               children: [
                                 Icon(
-                                  isGelees ? Icons.mark_email_read : Icons.mark_email_unread,
+                                  isGelees
+                                      ? Icons.mark_email_read
+                                      : Icons.mark_email_unread,
                                   size: 18,
-                                  color: isGelees 
-                                    ? Colors.green 
-                                    : Theme.of(context).colorScheme.primary,
+                                  color: isGelees
+                                      ? Colors.green
+                                      : Theme.of(context).colorScheme.primary,
                                 ),
                                 const SizedBox(width: 12),
                                 Text(
                                   isGelees ? 'Gelees' : 'Ongelees',
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: isGelees 
-                                      ? Colors.green 
-                                      : Theme.of(context).colorScheme.primary,
+                                    color: isGelees
+                                        ? Colors.green
+                                        : Theme.of(context).colorScheme.primary,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -638,7 +692,7 @@ class _NotificationsPageState extends State<NotificationsPage>
                 ),
               ),
             ),
-            
+
             // Actions
             Container(
               padding: const EdgeInsets.all(16),
@@ -688,6 +742,8 @@ class _NotificationsPageState extends State<NotificationsPage>
         return Icons.error_outline;
       case 'sukses':
         return Icons.check_circle_outline;
+      case 'help':
+        return Icons.help_outline;
       default:
         return Icons.info_outline;
     }
@@ -701,6 +757,8 @@ class _NotificationsPageState extends State<NotificationsPage>
         return Colors.red;
       case 'sukses':
         return Colors.green;
+      case 'help':
+        return Colors.purple;
       default:
         return Colors.blue;
     }
@@ -722,7 +780,7 @@ class _NotificationsPageState extends State<NotificationsPage>
 
   Widget _getDismissBackground(Map<String, dynamic> kennisgewing, String tipe) {
     final isGeargiveer = kennisgewing['kennis_geargiveer'] ?? false;
-    
+
     if (isGeargiveer) {
       return Container(
         alignment: Alignment.centerRight,
@@ -731,11 +789,7 @@ class _NotificationsPageState extends State<NotificationsPage>
           color: Colors.red.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Icon(
-          Icons.delete_forever,
-          color: Colors.red,
-          size: 20,
-        ),
+        child: const Icon(Icons.delete_forever, color: Colors.red, size: 20),
       );
     } else {
       return Container(
@@ -754,7 +808,10 @@ class _NotificationsPageState extends State<NotificationsPage>
     }
   }
 
-  void _handleDismiss(Map<String, dynamic> kennisgewing, DismissDirection direction) {
+  void _handleDismiss(
+    Map<String, dynamic> kennisgewing,
+    DismissDirection direction,
+  ) {
     final isGeargiveer = kennisgewing['kennis_geargiveer'] ?? false;
     final soort = kennisgewing['_kennisgewing_soort'] ?? '';
 
@@ -766,7 +823,8 @@ class _NotificationsPageState extends State<NotificationsPage>
         // Permanently delete archived notification
         _verwyderGeargiveerdeKennisgewing(kennisgewing['kennis_id']);
       }
-    } else if (!(kennisgewing['kennis_gelees'] ?? false) && soort == 'gebruiker') {
+    } else if (!(kennisgewing['kennis_gelees'] ?? false) &&
+        soort == 'gebruiker') {
       // Mark as read for regular notifications
       _markeerAsGelees(kennisgewing['kennis_id']);
     }
@@ -865,7 +923,10 @@ class _NotificationsPageState extends State<NotificationsPage>
                   if (_statistieke['totaal']! > 0) ...[
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.primary,
                         borderRadius: BorderRadius.circular(12),
@@ -891,7 +952,10 @@ class _NotificationsPageState extends State<NotificationsPage>
                   if (_statistieke['ongelees']! > 0) ...[
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.error,
                         borderRadius: BorderRadius.circular(12),
@@ -917,7 +981,10 @@ class _NotificationsPageState extends State<NotificationsPage>
                   if (_statistieke['gelees']! > 0) ...[
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.tertiary,
                         borderRadius: BorderRadius.circular(12),
@@ -943,7 +1010,10 @@ class _NotificationsPageState extends State<NotificationsPage>
                   if (_statistieke['geargiveer']! > 0) ...[
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.outline,
                         borderRadius: BorderRadius.circular(12),
@@ -976,12 +1046,17 @@ class _NotificationsPageState extends State<NotificationsPage>
                   children: [
                     // Compact statistics row
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surface,
                         border: Border(
                           bottom: BorderSide(
-                            color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withOpacity(0.1),
                             width: 1,
                           ),
                         ),
@@ -1020,18 +1095,25 @@ class _NotificationsPageState extends State<NotificationsPage>
 
                     // Filters section
                     Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surface,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Theme.of(context).colorScheme.outline.withOpacity(0.2),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.outline.withOpacity(0.2),
                           width: 1,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Theme.of(context).colorScheme.shadow.withOpacity(0.05),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.shadow.withOpacity(0.05),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -1045,7 +1127,9 @@ class _NotificationsPageState extends State<NotificationsPage>
                               Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.primary.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Icon(
@@ -1060,17 +1144,26 @@ class _NotificationsPageState extends State<NotificationsPage>
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: Theme.of(context).colorScheme.onSurface,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
                                 ),
                               ),
                               const Spacer(),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: _getFilterColor(_secondaryTab).withOpacity(0.1),
+                                  color: _getFilterColor(
+                                    _secondaryTab,
+                                  ).withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: _getFilterColor(_secondaryTab).withOpacity(0.3),
+                                    color: _getFilterColor(
+                                      _secondaryTab,
+                                    ).withOpacity(0.3),
                                     width: 1,
                                   ),
                                 ),
@@ -1129,12 +1222,17 @@ class _NotificationsPageState extends State<NotificationsPage>
 
                     // Notifications section
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surface,
                         border: Border(
                           bottom: BorderSide(
-                            color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withOpacity(0.1),
                             width: 1,
                           ),
                         ),
@@ -1157,9 +1255,14 @@ class _NotificationsPageState extends State<NotificationsPage>
                           ),
                           const Spacer(),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primary.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
@@ -1184,7 +1287,9 @@ class _NotificationsPageState extends State<NotificationsPage>
                               color: Theme.of(context).colorScheme.surface,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: Theme.of(context).colorScheme.outline.withOpacity(0.1),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.outline.withOpacity(0.1),
                               ),
                             ),
                             child: Center(
@@ -1199,8 +1304,10 @@ class _NotificationsPageState extends State<NotificationsPage>
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
                                         colors: [
-                                          Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                          Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                                          Theme.of(context).colorScheme.primary
+                                              .withOpacity(0.1),
+                                          Theme.of(context).colorScheme.primary
+                                              .withOpacity(0.05),
                                         ],
                                       ),
                                       shape: BoxShape.circle,
@@ -1208,7 +1315,9 @@ class _NotificationsPageState extends State<NotificationsPage>
                                     child: Icon(
                                       Icons.notifications_none,
                                       size: 32,
-                                      color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary.withOpacity(0.7),
                                     ),
                                   ),
                                   const SizedBox(height: 16),
@@ -1217,7 +1326,9 @@ class _NotificationsPageState extends State<NotificationsPage>
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
-                                      color: Theme.of(context).colorScheme.onSurface,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
@@ -1225,7 +1336,9 @@ class _NotificationsPageState extends State<NotificationsPage>
                                     'Jy sal hier kennisgewings sien wanneer daar nuus is',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
@@ -1239,196 +1352,306 @@ class _NotificationsPageState extends State<NotificationsPage>
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             itemCount: _gefilterdeKennisgewings.length,
                             itemBuilder: (context, index) {
-                        final kennisgewing = _gefilterdeKennisgewings[index];
-                        final soort = kennisgewing['_kennisgewing_soort'] ?? 'gebruiker';
-                        final tipe = kennisgewing['kennisgewing_tipes']?['kennis_tipe_naam'] ?? 'info';
-                        final isGelees = kennisgewing['kennis_gelees'] ?? false;
-                        final titel = kennisgewing['kennis_titel'] ?? kennisgewing['glob_kennis_titel'] ?? '';
-                        final beskrywing = kennisgewing['kennis_beskrywing'] ?? 
-                            kennisgewing['glob_kennis_beskrywing'] ?? 'Kennisgewing';
-                        final datum = DateTime.parse(
-                          kennisgewing['kennis_geskep_datum'] ?? kennisgewing['glob_kennis_geskep_datum']
-                        );
+                              final kennisgewing =
+                                  _gefilterdeKennisgewings[index];
+                              final soort =
+                                  kennisgewing['_kennisgewing_soort'] ??
+                                  'gebruiker';
+                              final tipe =
+                                  kennisgewing['kennisgewing_tipes']?['kennis_tipe_naam'] ??
+                                  'info';
+                              final isGelees =
+                                  kennisgewing['kennis_gelees'] ?? false;
+                              final titel =
+                                  kennisgewing['kennis_titel'] ??
+                                  kennisgewing['glob_kennis_titel'] ??
+                                  '';
+                              final beskrywing =
+                                  kennisgewing['kennis_beskrywing'] ??
+                                  kennisgewing['glob_kennis_beskrywing'] ??
+                                  'Kennisgewing';
+                              final datum = DateTime.parse(
+                                kennisgewing['kennis_geskep_datum'] ??
+                                    kennisgewing['glob_kennis_geskep_datum'],
+                              );
 
-                        return TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0.0, end: 1.0),
-                          duration: Duration(milliseconds: 300 + (index * 50)),
-                          curve: Curves.easeOut,
-                          builder: (context, value, child) {
-                            return Opacity(
-                              opacity: value,
-                              child: Transform.translate(
-                                offset: Offset(0, 20 * (1 - value)),
-                                child: child,
-                              ),
-                            );
-                          },
-                          child: Container(
-                            margin: const EdgeInsets.only(bottom: 6),
-                            child: Dismissible(
-                              key: Key(kennisgewing['kennis_id'] ?? kennisgewing['glob_kennis_id']),
-                              direction: _getDismissDirection(kennisgewing),
-                              background: _getDismissBackground(kennisgewing, tipe),
-                              onDismissed: (direction) {
-                                _handleDismiss(kennisgewing, direction);
-                              },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  color: isGelees 
-                                      ? Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3)
-                                      : _getTipeKleur(tipe).withOpacity(0.05),
-                                  border: Border.all(
-                                    color: isGelees
-                                        ? Theme.of(context).colorScheme.outline.withOpacity(0.2)
-                                        : _getTipeKleur(tipe).withOpacity(0.2),
-                                    width: 1,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: isGelees 
-                                          ? Colors.grey.withOpacity(0.05)
-                                          : _getTipeKleur(tipe).withOpacity(0.1),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
+                              return TweenAnimationBuilder<double>(
+                                tween: Tween(begin: 0.0, end: 1.0),
+                                duration: Duration(
+                                  milliseconds: 300 + (index * 50),
                                 ),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.circular(12),
-                                    onTap: () => _toonKennisgewingDetail(kennisgewing),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(12),
-                                      child: Row(
-                                        children: [
-                                          // Compact icon
-                                          Container(
-                                            width: 36,
-                                            height: 36,
-                                            decoration: BoxDecoration(
-                                              color: _getTipeKleur(tipe).withOpacity(0.1),
-                                              borderRadius: BorderRadius.circular(18),
-                                              border: Border.all(
-                                                color: _getTipeKleur(tipe).withOpacity(0.3),
-                                                width: 1,
-                                              ),
-                                            ),
-                                            child: Stack(
+                                curve: Curves.easeOut,
+                                builder: (context, value, child) {
+                                  return Opacity(
+                                    opacity: value,
+                                    child: Transform.translate(
+                                      offset: Offset(0, 20 * (1 - value)),
+                                      child: child,
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 6),
+                                  child: Dismissible(
+                                    key: Key(
+                                      kennisgewing['kennis_id'] ??
+                                          kennisgewing['glob_kennis_id'],
+                                    ),
+                                    direction: _getDismissDirection(
+                                      kennisgewing,
+                                    ),
+                                    background: _getDismissBackground(
+                                      kennisgewing,
+                                      tipe,
+                                    ),
+                                    onDismissed: (direction) {
+                                      _handleDismiss(kennisgewing, direction);
+                                    },
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(12),
+                                        color: isGelees
+                                            ? Theme.of(context)
+                                                  .colorScheme
+                                                  .surfaceVariant
+                                                  .withOpacity(0.3)
+                                            : _getTipeKleur(
+                                                tipe,
+                                              ).withOpacity(0.05),
+                                        border: Border.all(
+                                          color: isGelees
+                                              ? Theme.of(context)
+                                                    .colorScheme
+                                                    .outline
+                                                    .withOpacity(0.2)
+                                              : _getTipeKleur(
+                                                  tipe,
+                                                ).withOpacity(0.2),
+                                          width: 1,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: isGelees
+                                                ? Colors.grey.withOpacity(0.05)
+                                                : _getTipeKleur(
+                                                    tipe,
+                                                  ).withOpacity(0.1),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          onTap: () => _toonKennisgewingDetail(
+                                            kennisgewing,
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(12),
+                                            child: Row(
                                               children: [
-                                                Center(
-                                                  child: Icon(
-                                                    _getTipeIkoon(tipe),
-                                                    color: _getTipeKleur(tipe),
-                                                    size: 18,
-                                                  ),
-                                                ),
-                                                if (!isGelees)
-                                                  Positioned(
-                                                    top: 4,
-                                                    right: 4,
-                                                    child: Container(
-                                                      width: 8,
-                                                      height: 8,
-                                                      decoration: BoxDecoration(
-                                                        color: _getTipeKleur(tipe),
-                                                        shape: BoxShape.circle,
-                                                      ),
+                                                // Compact icon
+                                                Container(
+                                                  width: 36,
+                                                  height: 36,
+                                                  decoration: BoxDecoration(
+                                                    color: _getTipeKleur(
+                                                      tipe,
+                                                    ).withOpacity(0.1),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          18,
+                                                        ),
+                                                    border: Border.all(
+                                                      color: _getTipeKleur(
+                                                        tipe,
+                                                      ).withOpacity(0.3),
+                                                      width: 1,
                                                     ),
                                                   ),
-                                              ],
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  titel.isNotEmpty ? titel : beskrywing,
-                                                  style: TextStyle(
-                                                    fontWeight: isGelees ? FontWeight.w500 : FontWeight.w600,
-                                                    fontSize: 14,
-                                                    color: isGelees
-                                                        ? Theme.of(context).colorScheme.onSurface.withOpacity(0.7)
-                                                        : Theme.of(context).colorScheme.onSurface,
-                                                    height: 1.2,
-                                                  ),
-                                                  maxLines: 2,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Row(
-                                                  children: [
-                                                    Container(
-                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                      decoration: BoxDecoration(
-                                                        color: _getTipeKleur(tipe).withOpacity(0.1),
-                                                        borderRadius: BorderRadius.circular(8),
-                                                      ),
-                                                      child: Text(
-                                                        tipe.toUpperCase(),
-                                                        style: TextStyle(
-                                                          fontSize: 8,
-                                                          fontWeight: FontWeight.bold,
-                                                          color: _getTipeKleur(tipe),
+                                                  child: Stack(
+                                                    children: [
+                                                      Center(
+                                                        child: Icon(
+                                                          _getTipeIkoon(tipe),
+                                                          color: _getTipeKleur(
+                                                            tipe,
+                                                          ),
+                                                          size: 18,
                                                         ),
                                                       ),
-                                                    ),
-                                                    const SizedBox(width: 8),
-                                                    Icon(
-                                                      Icons.access_time,
-                                                      size: 12,
-                                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                                    ),
-                                                    const SizedBox(width: 2),
-                                                    Text(
-                                                      _formatTimeAgo(datum),
-                                                      style: TextStyle(
-                                                        fontSize: 10,
-                                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                                      ),
-                                                    ),
-                                                  ],
+                                                      if (!isGelees)
+                                                        Positioned(
+                                                          top: 4,
+                                                          right: 4,
+                                                          child: Container(
+                                                            width: 8,
+                                                            height: 8,
+                                                            decoration:
+                                                                BoxDecoration(
+                                                                  color:
+                                                                      _getTipeKleur(
+                                                                        tipe,
+                                                                      ),
+                                                                  shape: BoxShape
+                                                                      .circle,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  ),
                                                 ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        titel.isNotEmpty
+                                                            ? titel
+                                                            : beskrywing,
+                                                        style: TextStyle(
+                                                          fontWeight: isGelees
+                                                              ? FontWeight.w500
+                                                              : FontWeight.w600,
+                                                          fontSize: 14,
+                                                          color: isGelees
+                                                              ? Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .onSurface
+                                                                    .withOpacity(
+                                                                      0.7,
+                                                                    )
+                                                              : Theme.of(
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .onSurface,
+                                                          height: 1.2,
+                                                        ),
+                                                        maxLines: 2,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                      const SizedBox(height: 4),
+                                                      Row(
+                                                        children: [
+                                                          Container(
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  horizontal: 6,
+                                                                  vertical: 2,
+                                                                ),
+                                                            decoration: BoxDecoration(
+                                                              color:
+                                                                  _getTipeKleur(
+                                                                    tipe,
+                                                                  ).withOpacity(
+                                                                    0.1,
+                                                                  ),
+                                                              borderRadius:
+                                                                  BorderRadius.circular(
+                                                                    8,
+                                                                  ),
+                                                            ),
+                                                            child: Text(
+                                                              tipe.toUpperCase(),
+                                                              style: TextStyle(
+                                                                fontSize: 8,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                color:
+                                                                    _getTipeKleur(
+                                                                      tipe,
+                                                                    ),
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 8,
+                                                          ),
+                                                          Icon(
+                                                            Icons.access_time,
+                                                            size: 12,
+                                                            color: Theme.of(context)
+                                                                .colorScheme
+                                                                .onSurfaceVariant,
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 2,
+                                                          ),
+                                                          Text(
+                                                            _formatTimeAgo(
+                                                              datum,
+                                                            ),
+                                                            style: TextStyle(
+                                                              fontSize: 10,
+                                                              color: Theme.of(context)
+                                                                  .colorScheme
+                                                                  .onSurfaceVariant,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                if (!isGelees &&
+                                                    soort == 'gebruiker') ...[
+                                                  const SizedBox(width: 8),
+                                                  Container(
+                                                    decoration: BoxDecoration(
+                                                      color: _getTipeKleur(
+                                                        tipe,
+                                                      ).withOpacity(0.1),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            6,
+                                                          ),
+                                                    ),
+                                                    child: IconButton(
+                                                      onPressed: () =>
+                                                          _markeerAsGelees(
+                                                            kennisgewing['kennis_id'],
+                                                          ),
+                                                      icon: Icon(
+                                                        Icons.mark_email_read,
+                                                        color: _getTipeKleur(
+                                                          tipe,
+                                                        ),
+                                                        size: 16,
+                                                      ),
+                                                      tooltip:
+                                                          'Markeer as gelees',
+                                                      constraints:
+                                                          const BoxConstraints(
+                                                            minWidth: 32,
+                                                            minHeight: 32,
+                                                          ),
+                                                      padding: EdgeInsets.zero,
+                                                    ),
+                                                  ),
+                                                ],
                                               ],
                                             ),
                                           ),
-                                          if (!isGelees && soort == 'gebruiker') ...[
-                                            const SizedBox(width: 8),
-                                            Container(
-                                              decoration: BoxDecoration(
-                                                color: _getTipeKleur(tipe).withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
-                                              child: IconButton(
-                                                onPressed: () => _markeerAsGelees(kennisgewing['kennis_id']),
-                                                icon: Icon(
-                                                  Icons.mark_email_read,
-                                                  color: _getTipeKleur(tipe),
-                                                  size: 16,
-                                                ),
-                                                tooltip: 'Markeer as gelees',
-                                                constraints: const BoxConstraints(
-                                                  minWidth: 32,
-                                                  minHeight: 32,
-                                                ),
-                                                padding: EdgeInsets.zero,
-                                              ),
-                                            ),
-                                          ],
-                                        ],
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ),
+                              );
+                            },
                           ),
-                        );
-                      },
-                    ),
                   ],
                 ),
               ),

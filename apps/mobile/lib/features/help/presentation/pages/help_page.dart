@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:spys_api_client/spys_api_client.dart';
 
 class HelpPage extends StatefulWidget {
   const HelpPage({super.key});
@@ -12,14 +14,17 @@ class HelpPage extends StatefulWidget {
 class _HelpPageState extends State<HelpPage> {
   String searchQuery = '';
   String selectedCategory = 'all';
+  bool isSending = false;
+  String? algemeneFout;
+  String suksesBoodskap = '';
 
   final List<Map<String, String>> faqItems = [
     {
       'id': '1',
-      'question': 'Hoe registreer ek vir die app?',
+      'question': 'Hoe sien ek my transaksie geskiedenis?',
       'answer':
-          "Klik op 'Registreer' op die welkom skerm, vul jou besonderhede in, en volg die instruksies. Jy sal 'n verifikasie e-pos ontvang.",
-      'category': 'account',
+          "Gaan na die Beursie seksie, kies 'Transaksies'. Jy sal die transaksie geskiedenis vir jou rekening sien.",
+      'category': 'wallet',
     },
     {
       'id': '2',
@@ -32,42 +37,42 @@ class _HelpPageState extends State<HelpPage> {
       'id': "3",
       'question': "Kan ek my bestelling kanselleer?",
       'answer':
-          'Ja, bestellings kan gekanselleer word binne 10 minute na plaasing. Gaan na "Bestellings" en klik "Kanselleer" by die relevante bestelling.',
+          'Ja, bestellings kan gekanselleer totdat die bestelling uit gestuur word vir aflewering. Gaan na "Bestellings" en klik "Kanselleer" by die relevante bestelling.',
       'category': "orders",
     },
     {
       'id': "4",
       'question': "Hoe werk die QR-kode afhaal?",
       'answer':
-          "Na bestelling sal jy 'n QR-kode kry. Wys hierdie kode by die afhaallokasie aan die personeel om jou kos te kry.",
+          "Op die dag van jou bestelling sal jy 'n QR-kode kry. Wys hierdie kode by die afhaallokasie aan die personeel om jou kos te kry.",
       'category': "orders",
     },
     {
       'id': "5",
       'question': "Wanneer ontvang ek my maandelikse toelae?",
       'answer':
-          "Maandelikse toelaes word outomaties bygevoeg op die 1ste van elke maand. Studente ontvang R1000 en personeel R500.",
+          "Indien jy kwalifiseer vir 'n toelaag sal die toelae outomaties bygevoeg word op 'n datum gespesifiseer deur admin (gewoonlik 1ste van die maand). ",
       'category': "allowance",
     },
     {
       'id': "6",
       'question': "Hoe verander ek my dieet voorkeure?",
       'answer':
-          'Gaan na "Profiel", klik "Wysig Profiel", en updateer jou dieëtvereistes onder die relevante seksie.',
+          'Gaan na "Profiel", en opdateer jou dieëtvereistes onder die relevante seksie.',
       'category': "account",
     },
     {
       'id': "7",
       'question': "Wat as ek my wagwoord vergeet het?",
       'answer':
-          'Klik "Wagwoord vergeet?" op die teken-in skerm. Jy sal \'n e-pos ontvang met instruksies om jou wagwoord te herstel.',
+          'Klik "Wagwoord vergeet?" op die teken-in skerm of die skakel in die Instellings skerm. Jy sal \'n e-pos ontvang met instruksies om jou wagwoord te herstel.',
       'category': "account",
     },
     {
       'id': "8",
       'question': "Hoe gee ek terugvoer op my bestelling?",
       'answer':
-          'Na \'n suksesvolle bestelling kan jy terugvoer gee in die "Bestellings" seksie. Klik "Gee Terugvoer" by die relevante bestelling.',
+          'Na \'n suksesvolle bestelling kan jy terugvoer gee in die "Bestellings" seksie. Klik "Voltooi" seksie en kies "Terugvoer" by die relevante bestelling.',
       'category': "orders",
     },
     // Add more FAQ items similarly
@@ -86,24 +91,244 @@ class _HelpPageState extends State<HelpPage> {
   final TextEditingController onderwerpController = TextEditingController();
   final TextEditingController boodskapController = TextEditingController();
 
-  void _sendQuery() {
-    if (naamController.text.isEmpty ||
-        emailController.text.isEmpty ||
-        onderwerpController.text.isEmpty ||
-        boodskapController.text.isEmpty) {
-      // Show error if any required field is empty
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vul al die vereiste velde in.')),
-      );
-    } else {
-      // If all fields are filled
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _prefillUserData());
+  }
+
+  Future<void> _prefillUserData() async {
+    try {
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      if (currentUser == null) return;
+
+      final row = await Supabase.instance.client
+          .from('gebruikers')
+          .select('gebr_naam, gebr_van, gebr_epos')
+          .eq('gebr_id', currentUser.id)
+          .maybeSingle();
+
+      if (row != null && mounted) {
+        final String naam = (row['gebr_naam'] ?? '').toString();
+        final String van = (row['gebr_van'] ?? '').toString();
+        final String epos = (row['gebr_epos'] ?? '').toString();
+        if (naam.isNotEmpty || van.isNotEmpty) {
+          naamController.text = [
+            naam,
+            van,
+          ].where((e) => e.isNotEmpty).join(' ');
+        }
+        if (epos.isNotEmpty) {
+          emailController.text = epos;
+        }
+      }
+    } catch (_) {
+      // Ignore prefill errors
+    }
+  }
+
+  void _sendQuery() async {
+    // Validate only subject and message
+    if (onderwerpController.text.trim().isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Navraag is gestuur.')));
-
-      // You can also handle the submission logic here
-      // For example, sending the data to the backend or API
+      ).showSnackBar(const SnackBar(content: Text('Onderwerp is verpligtend')));
+      return;
     }
+
+    if (boodskapController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Boodskap is verpligtend')));
+      return;
+    }
+
+    if (boodskapController.text.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Boodskap moet ten minste 10 karakters wees'),
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Bevestig Navraag Stuur'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Is jy seker jy wil hierdie navraag stuur?'),
+            const SizedBox(height: 12),
+            Text('E-pos: ${emailController.text}'),
+            Text('Onderwerp: ${onderwerpController.text}'),
+            const SizedBox(height: 8),
+            const Text(
+              'Die navraag sal as kennisgewing na alle admins gestuur word.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Kanselleer'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Stuur navraag'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      isSending = true;
+      algemeneFout = null;
+      suksesBoodskap = '';
+    });
+
+    try {
+      // Create notification for all admins
+      final kennisgewingRepo = KennisgewingRepository(
+        SupabaseDb(Supabase.instance.client),
+      );
+
+      // Get all admin users
+      final admins = await Supabase.instance.client
+          .from('gebruikers')
+          .select('gebr_id')
+          .not('admin_tipe_id', 'is', null);
+
+      final adminIds = admins.map((a) => a['gebr_id'].toString()).toList();
+
+      if (adminIds.isNotEmpty) {
+        // Create notification content
+        final titel = onderwerpController.text.trim();
+        final beskrywing =
+            '${boodskapController.text.trim()}\n\nE-pos: ${emailController.text}';
+
+        // Send notification to all admins
+        final sukses = await kennisgewingRepo.stuurAanSpesifiekeGebruikers(
+          titel: titel,
+          gebrIds: adminIds,
+          beskrywing: beskrywing,
+          tipeNaam: 'help',
+        );
+
+        if (!mounted) return;
+
+        if (sukses) {
+          setState(() {
+            suksesBoodskap =
+                '✅ Navraag suksesvol gestuur! Ons span sal jou binnekort kontak.';
+            isSending = false;
+          });
+        } else {
+          throw Exception('Kon nie navraag stuur nie');
+        }
+      } else {
+        throw Exception('Geen admin gebruikers gevind nie');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        algemeneFout = "Fout tydens navraag stuur: ${e.toString()}";
+        isSending = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(algemeneFout!), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    // Success dialog
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: const [
+            Icon(Icons.check_circle, color: Colors.green, size: 28),
+            SizedBox(width: 8),
+            Text('Navraag Gestuur'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Jou navraag is suksesvol gestuur!'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('👤 Naam: ${naamController.text}'),
+                  Text('📧 E-pos: ${emailController.text}'),
+                  Text('📋 Onderwerp: ${onderwerpController.text}'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Ons admin span het jou navraag ontvang en sal jou binnekort kontak.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _clearForm();
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.notifications_active, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(suksesBoodskap)),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 4),
+        action: SnackBarAction(
+          label: 'Sluit',
+          textColor: Colors.white,
+          onPressed: () => ScaffoldMessenger.of(context).hideCurrentSnackBar(),
+        ),
+      ),
+    );
+  }
+
+  void _clearForm() {
+    onderwerpController.clear();
+    boodskapController.clear();
+    Future.delayed(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      setState(() => suksesBoodskap = '');
+    });
   }
 
   @override
@@ -146,23 +371,32 @@ class _HelpPageState extends State<HelpPage> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.phone, color: Theme.of(context).colorScheme.primary),
+                        Icon(
+                          Icons.phone,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                         SizedBox(width: 8),
-                        Text('021 808 4622'),
+                        Text('071 123 4567'),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.mail, color: Theme.of(context).colorScheme.primary),
+                        Icon(
+                          Icons.mail,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                         SizedBox(width: 8),
-                        Text('spys@sun.ac.za'),
+                        Text('ondersteuning@spys.ac.za'),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.access_time, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        Icon(
+                          Icons.access_time,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                         SizedBox(width: 8),
                         Text('Ure: Maandag-Vrydag 08:00-17:00'),
                       ],
@@ -178,7 +412,7 @@ class _HelpPageState extends State<HelpPage> {
             TextField(
               decoration: const InputDecoration(
                 prefixIcon: Icon(Icons.search),
-                hintText: 'Soek in FAQ...',
+                hintText: 'Soek in vrae...',
               ),
               onChanged: (value) {
                 setState(() {
@@ -240,32 +474,58 @@ class _HelpPageState extends State<HelpPage> {
                     const SizedBox(height: 8),
                     TextField(
                       controller: naamController,
-                      decoration: const InputDecoration(labelText: 'Naam *'),
+                      enabled: false,
+                      decoration: const InputDecoration(
+                        labelText: 'Jou Naam',
+                        border: OutlineInputBorder(),
+                        filled: true,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     TextField(
                       controller: emailController,
-                      decoration: const InputDecoration(labelText: 'E-pos *'),
+                      enabled: false,
+                      decoration: const InputDecoration(
+                        labelText: 'E-pos Adres',
+                        border: OutlineInputBorder(),
+                        filled: true,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     TextField(
                       controller: onderwerpController,
                       decoration: const InputDecoration(
-                        labelText: 'Onderwerp *',
+                        labelText: 'Onderwerp',
+                        border: OutlineInputBorder(),
                       ),
                     ),
                     const SizedBox(height: 8),
                     TextField(
                       controller: boodskapController,
                       decoration: const InputDecoration(
-                        labelText: 'Boodskap *',
+                        labelText: 'Jou Boodskap',
+                        border: OutlineInputBorder(),
                       ),
                       maxLines: 4,
                     ),
                     const SizedBox(height: 8),
-                    ElevatedButton(
-                      onPressed: _sendQuery,
-                      child: const Text('Stuur Navraag'),
+                    ElevatedButton.icon(
+                      onPressed: isSending ? null : _sendQuery,
+                      icon: isSending
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                          : const Icon(Icons.email),
+                      label: Text(
+                        isSending ? 'Stuur Navraag...' : 'Stuur Navraag',
+                      ),
                     ),
                   ],
                 ),
