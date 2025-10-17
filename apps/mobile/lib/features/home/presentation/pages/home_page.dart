@@ -837,7 +837,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                       onTap: () {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text('Wys menu items vir \'n spesifieke dag van die week'),
+                                            content: Text('Wys spyskaart vir \'n spesifieke dag van die week'),
                                             duration: const Duration(seconds: 2),
                                             behavior: SnackBarBehavior.floating,
                                             margin: const EdgeInsets.all(16),
@@ -916,7 +916,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                       onTap: () {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text('Filter menu items volgens jou dieet vereistes'),
+                                            content: Text('Filter spyskaart volgens jou dieet vereistes'),
                                             duration: const Duration(seconds: 2),
                                             behavior: SnackBarBehavior.floating,
                                             margin: const EdgeInsets.all(16),
@@ -1004,7 +1004,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                       onTap: () {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text('Wys menu items vir \'n spesifieke dag van die week'),
+                                            content: Text('Wys spyskaart vir \'n spesifieke dag van die week'),
                                             duration: const Duration(seconds: 2),
                                             behavior: SnackBarBehavior.floating,
                                             margin: const EdgeInsets.all(16),
@@ -1085,7 +1085,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                       onTap: () {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text('Filter menu items volgens jou dieet vereistes'),
+                                            content: Text('Filter spyskaart volgens jou dieet vereistes'),
                                             duration: const Duration(seconds: 2),
                                             behavior: SnackBarBehavior.floating,
                                             margin: const EdgeInsets.all(16),
