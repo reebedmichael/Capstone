@@ -51,22 +51,22 @@ BEGIN
     CASE v_status_name
         WHEN 'In voorbereiding' THEN
             v_notification_title := 'Bestelling Word Voorberei';
-            v_notification_body := format('Jou bestelling #%s word nou voorberei! 👨‍🍳', v_order_number);
+            v_notification_body := 'Jou bestelling #' || v_order_number || ' word nou voorberei! 👨‍🍳';
         WHEN 'Wag vir afhaal' THEN
             v_notification_title := 'Bestelling Gereed!';
-            v_notification_body := format('Jou bestelling #%s is gereed vir afhaal! 🎉', v_order_number);
+            v_notification_body := 'Jou bestelling #' || v_order_number || ' is gereed vir afhaal! 🎉';
         WHEN 'Ontvang' THEN
             v_notification_title := 'Bestelling Ontvang';
-            v_notification_body := format('Jou bestelling #%s is suksesvol afgehaal. Geniet! 😊', v_order_number);
+            v_notification_body := 'Jou bestelling #' || v_order_number || ' is suksesvol afgehaal. Geniet! 😊';
         WHEN 'Afgehandel' THEN
             v_notification_title := 'Bestelling Voltooi';
-            v_notification_body := format('Jou bestelling #%s is voltooi. Dankie! ✅', v_order_number);
+            v_notification_body := 'Jou bestelling #' || v_order_number || ' is voltooi. Dankie! ✅';
         WHEN 'Gekanselleer' THEN
             v_notification_title := 'Bestelling Gekanselleer';
-            v_notification_body := format('Jou bestelling #%s is gekanselleer. 😔', v_order_number);
+            v_notification_body := 'Jou bestelling #' || v_order_number || ' is gekanselleer. 😔';
         ELSE
             v_notification_title := 'Bestelling Status Opdatering';
-            v_notification_body := format('Jou bestelling #%s status is opgedateer na: %s', v_order_number, v_status_name);
+            v_notification_body := 'Jou bestelling #' || v_order_number || ' status is opgedateer na: ' || v_status_name;
     END CASE;
     
     -- Create notification (will trigger push notification via existing trigger)
@@ -153,14 +153,14 @@ BEGIN
     IF NEW.trans_bedrag > 0 THEN
         IF v_is_allowance THEN
             v_notification_title := 'Toelae Ontvang!';
-            v_notification_body := format('Jy het R%.2f toelae ontvang! 💰', NEW.trans_bedrag);
+            v_notification_body := 'Jy het R' || ROUND(NEW.trans_bedrag::numeric, 2)::text || ' toelae ontvang! 💰';
         ELSE
             v_notification_title := 'Beursie Opglaai';
-            v_notification_body := format('Jou beursie is opggelaai met R%.2f! 💳', NEW.trans_bedrag);
+            v_notification_body := 'Jou beursie is opggelaai met R' || ROUND(NEW.trans_bedrag::numeric, 2)::text || '! 💳';
         END IF;
     ELSE
         v_notification_title := 'Beursie Transaksie';
-        v_notification_body := format('R%.2f is van jou beursie afgetrek. 💸', ABS(NEW.trans_bedrag));
+        v_notification_body := 'R' || ROUND(ABS(NEW.trans_bedrag)::numeric, 2)::text || ' is van jou beursie afgetrek. 💸';
     END IF;
     
     -- Add description if provided
@@ -232,8 +232,7 @@ BEGIN
         
         -- Build notification message
         v_notification_title := 'Rekening Geaktiveer! 🎉';
-        v_notification_body := format('Welkom %s! Jou rekening is goedgekeur en geaktiveer. Jy kan nou begin bestel! 🍽️', 
-                                     COALESCE(NEW.gebr_naam, 'gebruiker'));
+        v_notification_body := 'Welkom ' || COALESCE(NEW.gebr_naam, 'gebruiker') || '! Jou rekening is goedgekeur en geaktiveer. Jy kan nou begin bestel! 🍽️';
         
         -- Create notification (will trigger push notification via existing trigger)
         INSERT INTO kennisgewings (
