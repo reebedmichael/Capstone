@@ -184,7 +184,62 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage> {
           // Custom header matching dashboard_header.dart style
           _buildCustomHeader(),
           // Main content
-          Expanded(child: _buildUsersTab(filteredUsers)),
+          Expanded(
+            child: _loading
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Laai gebruikers...',
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                        ),
+                      ],
+                    ),
+                  )
+                : _error != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _error!,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: _loadData,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Probeer weer'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : _buildUsersTab(filteredUsers),
+          ),
         ],
       ),
     );
@@ -420,17 +475,6 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Loading and error states with improved styling
-          if (_loading)
-            Container(
-              margin: const EdgeInsets.only(bottom: 20),
-              child: LinearProgressIndicator(
-                backgroundColor: Theme.of(context).colorScheme.surface,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Theme.of(context).colorScheme.primary,
-                ),
-              ),
-            ),
           if (_error != null)
             Container(
               margin: const EdgeInsets.only(bottom: 20),

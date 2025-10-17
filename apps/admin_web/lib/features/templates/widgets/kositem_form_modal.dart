@@ -125,7 +125,7 @@ class KositemFormModal extends StatelessWidget {
 
                       // --- Categories: multi-select chips with validation ---
                       Text(
-                        "Kategorieë *",
+                        "Dieet Vereiste *",
                         style: Theme.of(
                           context,
                         ).textTheme.bodyLarge?.copyWith(color: Colors.black),
@@ -134,7 +134,7 @@ class KositemFormModal extends StatelessWidget {
                       FormField<List<String>>(
                         initialValue: selectedCategories,
                         validator: (val) => val == null || val.isEmpty
-                            ? 'Kategorie is verpligtend'
+                            ? 'Dieet vereiste is verpligtend'
                             : null,
                         builder: (state) {
                           return Column(

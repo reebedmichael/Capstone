@@ -88,7 +88,7 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
               autofocus: true,
               decoration: const InputDecoration(
                 prefixIcon: Icon(Icons.search),
-                hintText: 'Soek volgens naam of kategorie...',
+                hintText: 'Soek volgens naam of dieet vereiste...',
               ),
               onChanged: (v) => setState(() => q = v),
             ),
@@ -204,13 +204,10 @@ class _ItemSearchOverlayState extends State<ItemSearchOverlay> {
                                         const SizedBox(height: 6),
                                         if (item.dieetKategorie.isNotEmpty) ...[
                                           Text(
-                                            'Kategorieë:',
+                                            'Dieet vereiste:',
                                             style: TextStyle(
                                               fontSize: 12,
-                                              fontWeight: FontWeight.w500,
-                                              color: Theme.of(
-                                                context,
-                                              ).hintColor,
+                                              fontWeight: FontWeight.w600,
                                             ),
                                           ),
                                           const SizedBox(height: 4),

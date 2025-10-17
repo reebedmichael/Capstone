@@ -118,7 +118,7 @@ class KositemDetailDialog extends StatelessWidget {
               // Categories
               if (item.dieetKategorie.isNotEmpty) ...[
                 Text(
-                  "Kategorieë",
+                  "Dieet Vereiste",
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
