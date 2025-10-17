@@ -73,7 +73,6 @@ class _ProfielPageState extends ConsumerState<ProfielPage> {
           } else if (createdRaw is DateTime) {
             ref.read(createdDateProvider.notifier).state = createdRaw;
           }
-          //TODO: gaan ons rerig hierdie gebruik? vvvv
           ref.read(lastActiveProvider.notifier).state = DateTime.now();
           final kampusMap = data['kampus'] as Map<String, dynamic>?;
           ref.read(locationProvider.notifier).state =

@@ -269,9 +269,9 @@ class RegistreerAdminPage extends ConsumerWidget {
                                       ).showSnackBar(
                                         SnackBar(
                                           content: Text(
-                                            'Registrasie suksesvol! Teken nou in om voort te gaan.',
+                                            'Registrasie suksesvol! Bevestig jou e-pos en teken in.',
                                           ),
-                                          backgroundColor: Colors.orange,
+                                          backgroundColor: Colors.green,
                                         ),
                                       );
                                       context.go('/teken_in');
