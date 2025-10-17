@@ -36,6 +36,10 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
   List<String> kampusList = [];
   final Map<String, int> kampusOrderCounts = {};
   late final KampusRepository _kampusRepo;
+
+  // Date filter for history view
+  DateTime? fromDate;
+  DateTime? toDate;
   @override
   void initState() {
     super.initState();
@@ -170,15 +174,54 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
     List<Order> baseOrders;
     // Geskiedenis (History) view: Show original orders that are fully completed or cancelled.
     if (selectedDay == "Geskiedenis") {
-      baseOrders =
-          orders
-              .where(
-                (order) =>
-                    order.status == OrderStatus.done ||
-                    order.status == OrderStatus.cancelled,
-              )
-              .toList()
-            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      baseOrders = orders
+          .where(
+            (order) =>
+                order.status == OrderStatus.done ||
+                order.status == OrderStatus.cancelled,
+          )
+          .toList();
+
+      // Apply date filtering if dates are selected
+      if (fromDate != null || toDate != null) {
+        baseOrders = baseOrders.where((order) {
+          final orderDate = DateTime(
+            order.createdAt.year,
+            order.createdAt.month,
+            order.createdAt.day,
+          );
+
+          bool matchesFromDate = true;
+          bool matchesToDate = true;
+
+          if (fromDate != null) {
+            final fromDateOnly = DateTime(
+              fromDate!.year,
+              fromDate!.month,
+              fromDate!.day,
+            );
+            matchesFromDate =
+                orderDate.isAtSameMomentAs(fromDateOnly) ||
+                orderDate.isAfter(fromDateOnly);
+          }
+
+          if (toDate != null) {
+            final toDateOnly = DateTime(
+              toDate!.year,
+              toDate!.month,
+              toDate!.day,
+            );
+            matchesToDate =
+                orderDate.isAtSameMomentAs(toDateOnly) ||
+                orderDate.isBefore(toDateOnly);
+          }
+
+          return matchesFromDate && matchesToDate;
+        }).toList();
+      }
+
+      // Sort by creation date (newest first)
+      baseOrders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } else {
       final List<Order> splitOrders = [];
 
@@ -384,11 +427,11 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
       // Update in database
       final statusName = getDatabaseStatusName(status);
       await _repo.updateStatus(
-        bestKosId: itemId, 
+        bestKosId: itemId,
         statusNaam: statusName,
         gebrId: originalOrder.customerId,
-        refundAmount: status == OrderStatus.cancelled 
-            ? targetItem.price * targetItem.quantity 
+        refundAmount: status == OrderStatus.cancelled
+            ? targetItem.price * targetItem.quantity
             : null,
       );
 
@@ -525,8 +568,8 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
               bestKosId: item.id,
               statusNaam: statusName,
               gebrId: order.customerId,
-              refundAmount: status == OrderStatus.cancelled 
-                  ? item.price * item.quantity 
+              refundAmount: status == OrderStatus.cancelled
+                  ? item.price * item.quantity
                   : null,
             );
           }
@@ -648,7 +691,169 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
     setState(() {
       selectedDay = day;
       selectedFoodItem = "";
+      // Reset date filters when switching away from history
+      if (day != "Geskiedenis") {
+        fromDate = null;
+        toDate = null;
+      }
     });
+  }
+
+  Widget _buildDateFilter() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Theme.of(context).dividerColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Datum Filter',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Van Datum',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 4),
+                    InkWell(
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate:
+                              fromDate ??
+                              DateTime.now().subtract(const Duration(days: 30)),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                        );
+                        if (date != null) {
+                          setState(() {
+                            fromDate = date;
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Theme.of(context).dividerColor,
+                          ),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.calendar_today,
+                              size: 16,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              fromDate != null
+                                  ? '${fromDate!.day}/${fromDate!.month}/${fromDate!.year}'
+                                  : 'Kies datum',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Tot Datum',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 4),
+                    InkWell(
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: toDate ?? DateTime.now(),
+                          firstDate: fromDate ?? DateTime(2020),
+                          lastDate: DateTime.now(),
+                        );
+                        if (date != null) {
+                          setState(() {
+                            toDate = date;
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Theme.of(context).dividerColor,
+                          ),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.calendar_today,
+                              size: 16,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              toDate != null
+                                  ? '${toDate!.day}/${toDate!.month}/${toDate!.year}'
+                                  : 'Kies datum',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (fromDate != null || toDate != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      fromDate = null;
+                      toDate = null;
+                    });
+                  },
+                  icon: const Icon(Icons.clear, size: 16),
+                  label: const Text('Skoon datum filter'),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   // === UI (No changes needed below this line) ===
@@ -850,6 +1055,12 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
                     // orderCounts: _buildKampusOrderCounts(),
                   ),
                   const SizedBox(height: 16),
+
+                  // Date filter - only visible in history view
+                  if (selectedDay == "Geskiedenis") ...[
+                    _buildDateFilter(),
+                    const SizedBox(height: 16),
+                  ],
 
                   DayItemsSummary(
                     orders: filteredOrders,
