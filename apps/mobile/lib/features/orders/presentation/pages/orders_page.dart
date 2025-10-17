@@ -1040,9 +1040,10 @@ class _OrdersPageState extends State<OrdersPage>
                   ),
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          ClipRRect(
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final bool isNarrow = constraints.maxWidth < 360;
+                          final Widget imageWidget = ClipRRect(
                             borderRadius: BorderRadius.circular(6),
                             child:
                                 (food['kos_item_prentjie'] != null &&
@@ -1060,51 +1061,35 @@ class _OrdersPageState extends State<OrdersPage>
                                     alignment: Alignment.center,
                                     child: const Icon(Icons.fastfood, size: 20),
                                   ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
+                          );
+
+                          final Widget leftContent = Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Builder(
-                                  builder: (_) {
-                                    final String itemName = (food['kos_item_naam'] as String?) ?? '';
-                                    final String bestNommer = (item['best_nommer'] as String?) ?? '';
-                                    if (bestNommer.isEmpty) {
-                                      return Text(
-                                        itemName,
-                                        style: const TextStyle(fontSize: 14),
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 2,
-                                      );
-                                    }
-                                    return Row(
-                                      children: [
-                                        Text(
-                                          'Nommer: $bestNommer',
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                          maxLines: 1,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            itemName,
-                                            style: const TextStyle(fontSize: 14),
-                                            overflow: TextOverflow.ellipsis,
-                                            maxLines: 2,
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  },
+                                Text(
+                                  (food['kos_item_naam'] as String?) ?? '',
+                                  style: const TextStyle(fontSize: 14),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 2,
                                 ),
                                 Text(
                                   '${item['item_hoev'] ?? 1} x R${food['kos_item_koste']}',
                                   style: const TextStyle(fontSize: 12),
+                                ),
+                                const SizedBox(height: 2),
+                                SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  physics: const BouncingScrollPhysics(),
+                                  child: Text(
+                                    'Nommer: ${item['best_nommer'] ?? ''}',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
+                                    softWrap: false,
+                                    maxLines: 1,
+                                  ),
                                 ),
                                 if (weekDagNaam != null) ...[
                                   const SizedBox(height: 2),
@@ -1133,24 +1118,11 @@ class _OrdersPageState extends State<OrdersPage>
                                     ],
                                   ),
                                 ],
-                                const SizedBox(height: 2),
-                                SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  physics: const BouncingScrollPhysics(),
-                                  child: Text(
-                                    'ID: ${item['best_kos_id'] ?? ''}',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                    ),
-                                    softWrap: false,
-                                    maxLines: 1,
-                                  ),
-                                ),
                               ],
                             ),
-                          ),
-                          Column(
+                          );
+
+                          final Widget rightContent = Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
@@ -1175,7 +1147,7 @@ class _OrdersPageState extends State<OrdersPage>
                                             ? Colors.white
                                             : (_tabController.index == 1 ? Colors.white : null),
                                         fontWeight: isPastDue ? FontWeight.bold : FontWeight.normal,
-                                        letterSpacing: isPastDue ? 0.5 : 0.0, // Glitched spacing
+                                        letterSpacing: isPastDue ? 0.5 : 0.0,
                                         shadows: isPastDue ? [
                                           Shadow(
                                             color: Colors.red.shade300,
@@ -1207,7 +1179,6 @@ class _OrdersPageState extends State<OrdersPage>
                                   onPressed: () {
                                     if (lastStatus == 'Afgehandel' || lastStatus == 'Gekanselleer') return;
                                     if (cutoffForTab != null && DateTime.now().isAfter(cutoffForTab)) return;
-                                    // Hide cancel if the item's cutoff is in the past
                                     if (itemCutoff != null && DateTime.now().isAfter(itemCutoff)) {
                                       return;
                                     }
@@ -1219,8 +1190,38 @@ class _OrdersPageState extends State<OrdersPage>
                                   child: const Text('Kanselleer'),
                                 ),
                             ],
-                          ),
-                        ],
+                          );
+
+                          if (isNarrow) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    imageWidget,
+                                    const SizedBox(width: 8),
+                                    leftContent,
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: rightContent,
+                                ),
+                              ],
+                            );
+                          }
+
+                          return Row(
+                            children: [
+                              imageWidget,
+                              const SizedBox(width: 8),
+                              leftContent,
+                              rightContent,
+                            ],
+                          );
+                        },
                       ),
                       // Add feedback widget for completed items
                       if (isCompletedItem && lastStatus == 'Afgehandel') ...[

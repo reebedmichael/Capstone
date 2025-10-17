@@ -21,6 +21,8 @@ class ProfielPage extends ConsumerStatefulWidget {
 
 class _ProfielPageState extends ConsumerState<ProfielPage> {
   bool isLoading = true;
+  String? _gebruikerRolNaam;
+  String? _adminRolNaam;
 
   @override
   void initState() {
@@ -37,11 +39,26 @@ class _ProfielPageState extends ConsumerState<ProfielPage> {
         });
         return;
       }
+      // Read directly from DB tables (no views), with joins for names
+      final client = Supabase.instance.client;
+      final data = await client
+          .from('gebruikers')
+          .select('''
+            gebr_naam,
+            gebr_van,
+            gebr_epos,
+            gebr_selfoon,
+            is_aktief,
+            gebr_geskep_datum,
+            gebr_tipe,
+            kampus:kampus_id(kampus_naam),
+            gebr_tipe_rel:gebr_tipe_id(gebr_tipe_naam),
+            admin_tipe:admin_tipe_id(admin_tipe_naam)
+          ''')
+          .eq('gebr_id', user.id)
+          .maybeSingle();
 
-      final repository = sl<GebruikersRepository>();
-      final data = await repository.kryGebruiker(user.id);
-
-      if (data != null) {
+      if (data != null && mounted) {
         setState(() {
           ref.read(firstNameProvider.notifier).state = data['gebr_naam'] ?? '';
           ref.read(lastNameProvider.notifier).state = data['gebr_van'] ?? '';
@@ -49,11 +66,28 @@ class _ProfielPageState extends ConsumerState<ProfielPage> {
           ref.read(cellphoneProvider.notifier).state =
               data["gebr_selfoon"] ?? '';
           ref.read(statusProvider.notifier).state = data["is_aktief"] ?? false;
-          ref.read(createdDateProvider.notifier).state =
-              data["gebr_geskep_datum"];
-          //TODO: gaan ons rerig hierdie gebruik? vvvv
+          final createdRaw = data["gebr_geskep_datum"];
+          if (createdRaw is String) {
+            ref.read(createdDateProvider.notifier).state =
+                DateTime.tryParse(createdRaw) ?? DateTime.now();
+          } else if (createdRaw is DateTime) {
+            ref.read(createdDateProvider.notifier).state = createdRaw;
+          }
           ref.read(lastActiveProvider.notifier).state = DateTime.now();
-          ref.read(locationProvider.notifier).state = data["kampus_naam"];
+          final kampusMap = data['kampus'] as Map<String, dynamic>?;
+          ref.read(locationProvider.notifier).state =
+              kampusMap?["kampus_naam"] ?? '';
+          // Load gebruiker rol from linked gebruiker_tipes only
+          final gebrTipeRel = data['gebr_tipe_rel'] as Map<String, dynamic>?;
+          _gebruikerRolNaam =
+              (gebrTipeRel?['gebr_tipe_naam'] as String?)?.trim().isNotEmpty == true
+                  ? (gebrTipeRel!['gebr_tipe_naam'] as String).trim()
+                  : 'Onbekend';
+          final adminRel = data['admin_tipe'] as Map<String, dynamic>?;
+          _adminRolNaam = (adminRel?['admin_tipe_naam'] as String?)?.trim();
+          if (_adminRolNaam == null || _adminRolNaam!.isEmpty) {
+            _adminRolNaam = 'Geen';
+          }
           isLoading = false;
         });
       } else {
@@ -80,9 +114,8 @@ class _ProfielPageState extends ConsumerState<ProfielPage> {
     final lastName = ref.watch(lastNameProvider);
     final email = ref.watch(emailProvider);
     final cellphone = ref.watch(cellphoneProvider);
-    final status = ref.watch(statusProvider);
+    // final status = ref.watch(statusProvider); // no longer displayed
     final createdDate = ref.watch(createdDateProvider);
-    final lastActive = ref.watch(lastActiveProvider);
     final location = ref.watch(locationProvider);
 
     final isFormValid = ref.watch(profielFormValidProvider);
@@ -99,8 +132,11 @@ class _ProfielPageState extends ConsumerState<ProfielPage> {
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
+                child: Center(
+                  child: Container(
+                    width: 600.0,
+                    child: Column(
+                      children: [
                     // Profile Overview
                     Card(
                       child: Padding(
@@ -137,80 +173,11 @@ class _ProfielPageState extends ConsumerState<ProfielPage> {
                                   Wrap(
                                     spacing: 8,
                                     children: [
-                                      const Chip(
-                                        label: Text("Ekstern"),
-                                        avatar: Icon(Icons.shield, size: 16),
-                                      ),
-                                      Chip(
-                                        label: Text(
-                                          status == true
-                                              ? "Aktief"
-                                              : "Wag Goedkeuring",
-                                          style: TextStyle(color: Colors.black),
-                                        ),
-                                        backgroundColor: status == true
-                                            ? Colors.green.shade50
-                                            : Colors.orange.shade50,
-                                      ),
-                                      Chip(
-                                        label: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(
-                                              Icons.calendar_today,
-                                              size: 14,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              "Lid sedert ${createdDate.toString().split(' ').first}",
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                                      // Removed Aktief and Lid sedert labels as requested
                                     ],
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Role Information
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: const [
-                                Icon(Icons.security, size: 20),
-                                SizedBox(width: 8),
-                                Text(
-                                  "Rol en Toegangsregte",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              "Huidige Rol: Ekstern",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              status == "aktief"
-                                  ? "Jy het volledige toegang tot die stelsel"
-                                  : "Beperkte toegang totdat rekening goedgekeur word",
-                              style: TextStyle(color: Colors.grey.shade600),
                             ),
                           ],
                         ),
@@ -301,10 +268,32 @@ class _ProfielPageState extends ConsumerState<ProfielPage> {
                                         return;
                                       }
 
-                                      //TODO:kyk of email en ander goed bots
-                                      // final gebruikersMetEpos = await gebRepository.soekGebruikers(email);
-
                                       try {
+                                        // Prevent changing email to one that already exists for another user
+                                        final client = Supabase.instance.client;
+                                        final existingEmail = await client
+                                            .from('gebruikers')
+                                            .select('gebr_id')
+                                            .ilike('gebr_epos', email)
+                                            .neq('gebr_id', user.id)
+                                            .limit(1)
+                                            .maybeSingle();
+
+                                        if (existingEmail != null) {
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                  'Daardie e-pos adres is reeds in gebruik.',
+                                                ),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
+                                          return;
+                                        }
+
                                         await gebRepository
                                             .skepOfOpdateerGebruiker({
                                               "gebr_id": user.id,
@@ -381,15 +370,20 @@ class _ProfielPageState extends ConsumerState<ProfielPage> {
                               createdDate.toString().split(' ').first,
                             ),
                             _buildActivityRow(
-                              "Laaste aktiwiteit:",
-                              lastActive.toString().split(' ').first,
+                              "Gebruiker Rol:",
+                              (_gebruikerRolNaam ?? 'Onbekend'),
                             ),
-                            _buildActivityRow("Rol:", "Ekstern"),
+                            _buildActivityRow(
+                              "Admin Rol:",
+                              (_adminRolNaam ?? 'Geen'),
+                            ),
                           ],
                         ),
                       ),
                     ),
-                  ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),

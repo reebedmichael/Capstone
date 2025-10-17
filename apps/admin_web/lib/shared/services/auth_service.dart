@@ -31,6 +31,14 @@ class AuthService {
           // Log the error but don't fail the login
           print('Warning: Could not ensure user exists in database: $e');
         }
+
+        // Log successful sign-in to logboek (non-blocking for user)
+        try {
+          await _logSignIn(response.user!);
+        } catch (e) {
+          // Do not block authentication on logging failures
+          print('Warning: Could not write sign-in log: $e');
+        }
       }
 
       return response;
@@ -294,5 +302,72 @@ class AuthService {
       print('DEBUG: AuthService - Error fetching profile: $e');
       return null;
     }
+  }
+
+  // =======================================
+  // Logging helpers
+  // =======================================
+
+  Future<void> _logSignIn(User user) async {
+    // Build description: user's name + gebruiker_tipe + admin role + gebruiker id
+    // Get or create the log type 'Teken In'
+    final String logTypeId = await _getOrCreateLogTypeId('Teken In');
+
+    // Fetch minimal profile details for description
+    final Map<String, dynamic>? profile = await _supabase
+        .from('gebruikers')
+        .select('''
+          gebr_id,
+          gebr_naam,
+          gebr_van,
+          gebruiker_tipes:gebr_tipe_id(gebr_tipe_naam),
+          admin_tipes:admin_tipe_id(admin_tipe_naam)
+        ''')
+        .eq('gebr_id', user.id)
+        .maybeSingle();
+
+    final String firstName = (profile?['gebr_naam'] as String?)?.trim() ?? '';
+    final String lastName = (profile?['gebr_van'] as String?)?.trim() ?? '';
+    final String fullName = (firstName + ' ' + lastName).trim();
+    final String gebruikerTipe =
+        ((profile?['gebruiker_tipes'] as Map<String, dynamic>?)?['gebr_tipe_naam'] as String?)?.trim() ?? 'Onbekend';
+    final String adminRol =
+        ((profile?['admin_tipes'] as Map<String, dynamic>?)?['admin_tipe_naam'] as String?)?.trim() ?? 'None';
+
+    final String beskrywing =
+        '${fullName.isEmpty ? (user.email ?? user.id) : fullName} | tipe: ' +
+        gebruikerTipe +
+        ' | admin: ' +
+        adminRol +
+        ' | id: ' +
+        user.id;
+
+    await _supabase.from('logboek').insert({
+      'log_beskrywing': beskrywing,
+      // log_datum_geskep defaults to now() in DB
+      'log_tipe_id': logTypeId,
+    });
+  }
+
+  Future<String> _getOrCreateLogTypeId(String tipeNaam) async {
+    // Try get existing
+    final Map<String, dynamic>? existing = await _supabase
+        .from('log_tipe')
+        .select('log_tipe_id')
+        .eq('log_tipe_naam', tipeNaam)
+        .limit(1)
+        .maybeSingle();
+
+    if (existing != null && existing['log_tipe_id'] != null) {
+      return existing['log_tipe_id'] as String;
+    }
+
+    // Create new if not exists
+    final Map<String, dynamic> inserted = await _supabase
+        .from('log_tipe')
+        .insert({'log_tipe_naam': tipeNaam})
+        .select('log_tipe_id')
+        .single();
+    return inserted['log_tipe_id'] as String;
   }
 }
