@@ -7,7 +7,6 @@ import 'package:spys_api_client/src/admin_bestellings_repository.dart';
 import '../../../shared/types/order.dart';
 import '../../../shared/utils/status_utils.dart';
 import '../../../shared/constants/order_constants.dart';
-import '../../../shared/widgets/common_widgets.dart';
 import '../widgets/order_search.dart';
 import '../widgets/day_filter_orders.dart';
 import '../widgets/day_item_summary.dart';
@@ -37,6 +36,9 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
   final Map<String, int> kampusOrderCounts = {};
   late final KampusRepository _kampusRepo;
 
+  // Track which orders are being updated
+  final Set<String> _updatingOrders = {};
+
   // Date filter for history view
   DateTime? fromDate;
   DateTime? toDate;
@@ -47,22 +49,6 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
     _repo = AdminBestellingRepository(SupabaseDb(client));
     _kampusRepo = KampusRepository(SupabaseDb(client));
     _loadOrders();
-    _loadKampusse();
-  }
-
-  Future<void> _loadKampusse() async {
-    try {
-      final rows = await _kampusRepo.kryKampusse();
-      final loaded = rows
-          .map((r) => r?['kampus_naam'] as String?)
-          .whereType<String>()
-          .toList();
-      setState(() {
-        kampusList = loaded;
-      });
-    } catch (e) {
-      debugPrint("Kon nie kampusse laai nie: $e");
-    }
   }
 
   Future<void> _loadOrders() async {
@@ -70,18 +56,73 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
       _isLoading = true;
       _error = null;
     });
+
     try {
-      final rows = await _repo.getBestellings();
-      final loaded = rows.map(_mapApiOrderToModel).whereType<Order>().toList();
+      // Clear any existing cache to ensure fresh data
+      _repo.clearCache();
+
+      // Load both orders and kampus list in parallel for better performance
+      final stopwatch = Stopwatch()..start();
+
+      final ordersFuture = _repo.getBestellings(forceRefresh: true);
+      final kampusFuture = _kampusRepo.kryKampusse();
+
+      // Wait for both operations to complete in parallel
+      final results = await Future.wait([ordersFuture, kampusFuture]);
+      final rows = results[0];
+      final kampusRows = results[1];
+
+      stopwatch.stop();
+      print(
+        'Orders and kampus data loaded in ${stopwatch.elapsedMilliseconds}ms',
+      );
+
+      final loaded = (rows as List<Map<String, dynamic>>)
+          .map(_mapApiOrderToModel)
+          .whereType<Order>()
+          .toList();
+      final loadedKampusse = kampusRows
+          .map((r) => r?['kampus_naam'] as String?)
+          .whereType<String>()
+          .toList();
+
       setState(() {
         orders
           ..clear()
           ..addAll(loaded);
+        kampusList = loadedKampusse;
       });
+
+      print('Total orders processed: ${loaded.length}');
+
+      // Show success feedback
+      // if (mounted) {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     SnackBar(
+      //       content: Text(
+      //         'Bestellings suksesvol herlaai (${loaded.length} bestellings)',
+      //       ),
+      //       backgroundColor: Colors.green,
+      //       duration: const Duration(seconds: 2),
+      //     ),
+      //   );
+      // }
     } catch (e) {
+      print('Error loading orders: $e');
       setState(() {
         _error = e.toString();
       });
+
+      // Show error feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Fout by laai van bestellings: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -155,6 +196,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
 
       return Order(
         id: idStr,
+        bestNommer: (row['best_nommer'] as String?) ?? idStr,
         customerEmail: email,
         customerId: id,
         items: items,
@@ -172,13 +214,14 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
   // Get all orders for the selected day (without food item filtering)
   List<Order> get allOrdersForDay {
     List<Order> baseOrders;
-    // Geskiedenis (History) view: Show original orders that are fully completed or cancelled.
+    // Geskiedenis (History) view: Show original orders that are fully completed, cancelled, or verstryk.
     if (selectedDay == "Geskiedenis") {
       baseOrders = orders
           .where(
             (order) =>
                 order.status == OrderStatus.done ||
-                order.status == OrderStatus.cancelled,
+                order.status == OrderStatus.cancelled ||
+                order.status == OrderStatus.verstryk,
           )
           .toList();
 
@@ -287,21 +330,26 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
     // Apply search query to the list of split orders.
     final filteredOrders = baseOrders.where((order) {
       final originalOrderId = order.id.split('__').first;
+      final displayNumber = order.bestNommer ?? originalOrderId;
       final matchesSearch =
           searchQuery.isEmpty ||
           order.customerEmail.toLowerCase().contains(
             searchQuery.toLowerCase(),
           ) ||
-          originalOrderId.toLowerCase().contains(searchQuery.toLowerCase());
+          displayNumber.toLowerCase().contains(searchQuery.toLowerCase());
       return matchesSearch;
     }).toList();
 
     // Sort orders: active orders first, then completed orders
     filteredOrders.sort((a, b) {
       final aIsCompleted =
-          a.status == OrderStatus.done || a.status == OrderStatus.cancelled;
+          a.status == OrderStatus.done ||
+          a.status == OrderStatus.cancelled ||
+          a.status == OrderStatus.verstryk;
       final bIsCompleted =
-          b.status == OrderStatus.done || b.status == OrderStatus.cancelled;
+          b.status == OrderStatus.done ||
+          b.status == OrderStatus.cancelled ||
+          b.status == OrderStatus.verstryk;
 
       // If one is completed and the other isn't, prioritize the active one
       if (aIsCompleted && !bIsCompleted) return 1;
@@ -347,6 +395,11 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
     final originalOrderId = parts.first;
     final foodType = parts.sublist(1).join('__');
 
+    // Add to updating orders set
+    setState(() {
+      _updatingOrders.add(splitOrderId);
+    });
+
     try {
       // Find the original order and items to update
       final originalOrder = orders.firstWhere(
@@ -361,14 +414,25 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
           )
           .toList();
 
-      // Update each item in the database
-      for (final item in itemsToUpdate) {
+      if (itemsToUpdate.isNotEmpty) {
+        // Use bulk update for better performance
+        final bestKosIds = itemsToUpdate.map((item) => item.id).toList();
+        final Map<String, double> refundAmounts = {};
+        final Map<String, String> customerIds = {};
+
+        for (final item in itemsToUpdate) {
+          customerIds[item.id] = originalOrder.customerId;
+          if (status == OrderStatus.cancelled) {
+            refundAmounts[item.id] = item.price * item.quantity;
+          }
+        }
+
         final statusName = getDatabaseStatusName(status);
-        await _repo.updateStatus(
-          bestKosId: item.id,
+        await _repo.bulkUpdateStatus(
+          bestKosIds: bestKosIds,
           statusNaam: statusName,
-          gebrId: originalOrder.customerId,
-          refundAmount: item.price * item.quantity,
+          refundAmounts: refundAmounts.isNotEmpty ? refundAmounts : null,
+          customerIds: customerIds.isNotEmpty ? customerIds : null,
         );
       }
 
@@ -402,6 +466,13 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    } finally {
+      // Remove from updating orders set
+      if (mounted) {
+        setState(() {
+          _updatingOrders.remove(splitOrderId);
+        });
       }
     }
   }
@@ -486,15 +557,23 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
           )
           .toList();
 
-      // Cancel each item in the database
-      for (final item in itemsToCancel) {
+      if (itemsToCancel.isNotEmpty) {
+        // Use bulk update for better performance
+        final bestKosIds = itemsToCancel.map((item) => item.id).toList();
+        final Map<String, double> refundAmounts = {};
+        final Map<String, String> customerIds = {};
+
+        for (final item in itemsToCancel) {
+          customerIds[item.id] = originalOrder.customerId;
+          refundAmounts[item.id] = item.price * item.quantity;
+        }
+
         final statusName = getDatabaseStatusName(OrderStatus.cancelled);
-        await _repo.updateStatus(
-          bestKosId: item.id,
+        await _repo.bulkUpdateStatus(
+          bestKosIds: bestKosIds,
           statusNaam: statusName,
-          gebrId:
-              originalOrder.customerId, // Using actual customer ID for refund
-          refundAmount: item.price * item.quantity, // Calculate refund amount
+          refundAmounts: refundAmounts,
+          customerIds: customerIds,
         );
       }
 
@@ -538,65 +617,72 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
   ) async {
     if (selectedDay == "Geskiedenis") return;
 
-    final Map<String, Set<String>> updatesByOriginalId = {};
-
-    for (final splitId in splitOrderIds) {
-      final parts = splitId.split('__');
-      if (parts.length < 2) continue;
-      final originalId = parts.first;
-      final foodType = parts.sublist(1).join('__');
-      (updatesByOriginalId[originalId] ??= {}).add(foodType);
-    }
+    // Add all split order IDs to updating orders set
+    setState(() {
+      _updatingOrders.addAll(splitOrderIds);
+    });
 
     try {
-      // Update all items in the database
-      for (final order in orders) {
-        if (updatesByOriginalId.containsKey(order.id)) {
-          final foodTypesToUpdate = updatesByOriginalId[order.id]!;
-          final itemsToUpdate = order.items
-              .where(
-                (item) =>
-                    item.scheduledDay == selectedDay &&
-                    foodTypesToUpdate.contains(item.name) &&
-                    getNextStatus(item.status) == status,
-              )
-              .toList();
+      // Prepare data for bulk update
+      final List<String> bestKosIds = [];
+      final Map<String, double> refundAmounts = {};
+      final Map<String, String> customerIds = {};
 
-          for (final item in itemsToUpdate) {
-            final statusName = getDatabaseStatusName(status);
-            await _repo.updateStatus(
-              bestKosId: item.id,
-              statusNaam: statusName,
-              gebrId: order.customerId,
-              refundAmount: status == OrderStatus.cancelled
-                  ? item.price * item.quantity
-                  : null,
-            );
+      for (final splitId in splitOrderIds) {
+        final parts = splitId.split('__');
+        if (parts.length < 2) continue;
+        final originalOrderId = parts.first;
+        final foodType = parts.sublist(1).join('__');
+
+        // Find the original order and items to update
+        final originalOrder = orders.firstWhere(
+          (order) => order.id == originalOrderId,
+        );
+
+        final itemsToUpdate = originalOrder.items
+            .where(
+              (item) =>
+                  item.scheduledDay == selectedDay &&
+                  item.name == foodType &&
+                  getNextStatus(item.status) == status,
+            )
+            .toList();
+
+        // Add items to bulk update data
+        for (final item in itemsToUpdate) {
+          bestKosIds.add(item.id);
+          customerIds[item.id] = originalOrder.customerId;
+
+          if (status == OrderStatus.cancelled) {
+            refundAmounts[item.id] = item.price * item.quantity;
           }
         }
       }
 
+      // Execute bulk update
+      final statusName = getDatabaseStatusName(status);
+      await _repo.bulkUpdateStatus(
+        bestKosIds: bestKosIds,
+        statusNaam: statusName,
+        refundAmounts: refundAmounts.isNotEmpty ? refundAmounts : null,
+        customerIds: customerIds.isNotEmpty ? customerIds : null,
+      );
+
       // Update local state after successful database updates
       setState(() {
         orders = orders.map((order) {
-          if (updatesByOriginalId.containsKey(order.id)) {
-            final foodTypesToUpdate = updatesByOriginalId[order.id]!;
+          final updatedItems = order.items.map((item) {
+            if (bestKosIds.contains(item.id) &&
+                getNextStatus(item.status) == status) {
+              return item.copyWith(status: status);
+            }
+            return item;
+          }).toList();
 
-            final updatedItems = order.items.map((item) {
-              if (item.scheduledDay == selectedDay &&
-                  foodTypesToUpdate.contains(item.name) &&
-                  getNextStatus(item.status) == status) {
-                return item.copyWith(status: status);
-              }
-              return item;
-            }).toList();
-
-            return order.copyWith(
-              items: updatedItems,
-              status: _recalcOrderStatus(updatedItems),
-            );
-          }
-          return order;
+          return order.copyWith(
+            items: updatedItems,
+            status: _recalcOrderStatus(updatedItems),
+          );
         }).toList();
       });
     } catch (e) {
@@ -608,6 +694,13 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    } finally {
+      // Remove all split order IDs from updating orders set
+      if (mounted) {
+        setState(() {
+          _updatingOrders.removeAll(splitOrderIds);
+        });
       }
     }
   }
@@ -641,32 +734,17 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
     return mondayOfWeek.add(Duration(days: daysToAdd));
   }
 
-  bool _isPreviousDay(String selectedDay) {
-    if (selectedDay == "Geskiedenis") return false;
-
-    final today = DateTime.now();
-    final selectedDate = _getDateForSelectedDay(selectedDay, today);
-
-    // Compare only the date part (year, month, day) to avoid time issues
-    final todayDate = DateTime(today.year, today.month, today.day);
-    final selectedDateOnly = DateTime(
-      selectedDate.year,
-      selectedDate.month,
-      selectedDate.day,
-    );
-
-    return selectedDateOnly.isBefore(todayDate);
-  }
-
   OrderStatus _recalcOrderStatus(List<OrderItem> items) {
     if (items.every((i) => i.status == OrderStatus.done)) {
       return OrderStatus.done;
+    } else if (items.every((i) => i.status == OrderStatus.verstryk)) {
+      return OrderStatus.verstryk;
+    } else if (items.every((i) => i.status == OrderStatus.cancelled)) {
+      return OrderStatus.cancelled;
     } else if (items.every((i) => i.status == OrderStatus.readyFetch)) {
       return OrderStatus.readyFetch;
     } else if (items.every((i) => i.status == OrderStatus.delivered)) {
       return OrderStatus.delivered;
-    } else if (items.every((i) => i.status == OrderStatus.cancelled)) {
-      return OrderStatus.cancelled;
     } else if (items.any((i) => i.status == OrderStatus.outForDelivery)) {
       return OrderStatus.outForDelivery;
     } else if (items.any((i) => i.status == OrderStatus.readyDelivery)) {
@@ -691,12 +769,92 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
     setState(() {
       selectedDay = day;
       selectedFoodItem = "";
-      // Reset date filters when switching away from history
-      if (day != "Geskiedenis") {
+      // Set default date filters when switching to history view
+      if (day == "Geskiedenis") {
+        final now = DateTime.now();
+        // Set default range to last 7 days (more practical for daily operations)
+        fromDate = DateTime(now.year, now.month, now.day - 7);
+        toDate = DateTime(now.year, now.month, now.day);
+      } else {
+        // Reset date filters when switching away from history
         fromDate = null;
         toDate = null;
       }
     });
+  }
+
+  Widget _buildQuickDateButton(String label, VoidCallback onPressed) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+        ),
+        color: Theme.of(context).colorScheme.surface,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _getDateIcon(label),
+                  size: 14,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _getDateIcon(String label) {
+    switch (label) {
+      case 'Laaste 7 dae':
+        return Icons.date_range;
+      case 'Laaste 30 dae':
+        return Icons.calendar_month;
+      case 'Laaste 6 maande':
+        return Icons.calendar_view_month;
+      case 'Laaste jaar':
+        return Icons.calendar_today;
+      default:
+        return Icons.date_range;
+    }
+  }
+
+  String _getDateRangeText() {
+    if (fromDate != null && toDate != null) {
+      if (fromDate!.isAtSameMomentAs(toDate!)) {
+        return 'Geselekteerde datum: ${_formatDate(fromDate!)}';
+      } else {
+        return 'Datum reeks: ${_formatDate(fromDate!)} tot ${_formatDate(toDate!)}';
+      }
+    } else if (fromDate != null) {
+      return 'Van datum: ${_formatDate(fromDate!)}';
+    } else if (toDate != null) {
+      return 'Tot datum: ${_formatDate(toDate!)}';
+    }
+    return '';
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
   }
 
   Widget _buildDateFilter() {
@@ -734,7 +892,7 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
                           context: context,
                           initialDate:
                               fromDate ??
-                              DateTime.now().subtract(const Duration(days: 30)),
+                              DateTime.now().subtract(const Duration(days: 7)),
                           firstDate: DateTime(2020),
                           lastDate: DateTime.now(),
                         );
@@ -834,8 +992,99 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          // Show current date range
           if (fromDate != null || toDate != null) ...[
-            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(
+                  context,
+                ).colorScheme.primaryContainer.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.date_range,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _getDateRangeText(),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Vinnige datum keuses',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Quick date range buttons organized in groups
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  // Short-term options
+                  _buildQuickDateButton('Laaste 7 dae', () {
+                    final now = DateTime.now();
+                    setState(() {
+                      fromDate = DateTime(now.year, now.month, now.day - 7);
+                      toDate = DateTime(now.year, now.month, now.day);
+                    });
+                  }),
+                  _buildQuickDateButton('Laaste 30 dae', () {
+                    final now = DateTime.now();
+                    setState(() {
+                      fromDate = DateTime(now.year, now.month, now.day - 30);
+                      toDate = DateTime(now.year, now.month, now.day);
+                    });
+                  }),
+                  // Long-term options
+                  _buildQuickDateButton('Laaste 6 maande', () {
+                    final now = DateTime.now();
+                    final sixMonthsAgo = DateTime(
+                      now.year,
+                      now.month - 6,
+                      now.day,
+                    );
+                    setState(() {
+                      fromDate = sixMonthsAgo;
+                      toDate = DateTime(now.year, now.month, now.day);
+                    });
+                  }),
+                  _buildQuickDateButton('Laaste jaar', () {
+                    final now = DateTime.now();
+                    final oneYearAgo = DateTime(
+                      now.year - 1,
+                      now.month,
+                      now.day,
+                    );
+                    setState(() {
+                      fromDate = oneYearAgo;
+                      toDate = DateTime(now.year, now.month, now.day);
+                    });
+                  }),
+                ],
+              ),
+            ],
+          ),
+          if (fromDate != null || toDate != null) ...[
+            const SizedBox(height: 8),
             Row(
               children: [
                 TextButton.icon(
@@ -927,12 +1176,23 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
-                          icon: const Icon(Icons.refresh, size: 18),
-                          label: const Text(
-                            'Herlaai',
-                            style: TextStyle(fontSize: 12),
+                          icon: _isLoading
+                              ? SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                )
+                              : const Icon(Icons.refresh, size: 18),
+                          label: Text(
+                            _isLoading ? 'Laai...' : 'Herlaai',
+                            style: const TextStyle(fontSize: 12),
                           ),
-                          onPressed: _loadOrders,
+                          onPressed: _isLoading ? null : _loadOrders,
                         ),
                       ),
                     ],
@@ -982,9 +1242,20 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
                       Row(
                         children: [
                           OutlinedButton.icon(
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Herlaai'),
-                            onPressed: _loadOrders,
+                            icon: _isLoading
+                                ? SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Theme.of(context).colorScheme.primary,
+                                      ),
+                                    ),
+                                  )
+                                : const Icon(Icons.refresh),
+                            label: Text(_isLoading ? 'Laai...' : 'Herlaai'),
+                            onPressed: _isLoading ? null : _loadOrders,
                           ),
                         ],
                       ),
@@ -993,260 +1264,190 @@ class _BestellingBestuurPageState extends State<BestellingBestuurPage> {
           ),
           // Main content
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Loading / Error
-                  LoadingErrorWidget(
-                    isLoading: _isLoading,
-                    error: _error,
-                    child: const SizedBox.shrink(),
-                  ),
-
-                  // Search
-                  Row(
-                    children: [
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final isMobile =
-                                MediaQuery.of(context).size.width < 600;
-
-                            return Align(
-                              alignment: Alignment.centerLeft,
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  maxWidth: isMobile
-                                      ? double.infinity
-                                      : 400, // 400px cap on bigger screens
-                                ),
-                                child: SearchBarWidget(
-                                  value: searchQuery,
-                                  onChange: (val) =>
-                                      setState(() => searchQuery = val),
-                                  placeholder: OrderConstants.getUiString(
-                                    'searchPlaceholder',
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                  ),
-
-                  //Day Filter
-                  const SizedBox(height: 12),
-                  DayFilters(
-                    selectedDay: selectedDay,
-                    onDayChange: handleDayChange,
-                  ),
-
-                  const SizedBox(height: 16),
-                  KampusFilter(
-                    selectedKampus: selectedKampus,
-                    onKampusChange: (val) =>
-                        setState(() => selectedKampus = val),
-                    kampusList: kampusList,
-                    // orderCounts: _buildKampusOrderCounts(),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Date filter - only visible in history view
-                  if (selectedDay == "Geskiedenis") ...[
-                    _buildDateFilter(),
-                    const SizedBox(height: 16),
-                  ],
-
-                  DayItemsSummary(
-                    orders: filteredOrders,
-                    selectedDay: selectedDay,
-                    selectedFoodItem: selectedFoodItem,
-                    onFoodItemClick: handleFoodItemClick,
-                    allOrders: allOrdersForDay,
-                  ),
-                  const SizedBox(height: 32),
-                  filteredOrders.isEmpty
-                      ? Center(
-                          child: Text(
-                            OrderConstants.getUiString('noOrdersFound'),
-                            style: Theme.of(context).textTheme.bodyLarge,
+            child: _isLoading
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Theme.of(context).colorScheme.primary,
                           ),
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    selectedDay == "Geskiedenis"
-                                        ? "${OrderConstants.getUiString('orderHistory')} (${filteredOrders.length})"
-                                        : "${OrderConstants.getUiString('ordersForDay')} $selectedDay (${filteredOrders.length})",
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.titleLarge,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                if (selectedDay != "Geskiedenis")
-                                  Row(
-                                    children: [
-                                      if (_isPreviousDay(selectedDay))
-                                        ElevatedButton.icon(
-                                          onPressed:
-                                              _handleCleanupUnclaimedOrders,
-                                          icon: const Icon(
-                                            Icons.cleaning_services_outlined,
-                                          ),
-                                          label: const Text(
-                                            'Merk aktiewe bestellings as gemis',
-                                          ),
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Theme.of(
-                                              context,
-                                            ).colorScheme.primary,
-                                            foregroundColor: Theme.of(
-                                              context,
-                                            ).colorScheme.onPrimary,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
-                                            ),
-                                          ),
-                                        ),
-                                      if (_isPreviousDay(selectedDay))
-                                        const SizedBox(width: 8),
-                                      BulkActions(
-                                        orders: filteredOrders,
-                                        onBulkUpdate: handleBulkUpdate,
-                                      ),
-                                    ],
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 5),
-
-                            // Orders list
-                            for (var order in filteredOrders)
-                              OrderCard(
-                                order: order,
-                                selectedDay: selectedDay != "Geskiedenis"
-                                    ? selectedDay
-                                    : null,
-                                isPastOrder: selectedDay == "Geskiedenis",
-                                onViewDetails: (order) =>
-                                    _showOrderDetails(context, order),
-                                onUpdateStatus: handleUpdateOrderStatus,
-                                onCancelOrder: handleCancelOrder,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Laai bestellings...',
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
+                        ),
+                      ],
+                    ),
+                  )
+                : _error != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _error!,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: _loadOrders,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Probeer weer'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Search
+                        Row(
+                          children: [
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final isMobile =
+                                      MediaQuery.of(context).size.width < 600;
+
+                                  return Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxWidth: isMobile
+                                            ? double.infinity
+                                            : 400, // 400px cap on bigger screens
+                                      ),
+                                      child: SearchBarWidget(
+                                        value: searchQuery,
+                                        onChange: (val) =>
+                                            setState(() => searchQuery = val),
+                                        placeholder: OrderConstants.getUiString(
+                                          'searchPlaceholder',
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
                           ],
                         ),
-                ],
-              ),
-            ),
+
+                        //Day Filter
+                        const SizedBox(height: 12),
+                        DayFilters(
+                          selectedDay: selectedDay,
+                          onDayChange: handleDayChange,
+                        ),
+
+                        const SizedBox(height: 16),
+                        KampusFilter(
+                          selectedKampus: selectedKampus,
+                          onKampusChange: (val) =>
+                              setState(() => selectedKampus = val),
+                          kampusList: kampusList,
+                          // orderCounts: _buildKampusOrderCounts(),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Date filter - only visible in history view
+                        if (selectedDay == "Geskiedenis") ...[
+                          _buildDateFilter(),
+                          const SizedBox(height: 16),
+                        ],
+
+                        DayItemsSummary(
+                          orders: filteredOrders,
+                          selectedDay: selectedDay,
+                          selectedFoodItem: selectedFoodItem,
+                          onFoodItemClick: handleFoodItemClick,
+                          allOrders: allOrdersForDay,
+                        ),
+                        const SizedBox(height: 32),
+                        filteredOrders.isEmpty
+                            ? Center(
+                                child: Text(
+                                  OrderConstants.getUiString('noOrdersFound'),
+                                  style: Theme.of(context).textTheme.bodyLarge,
+                                ),
+                              )
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          selectedDay == "Geskiedenis"
+                                              ? "${OrderConstants.getUiString('orderHistory')} (${filteredOrders.length})"
+                                              : "${OrderConstants.getUiString('ordersForDay')} $selectedDay (${filteredOrders.length})",
+                                          style: Theme.of(
+                                            context,
+                                          ).textTheme.titleLarge,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (selectedDay != "Geskiedenis")
+                                        BulkActions(
+                                          orders: filteredOrders,
+                                          onBulkUpdate: handleBulkUpdate,
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 5),
+
+                                  // Orders list
+                                  for (var order in filteredOrders)
+                                    OrderCard(
+                                      order: order,
+                                      selectedDay: selectedDay != "Geskiedenis"
+                                          ? selectedDay
+                                          : null,
+                                      isPastOrder: selectedDay == "Geskiedenis",
+                                      isUpdating: _updatingOrders.contains(
+                                        order.id,
+                                      ),
+                                      onViewDetails: (order) =>
+                                          _showOrderDetails(context, order),
+                                      onUpdateStatus: handleUpdateOrderStatus,
+                                      onCancelOrder: handleCancelOrder,
+                                    ),
+                                ],
+                              ),
+                      ],
+                    ),
+                  ),
           ),
         ],
       ),
     );
-  }
-
-  Future<void> _handleCleanupUnclaimedOrders() async {
-    // Show confirmation dialog
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Bevestig Status Opdateering'),
-        content: const Text(
-          'Is jy seker jy wil onopgehaalde bestellings merk as gemis? '
-          'Hierdie aksie kan nie ongedaan gemaak word nie.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Kanselleer'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Bevestig'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    // Show loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('Opruim onopgehaalde bestellings...'),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      final result = await _repo.cancelUnclaimedOrders();
-
-      // Close loading dialog
-      if (mounted) Navigator.of(context).pop();
-
-      // Show result
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text(
-              result['success'] == true ? 'Opruiming Voltooi' : 'Fout',
-            ),
-            content: Text(result['message'] as String? ?? 'Onbekende fout'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  if (result['success'] == true) {
-                    _loadOrders(); // Refresh the orders list
-                  }
-                },
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      }
-    } catch (e) {
-      // Close loading dialog
-      if (mounted) Navigator.of(context).pop();
-
-      // Show error
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Fout'),
-            content: Text('Fout tydens opruiming: $e'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      }
-    }
   }
 
   void _showOrderDetails(BuildContext context, Order order) {

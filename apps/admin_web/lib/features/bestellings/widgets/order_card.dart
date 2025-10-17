@@ -11,6 +11,7 @@ class OrderCard extends StatefulWidget {
   final Order order;
   final String? selectedDay;
   final bool isPastOrder;
+  final bool isUpdating; // Add loading state parameter
   final void Function(Order order) onViewDetails;
   final Future<void> Function(String orderId, OrderStatus status)
   onUpdateStatus;
@@ -21,6 +22,7 @@ class OrderCard extends StatefulWidget {
     required this.order,
     this.selectedDay,
     this.isPastOrder = false,
+    this.isUpdating = false, // Default to false
     required this.onViewDetails,
     required this.onUpdateStatus,
     required this.onCancelOrder,
@@ -31,8 +33,6 @@ class OrderCard extends StatefulWidget {
 }
 
 class _OrderCardState extends State<OrderCard> {
-  bool _isUpdatingStatus = false;
-
   @override
   Widget build(BuildContext context) {
     final order = widget.order;
@@ -164,7 +164,7 @@ class _OrderCardState extends State<OrderCard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          widget.order.id,
+          widget.order.bestNommer ?? widget.order.id,
           style: theme.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.bold,
             color: theme.colorScheme.primary,
@@ -225,29 +225,36 @@ class _OrderCardState extends State<OrderCard> {
     bool canProgressStatus,
     OrderStatus? nextStatus,
   ) {
-    return Wrap(
-      spacing: 8.0,
-      runSpacing: 8.0,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Stack(
       children: [
-        StatusBadge(status: widget.order.status),
-        if (canProgressStatus && nextStatus != null)
-          _isUpdatingStatus
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : ActionButton(
-                  onPressed: () => _showStatusUpdateDialog(
-                    context,
-                    widget.order,
-                    nextStatus,
-                  ),
-                  icon: Icons.arrow_forward,
-                  label: OrderConstants.getUiString('updateStatus'),
-                  isOutlined: true,
-                ),
+        Wrap(
+          spacing: 8.0,
+          runSpacing: 8.0,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            StatusBadge(status: widget.order.status),
+            if (canProgressStatus && nextStatus != null && !widget.isUpdating)
+              ActionButton(
+                onPressed: () =>
+                    _showStatusUpdateDialog(context, widget.order, nextStatus),
+                icon: Icons.arrow_forward,
+                label: OrderConstants.getUiString('updateStatus'),
+                isOutlined: true,
+              ),
+          ],
+        ),
+        if (widget.isUpdating)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -297,22 +304,15 @@ class _OrderCardState extends State<OrderCard> {
         isOpen: true,
         onClose: () => Navigator.of(context).pop(),
         onConfirm: () async {
-          setState(() {
-            _isUpdatingStatus = true;
-          });
-
           try {
-            await widget.onUpdateStatus(order.id, newStatus);
-            // Close the dialog after successful update
+            // Close the dialog immediately when update starts
             if (mounted) {
               Navigator.of(context).pop();
             }
-          } finally {
-            if (mounted) {
-              setState(() {
-                _isUpdatingStatus = false;
-              });
-            }
+
+            await widget.onUpdateStatus(order.id, newStatus);
+          } catch (e) {
+            // Error handling is done in the parent component
           }
         },
         orders: [order],
@@ -336,9 +336,8 @@ class _OrderCardState extends State<OrderCard> {
         onClose: () => Navigator.of(context).pop(),
         onConfirm: () async {
           await widget.onCancelOrder(orderId);
-          // Navigator.of(context).pop();
         },
-        orderNumber: orderId,
+        orderNumber: widget.order.bestNommer ?? widget.order.id,
         customerEmail: widget.order.customerEmail,
         selectedDay: widget.selectedDay,
         itemCount: cancellableItemsCount,

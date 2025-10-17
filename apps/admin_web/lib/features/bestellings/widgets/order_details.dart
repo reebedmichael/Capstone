@@ -102,7 +102,7 @@ class _OrderDetailsModalState extends State<OrderDetailsModal> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "${OrderConstants.getUiString('orderId')} ${widget.order.id}",
+                            "${OrderConstants.getUiString('orderId')} ${widget.order.bestNommer ?? widget.order.id}",
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                           Text(
@@ -356,7 +356,7 @@ class _OrderDetailsModalState extends State<OrderDetailsModal> {
           await handleCancelOrder();
           Navigator.of(context).pop();
         },
-        orderNumber: widget.order.id,
+        orderNumber: widget.order.bestNommer ?? widget.order.id,
         customerEmail: widget.order.customerEmail,
         selectedDay: widget.selectedDay != "Alle" ? widget.selectedDay : null,
         itemCount: itemCount,

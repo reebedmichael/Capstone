@@ -10,12 +10,19 @@ class AdminBestellingRepository {
   final SupabaseDb _db;
 
   SupabaseClient get _sb => _db.raw;
-  late final KennisgewingRepository _kennisgewingRepo = KennisgewingRepository(_db);
+  late final KennisgewingRepository _kennisgewingRepo = KennisgewingRepository(
+    _db,
+  );
 
   // Cache management
   List<Map<String, dynamic>>? _cachedBestellings;
   DateTime? _lastCacheUpdate;
   Duration _cacheValidityDuration = const Duration(minutes: 5);
+
+  // Status ID cache for performance
+  Map<String, String>? _statusIdCache;
+  DateTime? _statusCacheUpdate;
+  Duration _statusCacheValidityDuration = const Duration(hours: 1);
 
   /// Check if cache is valid (not expired)
   bool get _isCacheValid {
@@ -24,10 +31,23 @@ class AdminBestellingRepository {
         _cacheValidityDuration;
   }
 
+  /// Check if status cache is valid (not expired)
+  bool get _isStatusCacheValid {
+    if (_statusIdCache == null || _statusCacheUpdate == null) return false;
+    return DateTime.now().difference(_statusCacheUpdate!) <
+        _statusCacheValidityDuration;
+  }
+
   /// Clear the cache
   void clearCache() {
     _cachedBestellings = null;
     _lastCacheUpdate = null;
+  }
+
+  /// Clear the status cache
+  void clearStatusCache() {
+    _statusIdCache = null;
+    _statusCacheUpdate = null;
   }
 
   /// Force refresh cache by clearing it
@@ -51,6 +71,7 @@ class AdminBestellingRepository {
   /// en 'n `kos_items` sleutel wat 'n lys van items met name en statusse bevat.
   ///
   /// Uses cache if available and valid to improve performance.
+  /// Optimized with parallel fetching for better performance.
   Future<List<Map<String, dynamic>>> getBestellings({
     bool forceRefresh = false,
   }) async {
@@ -62,7 +83,7 @@ class AdminBestellingRepository {
 
     print('Cache miss or force refresh: Fetching fresh data from database');
     try {
-      // Stap 1: laai basiese bestellingsreeks
+      // Step 1: Load basic orders
       final rows = await _sb
           .from('bestelling')
           .select(
@@ -72,7 +93,7 @@ class AdminBestellingRepository {
 
       if (rows.isEmpty) return <Map<String, dynamic>>[];
 
-      // Verzamel ids vir batched navrae - GEWYSIG NA STRING
+      // Collect IDs for batched queries
       final bestIds = <String>{};
       final gebrIds = <String>{};
       final kampusIds = <String>{};
@@ -83,17 +104,31 @@ class AdminBestellingRepository {
         if (r['kampus_id'] != null) kampusIds.add(r['kampus_id'] as String);
       }
 
-      // Stap 2: laai gebruikers en kampusse in batch
-      final gebruikersMap = await _fetchGebruikerMap(gebrIds.toList());
-      final kampusMap = await _fetchKampusMap(kampusIds.toList());
+      // Step 2: PARALLEL FETCHING - Execute all data fetching operations concurrently
+      print('Starting parallel data fetching...');
+      final stopwatch = Stopwatch()..start();
 
-      // Stap 3: laai bestelling_kos_item rye vir die bestIds
-      final bestellingKosItems = await _sb
-          .from('bestelling_kos_item')
-          .select('best_kos_id, best_id, kos_item_id, item_hoev, best_datum')
-          .inFilter('best_id', bestIds.toList());
+      final futures = await Future.wait<dynamic>([
+        // Fetch users map
+        _fetchGebruikerMap(gebrIds.toList()),
+        // Fetch campuses map
+        _fetchKampusMap(kampusIds.toList()),
+        // Fetch order food items
+        _sb
+            .from('bestelling_kos_item')
+            .select(
+              'best_kos_id, best_id, kos_item_id, item_hoev, best_datum, best_nommer',
+            )
+            .inFilter('best_id', bestIds.toList()),
+      ]);
 
-      // Map best_id -> list of items - GEWYSIG NA STRING
+      final gebruikersMap = futures[0] as Map<String, String>;
+      final kampusMap = futures[1] as Map<String, String>;
+      final bestellingKosItems = futures[2] as List<Map<String, dynamic>>;
+
+      print('Primary data fetched in ${stopwatch.elapsedMilliseconds}ms');
+
+      // Process order items to extract additional IDs
       final Map<String, List<Map<String, dynamic>>> itemsByBestId = {};
       final kosItemIds = <String>{};
       final bestKosIds = <String>{};
@@ -110,16 +145,29 @@ class AdminBestellingRepository {
         bestKosIds.add(bestKosId);
       }
 
-      // Stap 4: laai kos_item name in batch
-      final kosItemMap = await _fetchKosItemMap(kosItemIds.toList());
+      // Step 3: PARALLEL FETCHING - Fetch remaining data concurrently
+      print('Starting secondary parallel data fetching...');
+      final secondaryStopwatch = Stopwatch()..start();
 
-      // Stap 5: laai status koppelings uit best_kos_item_statusse
-      final bestKosStatRows = await _sb
-          .from('best_kos_item_statusse')
-          .select('best_kos_id, kos_stat_id')
-          .inFilter('best_kos_id', bestKosIds.toList());
+      final secondaryFutures = await Future.wait<dynamic>([
+        // Fetch food items map
+        _fetchKosItemMap(kosItemIds.toList()),
+        // Fetch status mappings
+        _sb
+            .from('best_kos_item_statusse')
+            .select('best_kos_id, kos_stat_id')
+            .inFilter('best_kos_id', bestKosIds.toList()),
+      ]);
 
-      // Map best_kos_id -> lis van kos_stat_id - GEWYSIG NA STRING
+      final kosItemMap =
+          secondaryFutures[0] as Map<String, Map<String, dynamic>>;
+      final bestKosStatRows = secondaryFutures[1] as List<Map<String, dynamic>>;
+
+      print(
+        'Secondary data fetched in ${secondaryStopwatch.elapsedMilliseconds}ms',
+      );
+
+      // Process status mappings
       final Map<String, List<String>> statIdsByBestKosId = {};
       final kosStatIds = <String>{};
 
@@ -130,10 +178,21 @@ class AdminBestellingRepository {
         kosStatIds.add(ks);
       }
 
-      // Stap 6: laai kos_item_statusse name
-      final kosStatMap = await _fetchKosStatMap(kosStatIds.toList());
+      // Step 4: Fetch status names (if any statuses exist)
+      Map<String, String> kosStatMap = {};
+      if (kosStatIds.isNotEmpty) {
+        kosStatMap = await _fetchKosStatMap(kosStatIds.toList());
+      }
 
-      // Stap 7: assembleer finale resultate
+      stopwatch.stop();
+      print(
+        'Total data fetching completed in ${stopwatch.elapsedMilliseconds}ms',
+      );
+
+      // Step 5: Assemble final results efficiently
+      print('Assembling final results...');
+      final assemblyStopwatch = Stopwatch()..start();
+
       final List<Map<String, dynamic>> results = [];
 
       for (final r in rows) {
@@ -141,8 +200,16 @@ class AdminBestellingRepository {
         final gebrId = r['gebr_id'] as String?;
         final kampusId = r['kampus_id'] as String?;
 
+        // Extract best_nommer from the first item
+        String? bestNommer;
+        final items = itemsByBestId[bestId] ?? [];
+        if (items.isNotEmpty) {
+          bestNommer = items.first['best_nommer'] as String?;
+        }
+
         final Map<String, dynamic> order = {
           'best_id': bestId,
+          'best_nommer': bestNommer,
           'best_geskep_datum': r['best_geskep_datum'],
           'best_volledige_prys': r['best_volledige_prys'],
           'gebr_id': gebrId,
@@ -151,11 +218,11 @@ class AdminBestellingRepository {
           'kampus_naam': kampusId != null ? kampusMap[kampusId] : null,
         };
 
-        // voeg kos items by
-        final items = itemsByBestId[bestId] ?? [];
+        // Assemble food items efficiently
+        final orderItems = itemsByBestId[bestId] ?? [];
         final List<Map<String, dynamic>> assembledItems = [];
 
-        for (final it in items) {
+        for (final it in orderItems) {
           final bestKosId = it['best_kos_id'] as String;
           final kosItemId = it['kos_item_id'] as String;
           final itemHoev = it['item_hoev'];
@@ -193,6 +260,7 @@ class AdminBestellingRepository {
 
         order['kos_items'] = assembledItems;
 
+        // Add weekday for creation date
         try {
           if (r['best_geskep_datum'] != null) {
             final dt = DateTime.parse(r['best_geskep_datum'].toString());
@@ -205,10 +273,16 @@ class AdminBestellingRepository {
         results.add(order);
       }
 
+      assemblyStopwatch.stop();
+      print(
+        'Result assembly completed in ${assemblyStopwatch.elapsedMilliseconds}ms',
+      );
+
       // Cache the results
       _cachedBestellings = results;
       _lastCacheUpdate = DateTime.now();
       print('Cache updated: ${results.length} bestellings cached');
+      print('Total operation completed in ${stopwatch.elapsedMilliseconds}ms');
 
       return results;
     } catch (e, st) {
@@ -217,23 +291,63 @@ class AdminBestellingRepository {
     }
   }
 
-  /// Kry status ID deur status naam
+  /// Kry status ID deur status naam (with caching for performance)
   Future<String?> getStatusIdByName(String statusName) async {
+    // Check cache first
+    if (_isStatusCacheValid && _statusIdCache != null) {
+      final cachedId = _statusIdCache![statusName];
+      if (cachedId != null) {
+        return cachedId;
+      }
+    }
+
     try {
+      // If not in cache, fetch from database
       final result = await _sb
           .from('kos_item_statusse')
           .select('kos_stat_id')
           .eq('kos_stat_naam', statusName)
           .single();
-      return result['kos_stat_id'] as String?;
+
+      final statusId = result['kos_stat_id'] as String?;
+
+      // Update cache
+      if (statusId != null) {
+        _statusIdCache ??= {};
+        _statusIdCache![statusName] = statusId;
+        _statusCacheUpdate = DateTime.now();
+      }
+
+      return statusId;
     } catch (e) {
       print('Fout in getStatusIdByName: $e');
       return null;
     }
   }
 
-  /// Automatically cancel unclaimed orders that are past their delivery date
-  Future<Map<String, dynamic>> cancelUnclaimedOrders() async {
+  /// Load all status IDs into cache for bulk operations
+  Future<void> _loadStatusCache() async {
+    try {
+      final results = await _sb
+          .from('kos_item_statusse')
+          .select('kos_stat_id, kos_stat_naam');
+
+      _statusIdCache = {};
+      for (final result in results) {
+        final id = result['kos_stat_id'] as String?;
+        final name = result['kos_stat_naam'] as String?;
+        if (id != null && name != null) {
+          _statusIdCache![name] = id;
+        }
+      }
+      _statusCacheUpdate = DateTime.now();
+    } catch (e) {
+      print('Fout in _loadStatusCache: $e');
+    }
+  }
+
+  /// Automatically mark unclaimed orders as verstryk that are past their delivery date
+  Future<Map<String, dynamic>> markUnclaimedOrdersAsVerstryk() async {
     try {
       print('🧹 Starting automatic cleanup of unclaimed orders...');
 
@@ -265,20 +379,20 @@ class AdminBestellingRepository {
 
       print('🔍 Found ${unclaimedOrders.length} potentially unclaimed orders');
 
-      // Get the "Gekanselleer" status ID
-      final cancelStatusData = await _sb
+      // Get the "Verstryk" status ID
+      final verstrykStatusData = await _sb
           .from('kos_item_statusse')
           .select('kos_stat_id')
-          .eq('kos_stat_naam', 'Gekanselleer')
+          .eq('kos_stat_naam', 'Verstryk')
           .maybeSingle();
 
-      if (cancelStatusData == null) {
-        throw Exception('Kon nie "Gekanselleer" status vind nie');
+      if (verstrykStatusData == null) {
+        throw Exception('Kon nie "Verstryk" status vind nie');
       }
 
-      final cancelStatusId = cancelStatusData['kos_stat_id'] as String;
-      int cancelledCount = 0;
-      List<String> cancelledItems = [];
+      final verstrykStatusId = verstrykStatusData['kos_stat_id'] as String;
+      int verstrykCount = 0;
+      List<String> verstrykItems = [];
 
       // Process each unclaimed order
       for (final order in unclaimedOrders) {
@@ -301,7 +415,7 @@ class AdminBestellingRepository {
           // Skip if order is not past its delivery date
           if (!orderDate.isBefore(todayDate)) continue;
 
-          // Check if order is already completed or cancelled
+          // Check if order is already completed, cancelled, or verstryk
           final statuses = order['best_kos_item_statusse'] as List? ?? [];
           bool isAlreadyProcessed = false;
 
@@ -309,7 +423,9 @@ class AdminBestellingRepository {
             final statusInfo =
                 status['kos_item_statusse'] as Map<String, dynamic>?;
             final statusName = statusInfo?['kos_stat_naam'] as String?;
-            if (statusName == 'Afgehandel' || statusName == 'Gekanselleer') {
+            if (statusName == 'Afgehandel' ||
+                statusName == 'Gekanselleer' ||
+                statusName == 'Verstryk') {
               isAlreadyProcessed = true;
               break;
             }
@@ -317,32 +433,35 @@ class AdminBestellingRepository {
 
           if (isAlreadyProcessed) continue;
 
-          // Cancel the order item
+          // Mark the order item as verstryk
           await _sb.from('best_kos_item_statusse').insert({
             'best_kos_id': bestKosId,
-            'kos_stat_id': cancelStatusId,
+            'kos_stat_id': verstrykStatusId,
             'best_kos_wysig_datum': DateTime.now().toIso8601String(),
           });
 
-          cancelledCount++;
-          cancelledItems.add(itemName);
+          // Process refund for verstryk order (similar to cancellation)
+          await _processVerstrykRefund(bestKosId, order);
+
+          verstrykCount++;
+          verstrykItems.add(itemName);
 
           print(
-            '✅ Cancelled unclaimed order: $itemName (Order date: ${_formatDateForDisplay(orderDate)})',
+            '✅ Marked unclaimed order as verstryk: $itemName (Order date: ${_formatDateForDisplay(orderDate)})',
           );
         } catch (e) {
           print('❌ Error processing order $bestKosId: $e');
         }
       }
 
-      print('✅ Cleanup completed. Cancelled $cancelledCount orders');
+      print('✅ Cleanup completed. Marked $verstrykCount orders as verstryk');
 
       return {
         'success': true,
-        'cancelledCount': cancelledCount,
-        'cancelledItems': cancelledItems,
-        'message': cancelledCount > 0
-            ? '$cancelledCount onopgehaalde bestelling(s) is outomaties gekanselleer'
+        'verstrykCount': verstrykCount,
+        'verstrykItems': verstrykItems,
+        'message': verstrykCount > 0
+            ? '$verstrykCount onopgehaalde bestelling(s) is outomaties as verstryk gemerk'
             : 'Geen onopgehaalde bestellings gevind nie',
       };
     } catch (e) {
@@ -385,6 +504,280 @@ class AdminBestellingRepository {
     final month = months[date.month - 1];
 
     return '$weekday ${date.day} $month ${date.year}';
+  }
+
+  /// Bulk update status for multiple items efficiently
+  /// Processes all updates in a single transaction for better performance
+  Future<void> bulkUpdateStatus({
+    required List<String> bestKosIds,
+    required String statusNaam,
+    Map<String, double>? refundAmounts, // bestKosId -> refund amount
+    Map<String, String>? customerIds, // bestKosId -> customer ID
+  }) async {
+    if (bestKosIds.isEmpty) return;
+
+    try {
+      // Step 1: Ensure status cache is loaded
+      if (!_isStatusCacheValid) {
+        await _loadStatusCache();
+      }
+
+      // Step 2: Get status ID from cache
+      final statusId = _statusIdCache?[statusNaam];
+      if (statusId == null) {
+        throw Exception('Status "$statusNaam" nie gevind nie');
+      }
+
+      // Step 3: Prepare bulk update data
+      final now = DateTime.now().toIso8601String();
+      final bulkUpdateData = bestKosIds
+          .map(
+            (bestKosId) => {
+              'best_kos_id': bestKosId,
+              'kos_stat_id': statusId,
+              'best_kos_wysig_datum': now,
+            },
+          )
+          .toList();
+
+      // Step 4: Execute bulk status update
+      await _sb
+          .from('best_kos_item_statusse')
+          .upsert(bulkUpdateData, onConflict: 'best_kos_id');
+
+      // Step 5: Handle bulk refunds for cancellations
+      if (statusNaam == 'Gekanselleer' &&
+          refundAmounts != null &&
+          customerIds != null) {
+        await _processBulkRefunds(refundAmounts, customerIds, bestKosIds);
+      }
+
+      // Step 6: Send bulk notifications
+      if (customerIds != null) {
+        await _sendBulkNotifications(customerIds, statusNaam, bestKosIds);
+      }
+
+      // Step 7: Invalidate cache
+      invalidateCache();
+    } catch (e) {
+      print('Fout in bulkUpdateStatus: $e');
+      rethrow;
+    }
+  }
+
+  /// Process refund for a verstryk order
+  Future<void> _processVerstrykRefund(
+    String bestKosId,
+    Map<String, dynamic> order,
+  ) async {
+    try {
+      // Get order details to calculate refund amount
+      final bestKosItemData = await _sb
+          .from('bestelling_kos_item')
+          .select('best_id, item_hoev, kos_item:kos_item_id(kos_item_koste)')
+          .eq('best_kos_id', bestKosId)
+          .single();
+
+      final bestId = bestKosItemData['best_id'] as String;
+      final itemHoev = (bestKosItemData['item_hoev'] as num?)?.toInt() ?? 1;
+      final kosItem = bestKosItemData['kos_item'] as Map<String, dynamic>?;
+      final itemPrice = (kosItem?['kos_item_koste'] as num?)?.toDouble() ?? 0.0;
+
+      final refundAmount = itemPrice * itemHoev;
+
+      if (refundAmount <= 0) return;
+
+      // Get customer ID from the order
+      final bestellingData = await _sb
+          .from('bestelling')
+          .select('gebr_id')
+          .eq('best_id', bestId)
+          .single();
+
+      final customerId = bestellingData['gebr_id'] as String?;
+      if (customerId == null) return;
+
+      // Get transaction type ID for verstryk refund
+      final transTipeData = await _sb
+          .from('transaksie_tipe')
+          .select('trans_tipe_id')
+          .eq('trans_tipe_naam', 'admin verstryk')
+          .maybeSingle();
+
+      String transTipeId;
+      if (transTipeData != null) {
+        transTipeId = transTipeData['trans_tipe_id'] as String;
+      } else {
+        // Fallback to admin kanselasie if verstryk type doesn't exist
+        final fallbackData = await _sb
+            .from('transaksie_tipe')
+            .select('trans_tipe_id')
+            .eq('trans_tipe_naam', 'admin kanselasie')
+            .single();
+        transTipeId = fallbackData['trans_tipe_id'] as String;
+      }
+
+      // Update customer wallet
+      final gebruikerData = await _sb
+          .from('gebruikers')
+          .select('beursie_balans')
+          .eq('gebr_id', customerId)
+          .single();
+
+      final currentBalance =
+          (gebruikerData['beursie_balans'] as num?)?.toDouble() ?? 0.0;
+      final newBalance = currentBalance + refundAmount;
+
+      await _sb
+          .from('gebruikers')
+          .update({'beursie_balans': newBalance})
+          .eq('gebr_id', customerId);
+
+      // Record transaction
+      await _sb.from('beursie_transaksie').insert({
+        'trans_geskep_datum': DateTime.now().toIso8601String(),
+        'trans_bedrag': refundAmount,
+        'trans_beskrywing':
+            'Terugbetaling vir verstryk item (best_kos_id: $bestKosId).',
+        'gebr_id': customerId,
+        'trans_tipe_id': transTipeId,
+      });
+
+      print(
+        '✅ Processed refund of R$refundAmount for verstryk order $bestKosId',
+      );
+    } catch (e) {
+      print('❌ Error processing verstryk refund for $bestKosId: $e');
+      // Don't rethrow - marking as verstryk should still succeed even if refund fails
+    }
+  }
+
+  /// Process refunds for multiple cancellations efficiently
+  Future<void> _processBulkRefunds(
+    Map<String, double> refundAmounts,
+    Map<String, String> customerIds,
+    List<String> bestKosIds,
+  ) async {
+    // Group refunds by customer ID
+    final Map<String, double> refundsByCustomer = {};
+    final Map<String, List<String>> refundItemsByCustomer = {};
+
+    for (final bestKosId in bestKosIds) {
+      final customerId = customerIds[bestKosId];
+      final refundAmount = refundAmounts[bestKosId];
+
+      if (customerId != null && refundAmount != null && refundAmount > 0) {
+        refundsByCustomer[customerId] =
+            (refundsByCustomer[customerId] ?? 0) + refundAmount;
+        (refundItemsByCustomer[customerId] ??= []).add(bestKosId);
+      }
+    }
+
+    if (refundsByCustomer.isEmpty) return;
+
+    // Get transaction type ID once
+    final transTipeData = await _sb
+        .from('transaksie_tipe')
+        .select('trans_tipe_id')
+        .eq('trans_tipe_naam', 'admin kanselasie')
+        .single();
+
+    final transTipeId = transTipeData['trans_tipe_id'];
+    if (transTipeId == null) {
+      throw Exception("Transaksie tipe 'admin kanselasie' nie gevind nie.");
+    }
+
+    // Process refunds for each customer
+    final now = DateTime.now().toIso8601String();
+    final List<Map<String, dynamic>> transactionsToInsert = [];
+    final List<Map<String, dynamic>> walletUpdates = [];
+
+    for (final customerId in refundsByCustomer.keys) {
+      final totalRefund = refundsByCustomer[customerId]!;
+      final items = refundItemsByCustomer[customerId]!;
+
+      // Get current balance
+      final gebruikerData = await _sb
+          .from('gebruikers')
+          .select('beursie_balans')
+          .eq('gebr_id', customerId)
+          .single();
+
+      final currentBalance =
+          (gebruikerData['beursie_balans'] as num?)?.toDouble() ?? 0.0;
+      final newBalance = currentBalance + totalRefund;
+
+      // Prepare wallet update
+      walletUpdates.add({'gebr_id': customerId, 'beursie_balans': newBalance});
+
+      // Prepare transaction record
+      transactionsToInsert.add({
+        'trans_geskep_datum': now,
+        'trans_bedrag': totalRefund,
+        'trans_beskrywing':
+            'Bulk terugbetaling vir gekanselleerde items: ${items.join(', ')}',
+        'gebr_id': customerId,
+        'trans_tipe_id': transTipeId,
+      });
+    }
+
+    // Execute bulk wallet updates
+    for (final update in walletUpdates) {
+      await _sb
+          .from('gebruikers')
+          .update({'beursie_balans': update['beursie_balans']})
+          .eq('gebr_id', update['gebr_id']);
+    }
+
+    // Execute bulk transaction inserts
+    if (transactionsToInsert.isNotEmpty) {
+      await _sb.from('beursie_transaksie').insert(transactionsToInsert);
+    }
+  }
+
+  /// Send notifications for multiple status changes efficiently
+  Future<void> _sendBulkNotifications(
+    Map<String, String> customerIds,
+    String statusNaam,
+    List<String> bestKosIds,
+  ) async {
+    // Get food item names for notifications
+    final bestKosItemData = await _sb
+        .from('bestelling_kos_item')
+        .select('best_kos_id, kos_item:kos_item_id(kos_item_naam)')
+        .inFilter('best_kos_id', bestKosIds);
+
+    final Map<String, String> itemNamesByBestKosId = {};
+    for (final item in bestKosItemData) {
+      final bestKosId = item['best_kos_id'] as String;
+      final kosItem = item['kos_item'] as Map<String, dynamic>?;
+      final itemName = kosItem?['kos_item_naam'] as String? ?? 'Item';
+      itemNamesByBestKosId[bestKosId] = itemName;
+    }
+
+    // Send notifications in parallel
+    final notificationFutures = <Future>[];
+
+    for (final bestKosId in bestKosIds) {
+      final customerId = customerIds[bestKosId];
+      if (customerId != null) {
+        final itemName = itemNamesByBestKosId[bestKosId] ?? 'Item';
+        final beskrywing = _getStatusBeskrywing(statusNaam, itemName);
+
+        notificationFutures.add(
+          _kennisgewingRepo.skepKennisgewing(
+            gebrId: customerId,
+            titel: 'Bestelling Status Opdatering',
+            beskrywing: beskrywing,
+            tipeNaam: 'bestelling_status',
+            stuurEmail: false, // Don't send email for status updates
+          ),
+        );
+      }
+    }
+
+    // Wait for all notifications to complete
+    await Future.wait(notificationFutures);
   }
 
   /// Dateer die status van 'n `bestelling_kos_item` op.
@@ -482,18 +875,22 @@ class AdminBestellingRepository {
               .select('kos_item:kos_item_id(kos_item_naam)')
               .eq('best_kos_id', bestKosId)
               .maybeSingle();
-          
+
           String kosItemNaam = 'Item';
           if (bestKosItemData != null && bestKosItemData['kos_item'] != null) {
-            final kosItemMap = bestKosItemData['kos_item'] as Map<String, dynamic>;
+            final kosItemMap =
+                bestKosItemData['kos_item'] as Map<String, dynamic>;
             kosItemNaam = kosItemMap['kos_item_naam']?.toString() ?? 'Item';
           }
-          
+
           // Create user-friendly status message
-          String statusBeskrywing = _getStatusBeskrywing(statusNaam, kosItemNaam);
+          String statusBeskrywing = _getStatusBeskrywing(
+            statusNaam,
+            kosItemNaam,
+          );
           String tipeNaam = _getKennisgewingTipe(statusNaam);
           String titel = _getKennisgewingTitel(statusNaam);
-          
+
           // Send notification (email disabled - Resend requires domain verification for production)
           await _kennisgewingRepo.skepKennisgewing(
             gebrId: gebrId,
@@ -502,8 +899,10 @@ class AdminBestellingRepository {
             titel: titel,
             stuurEmail: false, // Set to true when domain is verified on Resend
           );
-          
-          print('✅ Notification and email sent to user $gebrId for status: $statusNaam');
+
+          print(
+            '✅ Notification and email sent to user $gebrId for status: $statusNaam',
+          );
         } catch (e) {
           print('⚠️ Warning: Could not send notification/email: $e');
           // Don't rethrow - status update was successful, notification is secondary
@@ -518,7 +917,7 @@ class AdminBestellingRepository {
       rethrow;
     }
   }
-  
+
   /// Get a user-friendly description for the status change
   String _getStatusBeskrywing(String statusNaam, String kosItemNaam) {
     switch (statusNaam) {
@@ -536,15 +935,18 @@ class AdminBestellingRepository {
         return 'Jou "$kosItemNaam" is suksesvol afgehandel. Geniet jou kos!';
       case 'Gekanselleer':
         return 'Jou bestelling vir "$kosItemNaam" is gekanselleer. Die geld is terugbetaal na jou beursie.';
+      case 'Verstryk':
+        return 'Jou bestelling vir "$kosItemNaam" is verstryk omdat dit nie opgehaal is nie. Die geld is terugbetaal na jou beursie.';
       default:
         return 'Jou bestelling vir "$kosItemNaam" se status is opgedateer na: $statusNaam';
     }
   }
-  
+
   /// Get the notification type based on status
   String _getKennisgewingTipe(String statusNaam) {
     switch (statusNaam) {
       case 'Gekanselleer':
+      case 'Verstryk':
         return 'waarskuwing';
       case 'Afgehandel':
       case 'Gereed om opgehaal te word':
@@ -558,7 +960,7 @@ class AdminBestellingRepository {
         return 'info';
     }
   }
-  
+
   /// Get the notification title based on status
   String _getKennisgewingTitel(String statusNaam) {
     switch (statusNaam) {
@@ -576,6 +978,8 @@ class AdminBestellingRepository {
         return 'Bestelling Voltooi';
       case 'Gekanselleer':
         return 'Bestelling Gekanselleer';
+      case 'Verstryk':
+        return 'Bestelling Verstryk';
       default:
         return 'Bestelling Status Opdatering';
     }

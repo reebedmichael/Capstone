@@ -95,6 +95,11 @@ class _BulkActionsState extends State<BulkActions> {
               });
 
               try {
+                // Close the dialog immediately when update starts
+                if (mounted) {
+                  Navigator.of(context).pop();
+                }
+
                 await widget.onBulkUpdate(
                   _selectedOrders.toList(),
                   _bulkStatus!,
@@ -104,15 +109,13 @@ class _BulkActionsState extends State<BulkActions> {
                   _bulkStatus = null;
                 });
               } catch (e) {
-                // Re-throw to let the dialog handle it
+                // Re-throw to let the parent handle it
                 rethrow;
               } finally {
                 if (mounted) {
                   setState(() {
                     _isUpdating = false;
                   });
-                  // Always close the dialog after the operation completes
-                  Navigator.of(context).pop();
                 }
               }
             },
@@ -205,22 +208,34 @@ class _BulkActionsState extends State<BulkActions> {
             // Conditional "Update" Button or "No eligible orders" message
             if (currentBulkStatus != null)
               if (_selectedOrders.isNotEmpty)
-                _isUpdating
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : ElevatedButton(
-                        onPressed: () async => await _handleBulkUpdate(),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                Stack(
+                  children: [
+                    ElevatedButton(
+                      onPressed: _isUpdating
+                          ? null
+                          : () async => await _handleBulkUpdate(),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(
+                        '${OrderConstants.getUiString('updateCount')} ${_selectedOrders.length}',
+                      ),
+                    ),
+                    if (_isUpdating)
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
                         ),
-                        child: Text(
-                          '${OrderConstants.getUiString('updateCount')} ${_selectedOrders.length}',
-                        ),
-                      )
+                      ),
+                  ],
+                )
               else
                 Expanded(
                   child: Text(

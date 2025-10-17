@@ -161,7 +161,7 @@ class _SidebarState extends ConsumerState<Sidebar>
                   // Dashboard
                   _buildNavItem(
                     _NavEntry(
-                      'Dashboard',
+                      'Paneelbord',
                       Icons.dashboard_outlined,
                       '/dashboard',
                     ),
@@ -738,11 +738,7 @@ class _SidebarState extends ConsumerState<Sidebar>
     );
   }
 
-  Widget _buildVerslaeGroup(
-    String currentRoute,
-    ThemeData theme,
-    bool isDark,
-  ) {
+  Widget _buildVerslaeGroup(String currentRoute, ThemeData theme, bool isDark) {
     final isSelected = _isVerslaeRoute(currentRoute);
     final children = [
       _NavEntry('Statistiek', Icons.insights_outlined, '/verslae'),

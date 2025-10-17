@@ -246,7 +246,7 @@ class StatusUpdateConfirmationDialog extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                order.id,
+                                order.bestNommer ?? order.id,
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ),

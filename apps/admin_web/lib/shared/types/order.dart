@@ -52,6 +52,7 @@ class OrderItem {
 
 class Order {
   final String id;
+  final String? bestNommer; // Display number for UI
   final String customerEmail;
   final String customerId;
   final List<OrderItem> items;
@@ -67,6 +68,7 @@ class Order {
 
   Order({
     required this.id,
+    this.bestNommer,
     required this.customerEmail,
     required this.customerId,
     required this.items,
@@ -82,6 +84,7 @@ class Order {
 
   Order copyWith({
     String? id,
+    String? bestNommer,
     String? customerEmail,
     String? customerId,
     List<OrderItem>? items,
@@ -96,6 +99,7 @@ class Order {
   }) {
     return Order(
       id: id ?? this.id,
+      bestNommer: bestNommer ?? this.bestNommer,
       customerEmail: customerEmail ?? this.customerEmail,
       customerId: customerId ?? this.customerId,
       items: items ?? this.items,

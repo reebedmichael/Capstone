@@ -146,7 +146,7 @@ class _DashboardHeaderState extends ConsumerState<DashboardHeader> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "Spys Admin Dashboard",
+                            "Spys Admin Paneelbord",
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -253,7 +253,7 @@ class _DashboardHeaderState extends ConsumerState<DashboardHeader> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Spys Admin Dashboard",
+                          "Spys Admin Paneelbord",
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,

@@ -18,6 +18,8 @@ const List<OrderStatus> cancellableStatuses = [
   OrderStatus.pending,
   OrderStatus.preparing,
   OrderStatus.readyDelivery,
+  OrderStatus.outForDelivery,
+  OrderStatus.delivered,
 ];
 
 /// Get the next valid status in the progression flow
