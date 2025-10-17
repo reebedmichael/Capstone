@@ -4,6 +4,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:app_settings/app_settings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../shared/services/notification_service.dart';
 
 class NotificationSettingsPage extends StatefulWidget {
@@ -136,6 +137,10 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.go('/settings'),
+          ),
           title: const Text('Kennisgewing Instellings'),
         ),
         body: const Center(
@@ -146,6 +151,10 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage> {
     
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go('/settings'),
+        ),
         title: const Text('Kennisgewing Instellings'),
         elevation: 0,
       ),
