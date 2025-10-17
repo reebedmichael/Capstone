@@ -359,11 +359,15 @@ FROM information_schema.triggers
 WHERE trigger_name LIKE '%notify%'
 ORDER BY trigger_name;
 
-RAISE NOTICE '✅ Automatic notification triggers created successfully!';
-RAISE NOTICE 'ℹ️  Triggers created for:';
-RAISE NOTICE '   - Order status changes (best_kos_item_statusse)';
-RAISE NOTICE '   - Wallet updates (beursie_transaksie)';
-RAISE NOTICE '   - User approval (gebruikers.is_aktief)';
-RAISE NOTICE '';
-RAISE NOTICE '🎉 All system events will now automatically send push notifications!';
+-- Success messages
+DO $$
+BEGIN
+    RAISE NOTICE '✅ Automatic notification triggers created successfully!';
+    RAISE NOTICE 'ℹ️  Triggers created for:';
+    RAISE NOTICE '   - Order status changes (best_kos_item_statusse)';
+    RAISE NOTICE '   - Wallet updates (beursie_transaksie)';
+    RAISE NOTICE '   - User approval (gebruikers.is_aktief)';
+    RAISE NOTICE '';
+    RAISE NOTICE '🎉 All system events will now automatically send push notifications!';
+END $$;
 
