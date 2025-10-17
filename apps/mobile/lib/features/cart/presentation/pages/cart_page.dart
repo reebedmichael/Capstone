@@ -76,7 +76,6 @@ class _CartPageState extends State<CartPage> {
 
   bool loading = true;
   bool isPlacingOrder = false; // Prevent multiple order submissions
-  DateTime? _lastButtonPress; // Debounce button presses
 
   // expose setter for pickup from child (unused but kept for potential future use)
   // void _setPickup(String? v) => setState(() => pickupLocation = v);
@@ -629,28 +628,7 @@ class _CartPageState extends State<CartPage> {
   }
 
   Future<bool> placeOrder(String pickup) async {
-    // Prevent multiple simultaneous order submissions
-    if (isPlacingOrder) {
-      debugPrint('Order already being placed, ignoring duplicate request');
-      return false;
-    }
-
     debugPrint('Starting order placement for pickup: $pickup');
-    
-    // Set loading state immediately
-    setState(() {
-      isPlacingOrder = true;
-    });
-
-    // Add a safety mechanism to reset the flag after 5 seconds if it gets stuck
-    Timer(const Duration(seconds: 5), () {
-      if (isPlacingOrder && mounted) {
-        debugPrint('WARNING: Order placement seems stuck, resetting loading state');
-        setState(() {
-          isPlacingOrder = false;
-        });
-      }
-    });
 
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
@@ -743,21 +721,29 @@ class _CartPageState extends State<CartPage> {
       }
       final String bestId = bestellingInsert['best_id'].toString();
 
-      // 4️⃣ Insert bestelling_kos_item rows with correct dates
+      // 4️⃣ Insert bestelling_kos_item rows with correct dates and daily order numbers
       debugPrint('Creating bestelling_kos_item rows...');
-      final List<Map<String, dynamic>> bkItems = cart.map((c) {
+      final List<Map<String, dynamic>> bkItems = [];
+      
+      for (final c in cart) {
         // Calculate the correct date for this food item based on its week_dag_naam
         debugPrint('Calculating date for item: ${c.foodItem.name}, weekDag: ${c.weekDag}');
         final correctDate = _calculateItemDate(c.weekDag);
         debugPrint('Calculated date: $correctDate');
-        return {
+        
+        // Generate daily order number for this food item
+        final dailyOrderNumber = await _generateDailyOrderNumber(c.foodItem.id, c.weekDag);
+        debugPrint('Generated daily order number: $dailyOrderNumber');
+        
+        bkItems.add({
           'best_id': bestId,
           'kos_item_id': c.foodItem.id,
           'item_hoev': c.quantity,
           'best_datum': correctDate.toIso8601String(), // Set the actual date the item is for
           'best_kos_is_liked': false, // Default to not liked
-        };
-      }).toList();
+          'best_nommer': dailyOrderNumber, // Add daily order number
+        });
+      }
 
       debugPrint('Inserting bestelling_kos_item rows...');
       final insertedItems = await sb.from('bestelling_kos_item').insert(bkItems).select().timeout(
@@ -914,8 +900,13 @@ class _CartPageState extends State<CartPage> {
         ),
         child: SafeArea(
           child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: Spacing.screenPadding(context).copyWith(
-              bottom: ResponsiveUtils.getResponsiveSpacing(context, mobile: 120, tablet: 140, desktop: 160),
+              bottom: ResponsiveUtils.getResponsiveSpacing(context, 
+                mobile: ResponsiveUtils.isSmallScreen(context) ? 120 : 140, 
+                tablet: 160, 
+                desktop: 180
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -998,7 +989,7 @@ class _CartPageState extends State<CartPage> {
                         },
                         child: Card(
                           child: Padding(
-                            padding: const EdgeInsets.all(12),
+                            padding: EdgeInsets.all(ResponsiveUtils.isSmallScreen(context) ? 8 : 12),
                             child: Column(
                               children: <Widget>[
                                 Row(
@@ -1013,14 +1004,14 @@ class _CartPageState extends State<CartPage> {
                                           if (item.foodItem.imageUrl != null)
                                             Image.network(
                                               item.foodItem.imageUrl!,
-                                              width: 64,
-                                              height: 64,
+                                              width: ResponsiveUtils.isSmallScreen(context) ? 56 : 64,
+                                              height: ResponsiveUtils.isSmallScreen(context) ? 56 : 64,
                                               fit: BoxFit.cover,
                                             )
                                           else
                                             Container(
-                                              width: 64,
-                                              height: 64,
+                                              width: ResponsiveUtils.isSmallScreen(context) ? 56 : 64,
+                                              height: ResponsiveUtils.isSmallScreen(context) ? 56 : 64,
                                               color: Theme.of(context).colorScheme.surfaceVariant,
                                               alignment: Alignment.center,
                                               child: Icon(
@@ -1030,8 +1021,8 @@ class _CartPageState extends State<CartPage> {
                                             ),
                                           if (!item.foodItem.available)
                                             Container(
-                                              width: 64,
-                                              height: 64,
+                                              width: ResponsiveUtils.isSmallScreen(context) ? 56 : 64,
+                                              height: ResponsiveUtils.isSmallScreen(context) ? 56 : 64,
                                               color: Theme.of(context).colorScheme.onSurface.withOpacity(
                                                 0.5,
                                               ),
@@ -1087,21 +1078,28 @@ class _CartPageState extends State<CartPage> {
                                     Row(
                                       children: <Widget>[
                                         OutlinedButton(
-                                          onPressed: () => updateCartQuantity(
-                                            item.id,
-                                            item.quantity - 1,
-                                          ),
+                                          onPressed: item.quantity > 1 
+                                            ? () => updateCartQuantity(
+                                                item.id,
+                                                item.quantity - 1,
+                                              )
+                                            : null,
                                           style: OutlinedButton.styleFrom(
-                                            minimumSize: const Size(32, 32),
+                                            minimumSize: ResponsiveUtils.isSmallScreen(context) 
+                                              ? const Size(28, 28) 
+                                              : const Size(32, 32),
                                             padding: EdgeInsets.zero,
                                           ),
-                                          child: const Icon(
+                                          child: Icon(
                                             Icons.remove,
                                             size: 16,
+                                            color: item.quantity > 1 
+                                              ? null 
+                                              : Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
                                           ),
                                         ),
                                         SizedBox(
-                                          width: 32,
+                                          width: ResponsiveUtils.isSmallScreen(context) ? 28 : 32,
                                           child: Center(
                                             child: Text(
                                               '${item.quantity}',
@@ -1119,7 +1117,9 @@ class _CartPageState extends State<CartPage> {
                                                 )
                                               : null,
                                           style: OutlinedButton.styleFrom(
-                                            minimumSize: const Size(32, 32),
+                                            minimumSize: ResponsiveUtils.isSmallScreen(context) 
+                                              ? const Size(28, 28) 
+                                              : const Size(32, 32),
                                             padding: EdgeInsets.zero,
                                           ),
                                           child: const Icon(
@@ -1354,6 +1354,15 @@ class _CartPageState extends State<CartPage> {
                                   fontSize: 12,
                                   color: Theme.of(context).colorScheme.error,
                                 ),
+                              )
+                            else if (cart.isNotEmpty)
+                              Text(
+                                'Na betaling: R${(walletBalance - total).toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                           ],
                         ),
@@ -1395,7 +1404,10 @@ class _CartPageState extends State<CartPage> {
           border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outline.withOpacity(0.12))),
           color: Theme.of(context).colorScheme.surface,
         ),
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.symmetric(
+          horizontal: ResponsiveUtils.isSmallScreen(context) ? 12 : 16,
+          vertical: ResponsiveUtils.isSmallScreen(context) ? 12 : 16,
+        ),
         child: SafeArea(
           top: false,
           child: Row(
@@ -1426,19 +1438,22 @@ class _CartPageState extends State<CartPage> {
                         unavailableItems.isNotEmpty)
                     ? null
                     : () async {
-                        // Debounce rapid button presses (prevent multiple clicks within 1 second)
-                        final now = DateTime.now();
-                        if (_lastButtonPress != null && 
-                            now.difference(_lastButtonPress!).inMilliseconds < 1000) {
-                          debugPrint('Button press ignored - too soon after last press');
+                        // Prevent multiple rapid button presses
+                        if (isPlacingOrder) {
+                          debugPrint('Order already being processed, ignoring duplicate request');
                           return;
                         }
-                        _lastButtonPress = now;
+                        
+                        // Set flag immediately to prevent multiple clicks
+                        setState(() {
+                          isPlacingOrder = true;
+                        });
                         
                         try {
                           final conflicts = await _validateDietConflicts();
                           final proceed = await _confirmDietConflicts(conflicts);
                           if (!proceed) {
+                            setState(() => isPlacingOrder = false);
                             return;
                           }
                           if (conflicts.isNotEmpty) {
@@ -1449,10 +1464,17 @@ class _CartPageState extends State<CartPage> {
                           }
                           final confirm = await _confirmOrderSummary(conflicts);
                           if (!confirm) {
+                            setState(() => isPlacingOrder = false);
                             return;
                           }
                           final bool success = await placeOrder(pickupLocation!);
-                          if (success) context.go('/orders');
+                          if (success) {
+                            // Order completed successfully, navigate to orders page
+                            context.go('/orders');
+                          } else {
+                            // Order failed, reset the flag
+                            setState(() => isPlacingOrder = false);
+                          }
                         } catch (e) {
                           setState(() => isPlacingOrder = false);
                           debugPrint('Error in order process: $e');
@@ -1460,7 +1482,9 @@ class _CartPageState extends State<CartPage> {
                       },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.primary,
-                  minimumSize: const Size(140, 48),
+                  minimumSize: ResponsiveUtils.isSmallScreen(context) 
+                    ? const Size(120, 44) 
+                    : const Size(140, 48),
                 ),
                 child: isPlacingOrder 
                     ? Row(
@@ -1487,5 +1511,48 @@ class _CartPageState extends State<CartPage> {
         ),
       ),
     );
+  }
+
+  /// Generates a daily order number for a specific food item and day
+  /// Format: YYYY-MM-DD-number (e.g., 2025-10-15-1)
+  /// Each day starts at 1 and increments for that specific food item
+  /// Uses the best_datum (when the order is for) not the current date
+  Future<String> _generateDailyOrderNumber(String kosItemId, String? weekDagNaam) async {
+    // Calculate the correct date for this food item based on its week_dag_naam
+    final correctDate = _calculateItemDate(weekDagNaam);
+    final dateString = '${correctDate.year}-${correctDate.month.toString().padLeft(2, '0')}-${correctDate.day.toString().padLeft(2, '0')}';
+    
+    final sb = Supabase.instance.client;
+    
+    // Find the highest order number for this food item for the specific order date
+    final existingOrders = await sb
+        .from('bestelling_kos_item')
+        .select('best_nommer')
+        .eq('kos_item_id', kosItemId)
+        .eq('best_datum', correctDate.toIso8601String()) // Use the specific order date
+        .not('best_nommer', 'is', null);
+    
+    int nextNumber = 1;
+    if (existingOrders.isNotEmpty) {
+      // Extract numbers from existing order numbers and find the highest
+      final numbers = existingOrders
+          .map((order) {
+            final nommer = order['best_nommer']?.toString() ?? '';
+            // Extract number from format like "2025-10-15-3"
+            final parts = nommer.split('-');
+            if (parts.length >= 4) {
+              return int.tryParse(parts.last) ?? 0;
+            }
+            return 0;
+          })
+          .where((num) => num > 0)
+          .toList();
+      
+      if (numbers.isNotEmpty) {
+        nextNumber = numbers.reduce((a, b) => a > b ? a : b) + 1;
+      }
+    }
+    
+    return '$dateString-$nextNumber';
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/constants/spacing.dart';
 import '../../../../shared/utils/responsive_utils.dart';
 import '../../../../shared/state/order_refresh_notifier.dart';
+import '../../../../locator.dart';
 
 class FoodDetailPage extends StatefulWidget {
   const FoodDetailPage({super.key});
@@ -26,6 +28,14 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
   // Diet requirements state
   List<Map<String, dynamic>> dietRequirements = [];
   bool isLoadingDietRequirements = false;
+  
+  // Button state for temporary "Wysig Mandjie" text
+  bool _showWysigMandjie = false;
+  int _remainingSeconds = 0;
+  Timer? _countdownTimer;
+  
+  // Cart count state
+  int _cartCount = 0;
 
   // Helper: try multiple keys and return first non-null
   dynamic _pick(Map<String, dynamic> map, List<String> keys) {
@@ -301,12 +311,37 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
 
     // Load diet requirements for this food item
     _loadDietRequirements();
+    
+    // Load cart count
+    _loadCartCount();
 
     _initialized = true;
   }
 
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
+
   void updateQuantity(int newQty) {
     if (newQty >= 1 && newQty <= 10) setState(() => quantity = newQty);
+  }
+
+  Future<void> _loadCartCount() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+
+      final items = await sl<MandjieRepository>().kryMandjie(user.id);
+      if (mounted) {
+        setState(() {
+          _cartCount = items.length;
+        });
+      }
+    } catch (e) {
+      debugPrint('Kon nie mandjie count kry nie: $e');
+    }
   }
 
   Future<void> _loadDietRequirements() async {
@@ -472,6 +507,35 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       OrderRefreshNotifier().triggerRefresh();
 
       if (mounted) {
+        // Show "Wysig Mandjie" text for 5 seconds with countdown
+        setState(() {
+          _showWysigMandjie = true;
+          _remainingSeconds = 5;
+        });
+        
+        // Start countdown timer
+        _countdownTimer?.cancel();
+        _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          if (mounted) {
+            setState(() {
+              _remainingSeconds--;
+            });
+            
+            if (_remainingSeconds <= 0) {
+              timer.cancel();
+              setState(() {
+                _showWysigMandjie = false;
+                _remainingSeconds = 0;
+              });
+            }
+          } else {
+            timer.cancel();
+          }
+        });
+        
+        // Update cart count
+        _loadCartCount();
+        
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Bygevoeg: $quantity x $_name')));
@@ -540,7 +604,36 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                // removed like/share controls per requirements
+                IconButton(
+                  onPressed: () => context.go('/cart'),
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(Icons.shopping_cart),
+                      if (_cartCount > 0)
+                        Positioned(
+                          right: -2,
+                          top: -2,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.error,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                            child: Text(
+                              '$_cartCount',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onError,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  tooltip: 'Mandjie',
+                ),
               ],
             ),
           ),
@@ -994,14 +1087,44 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                   const Spacer(),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: (available && item['is_past_cutoff'] != true) ? handleAddToCart : null,
+                      onPressed: _showWysigMandjie 
+                        ? () => context.go('/cart')
+                        : ((available && item['is_past_cutoff'] != true) ? handleAddToCart : null),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                        backgroundColor: _showWysigMandjie 
+                          ? Theme.of(context).colorScheme.secondary
+                          : Theme.of(context).colorScheme.primary,
+                        foregroundColor: _showWysigMandjie
+                          ? Theme.of(context).colorScheme.onSecondary
+                          : Theme.of(context).colorScheme.onPrimary,
                         minimumSize: const Size(0, 48),
                       ),
-                      icon: const Icon(Icons.shopping_cart_outlined),
-                      label: const Text('Voeg by Mandjie'),
+                      icon: Icon(_showWysigMandjie ? Icons.edit : Icons.shopping_cart_outlined),
+                      label: _showWysigMandjie 
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('Wysig Mandjie'),
+                              if (_remainingSeconds > 0) ...[
+                                const SizedBox(width: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.onSecondary.withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '$_remainingSeconds',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          )
+                        : Text('Voeg by Mandjie'),
                     ),
                   ),
                 ],
