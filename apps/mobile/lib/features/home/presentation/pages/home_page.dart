@@ -674,106 +674,113 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                          Text(
-                            gebrNaamLoading
-                                ? 'Welkom...'
-                                : 'Welkom, ${gebrNaam != null && gebrNaam!.isNotEmpty ? gebrNaam : 'Gebruiker'}!',
-                            style: AppTypography.titleLarge.copyWith(
-                              color: Theme.of(context).colorScheme.onPrimary,
-                              fontSize: ResponsiveUtils.getResponsiveFontSize(context, 
-                                mobile: 24, 
-                                tablet: 28, 
-                                desktop: 32
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Wat gaan jy vandag eet?',
-                            style: AppTypography.bodySmall.copyWith(
-                              color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
-                              fontSize: ResponsiveUtils.getResponsiveFontSize(context, 
-                                mobile: 14, 
-                                tablet: 16, 
-                                desktop: 18
-                              ),
-                            ),
-                          ),
-                          if (currentMenuDate != null) ...[
-                            const SizedBox(height: 12),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surface,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
-                                  width: 1,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.calendar_today,
-                                    size: 16,
-                                    color: Theme.of(context).colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Huidige Week: ${_formatMenuDate(currentMenuDate!)}',
-                                    style: AppTypography.labelMedium.copyWith(
-                                      color: Theme.of(context).colorScheme.onSurface,
-                                      fontWeight: FontWeight.w500,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    gebrNaamLoading
+                                        ? 'Welkom...'
+                                        : 'Welkom, ${gebrNaam != null && gebrNaam!.isNotEmpty ? gebrNaam : 'Gebruiker'}!',
+                                    style: AppTypography.titleLarge.copyWith(
+                                      color: Theme.of(context).colorScheme.onPrimary,
+                                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, 
+                                        mobile: 24, 
+                                        tablet: 28, 
+                                        desktop: 32
+                                      ),
                                     ),
                                   ),
-                                ],
+                                ),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      onPressed: () => context.go('/notifications'),
+                                      iconSize: ResponsiveUtils.isSmallScreen(context) ? 20 : 24,
+                                      icon: Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          Icon(
+                                            Icons.notifications_outlined,
+                                            color: Theme.of(context).colorScheme.onPrimary,
+                                          ),
+                                          Positioned(
+                                            right: -2,
+                                            top: -2,
+                                            child: _buildNotificationBadge(),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      onPressed: () => context.go('/cart'),
+                                      iconSize: ResponsiveUtils.isSmallScreen(context) ? 20 : 24,
+                                      icon: Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          Icon(
+                                            Icons.shopping_cart_outlined,
+                                            color: Theme.of(context).colorScheme.onPrimary,
+                                          ),
+                                          Positioned(
+                                            right: -2,
+                                            top: -2,
+                                            child: _buildBadgeMandjie(),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Wat gaan jy vandag eet?',
+                              style: AppTypography.bodySmall.copyWith(
+                                color: Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
+                                fontSize: ResponsiveUtils.getResponsiveFontSize(context, 
+                                  mobile: 14, 
+                                  tablet: 16, 
+                                  desktop: 18
+                                ),
                               ),
                             ),
+                            if (currentMenuDate != null) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.calendar_today,
+                                      size: 16,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Huidige Week: ${_formatMenuDate(currentMenuDate!)}',
+                                      style: AppTypography.labelMedium.copyWith(
+                                        color: Theme.of(context).colorScheme.onSurface,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
                         ),
-                      ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            onPressed: () => context.go('/notifications'),
-                            iconSize: ResponsiveUtils.isSmallScreen(context) ? 20 : 24,
-                            icon: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Icon(
-                                  Icons.notifications_outlined,
-                                  color: Theme.of(context).colorScheme.onPrimary,
-                                ),
-                                Positioned(
-                                  right: -2,
-                                  top: -2,
-                                  child: _buildNotificationBadge(),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () => context.go('/cart'),
-                            iconSize: ResponsiveUtils.isSmallScreen(context) ? 20 : 24,
-                            icon: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Icon(
-                                  Icons.shopping_cart_outlined,
-                                  color: Theme.of(context).colorScheme.onPrimary,
-                                ),
-                                Positioned(
-                                  right: -2,
-                                  top: -2,
-                                  child: _buildBadgeMandjie(),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ),
