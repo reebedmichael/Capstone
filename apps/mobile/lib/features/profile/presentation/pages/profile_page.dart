@@ -23,7 +23,7 @@ class ProfilePage extends ConsumerStatefulWidget {
 }
 
 class _ProfilePageState extends ConsumerState<ProfilePage> {
-  bool isLoading = true;
+  bool isLoading = false;
   bool isLoadingDiets = true;
   List<Map<String, dynamic>> _allDiets = const [];
   Set<String> _selectedDietIds = <String>{};
@@ -54,9 +54,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) {
-        setState(() {
-          isLoading = false;
-        });
         return;
       }
 
@@ -76,36 +73,27 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           .eq('gebr_id', user.id)
           .maybeSingle();
 
-      if (userData != null) {
-        setState(() {
-          ref.read(firstNameProvider.notifier).state = userData['gebr_naam'] ?? '';
-          ref.read(lastNameProvider.notifier).state = userData['gebr_van'] ?? '';
-          ref.read(emailProvider.notifier).state = userData['gebr_epos'] ?? '';
-          ref.read(cellphoneProvider.notifier).state = userData["gebr_selfoon"] ?? '';
-          
-          // Extract kampus name from joined data
-          final kampusData = userData['kampus'] as Map<String, dynamic>?;
-          ref.read(locationProvider.notifier).state = kampusData?['kampus_naam'] ?? '';
-          
-          // Extract wallet balance and convert to double
-          final rawBalance = userData['beursie_balans'];
-          final balance = rawBalance is num ? rawBalance.toDouble() : (double.tryParse('$rawBalance') ?? 0.0);
-          ref.read(walletBalanceProvider.notifier).state = balance;
-          
-          isLoading = false;
-        });
+      if (userData != null && mounted) {
+        ref.read(firstNameProvider.notifier).state = userData['gebr_naam'] ?? '';
+        ref.read(lastNameProvider.notifier).state = userData['gebr_van'] ?? '';
+        ref.read(emailProvider.notifier).state = userData['gebr_epos'] ?? '';
+        ref.read(cellphoneProvider.notifier).state = userData["gebr_selfoon"] ?? '';
+        
+        // Extract kampus name from joined data
+        final kampusData = userData['kampus'] as Map<String, dynamic>?;
+        ref.read(locationProvider.notifier).state = kampusData?['kampus_naam'] ?? '';
+        
+        // Extract wallet balance and convert to double
+        final rawBalance = userData['beursie_balans'];
+        final balance = rawBalance is num ? rawBalance.toDouble() : (double.tryParse('$rawBalance') ?? 0.0);
+        ref.read(walletBalanceProvider.notifier).state = balance;
+        
         await _loadDietData(user.id);
       } else {
         debugPrint("User data not found");
-        setState(() {
-          isLoading = false;
-        });
       }
     } catch (e) {
       debugPrint("Error loading user: $e");
-      setState(() {
-        isLoading = false;
-      });
     }
   }
 
@@ -151,12 +139,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
     final firstName = ref.watch(firstNameProvider);
     final lastName = ref.watch(lastNameProvider);
     final email = ref.watch(emailProvider);
@@ -179,10 +161,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 horizontal: Spacing.screenPadding(context).left,
                 vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20),
               ),
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.outline)),
-                color: Theme.of(context).colorScheme.surface,
-              ),
+              color: Theme.of(context).colorScheme.primary,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -191,6 +170,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     style: TextStyle(
                       fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 20, tablet: 24, desktop: 28),
                       fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onPrimary,
                     ),
                   ),
                 ],

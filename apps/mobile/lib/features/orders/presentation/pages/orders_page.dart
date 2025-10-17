@@ -245,20 +245,11 @@ class _OrdersPageState extends State<OrdersPage>
         return;
       }
 
-      // Try direct Supabase call first to see if the data exists
-      final directData = await Supabase.instance.client
-          .from('bestelling')
-          .select('*')
-          .eq('gebr_id', user.id)
-          .order('best_geskep_datum', ascending: false);
-      
-      debugPrint('Direct Supabase data: $directData');
-      
-      // Also try repository method
+      // Use only repository method to avoid duplicate calls
       final bestellingRepository = sl<BestellingRepository>();
       final ordersData = await bestellingRepository.lysBestellings(user.id);
       
-      debugPrint('Repository data: $ordersData');
+      debugPrint('Loaded ${ordersData.length} orders');
       if (mounted) {
         setState(() {
           orders = ordersData;
@@ -736,7 +727,16 @@ class _OrdersPageState extends State<OrdersPage>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Bestellings'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        title: Text(
+          'My Bestellings',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
+        ),
         actions: [
           IconButton(
             onPressed: refreshing ? null : handleRefresh,
@@ -751,6 +751,10 @@ class _OrdersPageState extends State<OrdersPage>
         ],
         bottom: TabBar(
           controller: _tabController,
+          labelColor: Theme.of(context).colorScheme.onPrimary,
+          unselectedLabelColor: Theme.of(context).colorScheme.onPrimary.withOpacity(0.7),
+          indicatorColor: Theme.of(context).colorScheme.onPrimary,
+          indicatorWeight: 3,
           onTap: (_) => setState(() {}),
           tabs: [
             Tab(text: 'Bestellings (${activeOrders.length})'),

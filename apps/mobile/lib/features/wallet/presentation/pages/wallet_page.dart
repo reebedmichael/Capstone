@@ -175,15 +175,19 @@ class _WalletPageState extends State<WalletPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Back button + Title
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Beursie',
-                        style: AppTypography.titleLarge
-                            .copyWith(color: Theme.of(context).colorScheme.onPrimary)),
-                    const SizedBox(width: 40), // spacing
-                  ],
-                ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Beursie',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
                 const SizedBox(height: 16),
                 // Wallet balance card
                 Card(

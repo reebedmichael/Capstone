@@ -344,7 +344,16 @@ class _HelpPageState extends State<HelpPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Hulp & Ondersteuning'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        title: Text(
+          'Hulp & Ondersteuning',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {

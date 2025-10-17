@@ -577,10 +577,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
             padding: Spacing.screenPadding(context).copyWith(
               top: ResponsiveUtils.getResponsiveSpacing(context, mobile: 50, tablet: 60, desktop: 70),
             ),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              border: Border(bottom: BorderSide(color: Theme.of(context).colorScheme.outline)),
-            ),
+            color: Theme.of(context).colorScheme.primary,
             child: Row(
               children: [
                 IconButton(
@@ -591,14 +588,15 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                       context.go('/home');
                     }
                   },
-                  icon: const Icon(Icons.arrow_back),
+                  icon: Icon(Icons.arrow_back, color: Theme.of(context).colorScheme.onPrimary),
                 ),
                 Expanded(
                   child: Text(
                     _name,
-                    style: AppTypography.titleLarge.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 20, tablet: 24, desktop: 28),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onPrimary,
                     ),
                     textAlign: TextAlign.center,
                     overflow: TextOverflow.ellipsis,
@@ -609,7 +607,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                   icon: Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      const Icon(Icons.shopping_cart),
+                      Icon(Icons.shopping_cart, color: Theme.of(context).colorScheme.onPrimary),
                       if (_cartCount > 0)
                         Positioned(
                           right: -2,

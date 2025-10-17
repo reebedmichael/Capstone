@@ -682,13 +682,10 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                     gebrNaamLoading
                                         ? 'Welkom...'
                                         : 'Welkom, ${gebrNaam != null && gebrNaam!.isNotEmpty ? gebrNaam : 'Gebruiker'}!',
-                                    style: AppTypography.titleLarge.copyWith(
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
                                       color: Theme.of(context).colorScheme.onPrimary,
-                                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, 
-                                        mobile: 24, 
-                                        tablet: 28, 
-                                        desktop: 32
-                                      ),
                                     ),
                                   ),
                                 ),
@@ -866,21 +863,38 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                 const SizedBox(height: 4),
                                 Container(
                                   decoration: BoxDecoration(
-                                    border: Border.all(color: Theme.of(context).colorScheme.outline),
-                                    borderRadius: BorderRadius.circular(8),
+                                    color: Theme.of(context).colorScheme.surface,
+                                    border: Border.all(
+                                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Theme.of(context).colorScheme.shadow.withOpacity(0.05),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
                                       value: selectedDay,
                                       isExpanded: true,
-                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                                      icon: Icon(
+                                        Icons.keyboard_arrow_down_rounded,
+                                        color: Theme.of(context).colorScheme.primary,
+                                        size: 20,
+                                      ),
                                       items: days.map((String day) {
                                         return DropdownMenuItem<String>(
                                           value: day,
                                           child: Text(
                                             day,
                                             style: TextStyle(
-                                              fontSize: 11,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
                                               color: Theme.of(context).colorScheme.onSurface,
                                             ),
                                           ),
@@ -945,14 +959,30 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                 const SizedBox(height: 4),
                                 Container(
                                   decoration: BoxDecoration(
-                                    border: Border.all(color: Theme.of(context).colorScheme.outline),
-                                    borderRadius: BorderRadius.circular(8),
+                                    color: Theme.of(context).colorScheme.surface,
+                                    border: Border.all(
+                                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Theme.of(context).colorScheme.shadow.withOpacity(0.05),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
                                       value: selectedDietType,
                                       isExpanded: true,
-                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                                      icon: Icon(
+                                        Icons.keyboard_arrow_down_rounded,
+                                        color: Theme.of(context).colorScheme.primary,
+                                        size: 20,
+                                      ),
                                       items: dietTypes.map((Map<String, dynamic> diet) {
                                         final dietId = diet['dieet_id']?.toString() ?? '';
                                         final dietName = diet['dieet_naam']?.toString() ?? '';
@@ -961,7 +991,8 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                           child: Text(
                                             dietName,
                                             style: TextStyle(
-                                              fontSize: 11,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
                                               color: Theme.of(context).colorScheme.onSurface,
                                             ),
                                           ),
@@ -1033,8 +1064,19 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                 const SizedBox(height: 8),
                                 Container(
                                   decoration: BoxDecoration(
-                                    border: Border.all(color: Theme.of(context).colorScheme.outline),
-                                    borderRadius: BorderRadius.circular(8),
+                                    color: Theme.of(context).colorScheme.surface,
+                                    border: Border.all(
+                                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Theme.of(context).colorScheme.shadow.withOpacity(0.05),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
@@ -1042,7 +1084,12 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                       isExpanded: true,
                                       padding: EdgeInsets.symmetric(
                                         horizontal: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20),
-                                        vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 8, tablet: 12, desktop: 16),
+                                        vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 0, tablet: 0, desktop: 0),
+                                      ),
+                                      icon: Icon(
+                                        Icons.keyboard_arrow_down_rounded,
+                                        color: Theme.of(context).colorScheme.primary,
+                                        size: 20,
                                       ),
                                       items: days.map((String day) {
                                         return DropdownMenuItem<String>(
@@ -1051,6 +1098,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                             day,
                                             style: TextStyle(
                                               fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 14, tablet: 16, desktop: 18),
+                                              fontWeight: FontWeight.w500,
                                               color: Theme.of(context).colorScheme.onSurface,
                                             ),
                                           ),
@@ -1114,8 +1162,19 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                 const SizedBox(height: 8),
                                 Container(
                                   decoration: BoxDecoration(
-                                    border: Border.all(color: Theme.of(context).colorScheme.outline),
-                                    borderRadius: BorderRadius.circular(8),
+                                    color: Theme.of(context).colorScheme.surface,
+                                    border: Border.all(
+                                      color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Theme.of(context).colorScheme.shadow.withOpacity(0.05),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<String>(
@@ -1123,7 +1182,12 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                       isExpanded: true,
                                       padding: EdgeInsets.symmetric(
                                         horizontal: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20),
-                                        vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 8, tablet: 12, desktop: 16),
+                                        vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 0, tablet: 0, desktop: 0),
+                                      ),
+                                      icon: Icon(
+                                        Icons.keyboard_arrow_down_rounded,
+                                        color: Theme.of(context).colorScheme.primary,
+                                        size: 20,
                                       ),
                                       items: dietTypes.map((Map<String, dynamic> diet) {
                                         final dietId = diet['dieet_id']?.toString() ?? '';
@@ -1134,6 +1198,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                                             dietName,
                                             style: TextStyle(
                                               fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 14, tablet: 16, desktop: 18),
+                                              fontWeight: FontWeight.w500,
                                               color: Theme.of(context).colorScheme.onSurface,
                                             ),
                                           ),

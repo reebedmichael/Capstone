@@ -39,16 +39,40 @@ class AppRouter {
         path: '/password-reset',
         builder: (context, state) => const PasswordResetPage(),
       ),
-      GoRoute(path: '/home', builder: (context, state) => const HomePage()),
-      GoRoute(path: '/orders', builder: (context, state) => const OrdersPage()),
-      GoRoute(path: '/wallet', builder: (context, state) => const WalletPage()),
+      GoRoute(
+        path: '/home',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const HomePage(),
+        ),
+      ),
+      GoRoute(
+        path: '/orders',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const OrdersPage(),
+        ),
+      ),
+      GoRoute(
+        path: '/wallet',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const WalletPage(),
+        ),
+      ),
       GoRoute(
         path: '/profile',
-        builder: (context, state) => const ProfilePage(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const ProfilePage(),
+        ),
       ),
       GoRoute(
         path: '/settings',
-        builder: (context, state) => const SettingsPage(),
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const SettingsPage(),
+        ),
       ),
       GoRoute(
         path: '/notifications',

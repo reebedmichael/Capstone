@@ -127,7 +127,16 @@ class _AllowancePageState extends State<AllowancePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Maandelikse Toelae"),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        title: Text(
+          "Maandelikse Toelae",
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
