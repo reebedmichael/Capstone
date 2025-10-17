@@ -85,6 +85,8 @@ class _ImportantNotificationsState extends State<ImportantNotifications> {
         return const Icon(Icons.info, color: Colors.blue);
       case 'sukses':
         return const Icon(Icons.check_circle, color: Colors.green);
+      case 'help':
+        return const Icon(Icons.help_outline, color: Colors.purple);
       default:
         return const Icon(Icons.notifications, color: Colors.grey);
     }
@@ -114,6 +116,12 @@ class _ImportantNotificationsState extends State<ImportantNotifications> {
         return BoxDecoration(
           color: Colors.green.shade50,
           border: Border(left: BorderSide(color: Colors.green, width: 4)),
+          borderRadius: BorderRadius.circular(8),
+        );
+      case 'help':
+        return BoxDecoration(
+          color: Colors.purple.shade50,
+          border: Border(left: BorderSide(color: Colors.purple, width: 4)),
           borderRadius: BorderRadius.circular(8),
         );
       default:
@@ -166,6 +174,8 @@ class _ImportantNotificationsState extends State<ImportantNotifications> {
       case 'sukses':
       case 'success':
         return 'sukses';
+      case 'help':
+        return 'help';
       default:
         return 'info';
     }
@@ -280,6 +290,59 @@ class _ImportantNotificationsState extends State<ImportantNotifications> {
                       notif['kennis_tipe_naam'] as String?,
                     );
                     final kennisId = notif['kennis_id']?.toString() ?? '';
+                    final rawDesc =
+                        (notif['kennis_beskrywing'] as String?) ?? '';
+
+                    // Format help description: show full message + newline + email
+                    String displayDesc = rawDesc;
+                    if (notificationType == 'help') {
+                      // Try to extract email from the description
+                      String? helpEmail;
+                      final regex = RegExp(
+                        r'E-pos:\s*([^\s]+)',
+                        caseSensitive: false,
+                      );
+                      final match = regex.firstMatch(rawDesc);
+                      if (match != null && match.groupCount >= 1) {
+                        helpEmail = match.group(1);
+                      } else {
+                        final lines = rawDesc
+                            .split('\n')
+                            .map((e) => e.trim())
+                            .where((e) => e.isNotEmpty)
+                            .toList();
+                        if (lines.isNotEmpty) {
+                          final last = lines.last;
+                          final emailRegex = RegExp(
+                            r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}",
+                            caseSensitive: false,
+                          );
+                          final emailMatch = emailRegex.firstMatch(last);
+                          if (emailMatch != null)
+                            helpEmail = emailMatch.group(0);
+                        }
+                      }
+
+                      // Remove any existing E-pos line from message part
+                      final messageOnly = rawDesc
+                          .split('\n')
+                          .where(
+                            (line) =>
+                                !line.trim().toLowerCase().startsWith('e-pos'),
+                          )
+                          .join('\n')
+                          .trim();
+
+                      if (helpEmail != null) {
+                        displayDesc = messageOnly.isNotEmpty
+                            ? '$messageOnly\nE-pos: $helpEmail'
+                            : 'E-pos: $helpEmail';
+                      } else {
+                        displayDesc = messageOnly.isNotEmpty
+                            ? messageOnly
+                            : rawDesc;
+                      }
+                    }
 
                     return Container(
                       padding: const EdgeInsets.all(10),
@@ -326,14 +389,20 @@ class _ImportantNotificationsState extends State<ImportantNotifications> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  notif['kennis_beskrywing'] as String? ??
-                                      'Geen boodskap',
+                                  displayDesc.isNotEmpty
+                                      ? displayDesc
+                                      : 'Geen boodskap',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey[800],
                                   ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                                  softWrap: true,
+                                  maxLines: notificationType == 'help'
+                                      ? null
+                                      : 2,
+                                  overflow: notificationType == 'help'
+                                      ? TextOverflow.visible
+                                      : TextOverflow.ellipsis,
                                 ),
                                 const SizedBox(height: 8),
                                 Row(

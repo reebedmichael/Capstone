@@ -461,6 +461,13 @@ class _KennisgewingsPageState extends State<KennisgewingsPage> {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
+                                  DropdownMenuItem(
+                                    value: 'help',
+                                    child: Text(
+                                      'Help',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
                                 ],
                                 onChanged: (String? v) => setState(
                                   () => _tipeFilter = v ?? 'alle_tipes',
@@ -777,6 +784,8 @@ class AnnouncementGroupCard extends StatelessWidget {
         return Icons.error_outline;
       case 'sukses':
         return Icons.check_circle_outline;
+      case 'help':
+        return Icons.help_outline;
       default:
         return Icons.info_outline;
     }
@@ -790,6 +799,8 @@ class AnnouncementGroupCard extends StatelessWidget {
         return Colors.red;
       case 'sukses':
         return Colors.green;
+      case 'help':
+        return Colors.purple;
       default:
         return Colors.blue;
     }
@@ -905,23 +916,86 @@ class AnnouncementGroupCard extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 4),
                                     ],
-                                    Text(
-                                      beskrywing,
-                                      style: TextStyle(
-                                        fontSize: titel.isNotEmpty ? 14 : 17,
-                                        fontWeight: titel.isNotEmpty
-                                            ? FontWeight.normal
-                                            : FontWeight.bold,
-                                        color: titel.isNotEmpty
-                                            ? Theme.of(
-                                                context,
-                                              ).textTheme.bodyMedium?.color
-                                            : Theme.of(
-                                                context,
-                                              ).textTheme.titleLarge?.color,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
+                                    Builder(
+                                      builder: (context) {
+                                        String formatted = beskrywing;
+                                        if (tipe == 'help') {
+                                          String? helpEmail;
+                                          final regex = RegExp(
+                                            r'E-pos:\s*([^\s]+)',
+                                            caseSensitive: false,
+                                          );
+                                          final match = regex.firstMatch(
+                                            beskrywing,
+                                          );
+                                          if (match != null &&
+                                              match.groupCount >= 1) {
+                                            helpEmail = match.group(1);
+                                          } else {
+                                            final lines = beskrywing
+                                                .split('\n')
+                                                .map((e) => e.trim())
+                                                .where((e) => e.isNotEmpty)
+                                                .toList();
+                                            if (lines.isNotEmpty) {
+                                              final last = lines.last;
+                                              final emailRegex = RegExp(
+                                                r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}",
+                                                caseSensitive: false,
+                                              );
+                                              final emailMatch = emailRegex
+                                                  .firstMatch(last);
+                                              if (emailMatch != null)
+                                                helpEmail = emailMatch.group(0);
+                                            }
+                                          }
+
+                                          final messageOnly = beskrywing
+                                              .split('\n')
+                                              .where(
+                                                (line) => !line
+                                                    .trim()
+                                                    .toLowerCase()
+                                                    .startsWith('e-pos'),
+                                              )
+                                              .join('\n')
+                                              .trim();
+
+                                          if (helpEmail != null) {
+                                            formatted = messageOnly.isNotEmpty
+                                                ? '$messageOnly\nE-pos: $helpEmail'
+                                                : 'E-pos: $helpEmail';
+                                          } else {
+                                            formatted = messageOnly.isNotEmpty
+                                                ? messageOnly
+                                                : beskrywing;
+                                          }
+                                        }
+
+                                        return Text(
+                                          formatted,
+                                          style: TextStyle(
+                                            fontSize: titel.isNotEmpty
+                                                ? 14
+                                                : 17,
+                                            fontWeight: titel.isNotEmpty
+                                                ? FontWeight.normal
+                                                : FontWeight.bold,
+                                            color: titel.isNotEmpty
+                                                ? Theme.of(
+                                                    context,
+                                                  ).textTheme.bodyMedium?.color
+                                                : Theme.of(
+                                                    context,
+                                                  ).textTheme.titleLarge?.color,
+                                          ),
+                                          softWrap: true,
+                                          maxLines: tipe == 'help' ? null : 2,
+                                          overflow: tipe == 'help'
+                                              ? TextOverflow.visible
+                                              : TextOverflow.ellipsis,
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),
@@ -1077,12 +1151,16 @@ class AnnouncementGroupCard extends StatelessWidget {
                       ),
                     const SizedBox(width: 8),
                     OutlinedButton.icon(
-                      onPressed: onEdit,
+                      onPressed: tipe == 'help' ? null : onEdit,
                       icon: const Icon(Icons.edit_outlined, size: 16),
                       label: const Text('Redigeer'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.blue,
-                        side: const BorderSide(color: Colors.blue),
+                        foregroundColor: tipe == 'help'
+                            ? Colors.grey
+                            : Colors.blue,
+                        side: BorderSide(
+                          color: tipe == 'help' ? Colors.grey : Colors.blue,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -1372,16 +1450,70 @@ class AnnouncementGroupCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                     ],
-                    Text(
-                      beskrywing,
-                      style: TextStyle(
-                        fontSize: titel.isNotEmpty ? 16 : 18,
-                        fontWeight: titel.isNotEmpty
-                            ? FontWeight.normal
-                            : FontWeight.w600,
-                        height: 1.5,
-                        color: Theme.of(context).textTheme.bodyLarge?.color,
-                      ),
+                    Builder(
+                      builder: (context) {
+                        String formatted = beskrywing;
+                        if (tipe == 'help') {
+                          // Ensure message + newline + E-pos: email
+                          String? helpEmail;
+                          final regex = RegExp(
+                            r'E-pos:\s*([^\s]+)',
+                            caseSensitive: false,
+                          );
+                          final match = regex.firstMatch(beskrywing);
+                          if (match != null && match.groupCount >= 1) {
+                            helpEmail = match.group(1);
+                          } else {
+                            final lines = beskrywing
+                                .split('\n')
+                                .map((e) => e.trim())
+                                .where((e) => e.isNotEmpty)
+                                .toList();
+                            if (lines.isNotEmpty) {
+                              final last = lines.last;
+                              final emailRegex = RegExp(
+                                r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}",
+                                caseSensitive: false,
+                              );
+                              final emailMatch = emailRegex.firstMatch(last);
+                              if (emailMatch != null)
+                                helpEmail = emailMatch.group(0);
+                            }
+                          }
+
+                          final messageOnly = beskrywing
+                              .split('\n')
+                              .where(
+                                (line) => !line.trim().toLowerCase().startsWith(
+                                  'e-pos',
+                                ),
+                              )
+                              .join('\n')
+                              .trim();
+
+                          if (helpEmail != null) {
+                            formatted = messageOnly.isNotEmpty
+                                ? '$messageOnly\nE-pos: $helpEmail'
+                                : 'E-pos: $helpEmail';
+                          } else {
+                            formatted = messageOnly.isNotEmpty
+                                ? messageOnly
+                                : beskrywing;
+                          }
+                        }
+
+                        return Text(
+                          formatted,
+                          style: TextStyle(
+                            fontSize: titel.isNotEmpty ? 16 : 18,
+                            fontWeight: titel.isNotEmpty
+                                ? FontWeight.normal
+                                : FontWeight.w600,
+                            height: 1.5,
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
