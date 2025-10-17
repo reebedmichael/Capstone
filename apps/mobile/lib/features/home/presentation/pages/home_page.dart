@@ -557,30 +557,42 @@ Future<void> _checkAndCleanExpiredCartItems() async {
 
   void _applyFilters() {
     final query = searchQuery.toLowerCase();
+    debugPrint('Applying filters - selectedDay: $selectedDay, selectedDietType: $selectedDietType');
+    debugPrint('Total items before filtering: ${allMenuItems.length}');
+    
     filteredMenuItems = allMenuItems.where((item) {
       // item is the wrapper map containing merged fields
       final dayName = (item['week_dag_naam'] ?? '').toString();
       final matchesDay = selectedDay == 'Alle' || dayName == selectedDay;
+      debugPrint('Item: ${item['kos_item_naam']}, dayName: $dayName, matchesDay: $matchesDay');
       
       // Check if this day is past cutoff (grey out and disable ordering)
       final isPastCutoff = _isDayPastCutoff(dayName);
       
       // Check diet type filter
       bool matchesDietType = selectedDietType == 'alle';
+      debugPrint('Diet filter - selectedDietType: $selectedDietType, matchesDietType: $matchesDietType');
+      
       if (!matchesDietType && selectedDietType != 'alle') {
         final kosItemId = item['kos_item_id']?.toString();
+        debugPrint('Checking diet for item $kosItemId');
         if (kosItemId != null && itemDietMapping.containsKey(kosItemId)) {
           final itemDiets = itemDietMapping[kosItemId] ?? [];
+          debugPrint('Item diets: $itemDiets');
           
           // Special handling for "My Dieet Vereistes" option
           if (selectedDietType == 'my_dieet_vereistes') {
             // Check if item satisfies at least one of user's diet preferences
             matchesDietType = userDietPreferences.isNotEmpty && 
                 userDietPreferences.any((userDietId) => itemDiets.contains(userDietId));
+            debugPrint('My diet vereistes - userDietPreferences: $userDietPreferences, matchesDietType: $matchesDietType');
           } else {
             // Regular diet type filtering
             matchesDietType = itemDiets.contains(selectedDietType);
+            debugPrint('Regular diet filtering - contains $selectedDietType: $matchesDietType');
           }
+        } else {
+          debugPrint('No diet mapping found for item $kosItemId');
         }
       }
       
@@ -607,22 +619,37 @@ Future<void> _checkAndCleanExpiredCartItems() async {
       // Add cutoff status to item for UI display
       item['is_past_cutoff'] = isPastCutoff;
       
-      return matchesDay && matchesDietType && matchesSearch;
+      final finalResult = matchesDay && matchesDietType && matchesSearch;
+      debugPrint('Final result for ${item['kos_item_naam']}: matchesDay=$matchesDay, matchesDietType=$matchesDietType, matchesSearch=$matchesSearch, final=$finalResult');
+      
+      return finalResult;
     }).toList();
     
-    // Sort by day order: Monday (1) to Sunday (7)
+    // Sort by availability first, then by day order: Monday (1) to Sunday (7)
     final dayOrder = {
       'maandag': 1, 'dinsdag': 2, 'woensdag': 3, 'donderdag': 4,
       'vrydag': 5, 'saterdag': 6, 'sondag': 7
     };
     
     filteredMenuItems.sort((a, b) {
+      // First, check if items can still be ordered (not past cutoff)
+      final isPastCutoffA = a['is_past_cutoff'] == true;
+      final isPastCutoffB = b['is_past_cutoff'] == true;
+      
+      // If cutoff status is different, sort by cutoff (orderable items first)
+      if (isPastCutoffA != isPastCutoffB) {
+        return isPastCutoffA ? 1 : -1; // isPastCutoffA ? 1 : -1 means orderable items come first
+      }
+      
+      // If cutoff status is the same, sort by day order
       final dayA = (a['week_dag_naam'] ?? '').toString().toLowerCase();
       final dayB = (b['week_dag_naam'] ?? '').toString().toLowerCase();
       final orderA = dayOrder[dayA] ?? 999;
       final orderB = dayOrder[dayB] ?? 999;
       return orderA.compareTo(orderB);
     });
+    
+    debugPrint('Filtering complete - filtered items: ${filteredMenuItems.length}');
   }
 
   @override
@@ -643,9 +670,10 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                           Text(
                             gebrNaamLoading
                                 ? 'Welkom...'
@@ -704,11 +732,14 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                             ),
                           ],
                         ],
+                        ),
                       ),
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
                             onPressed: () => context.go('/notifications'),
+                            iconSize: ResponsiveUtils.isSmallScreen(context) ? 20 : 24,
                             icon: Stack(
                               clipBehavior: Clip.none,
                               children: [
@@ -726,6 +757,7 @@ Future<void> _checkAndCleanExpiredCartItems() async {
                           ),
                           IconButton(
                             onPressed: () => context.go('/cart'),
+                            iconSize: ResponsiveUtils.isSmallScreen(context) ? 20 : 24,
                             icon: Stack(
                               clipBehavior: Clip.none,
                               children: [
@@ -839,178 +871,342 @@ Future<void> _checkAndCleanExpiredCartItems() async {
               ResponsiveUtils.isMobile(context) 
                 ? Column(
                     children: [
-                      // Day filter dropdown
-                      Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Theme.of(context).colorScheme.outline),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: selectedDay,
-                            isExpanded: true,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20),
-                              vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 8, tablet: 12, desktop: 16),
-                            ),
-                            items: days.map((String day) {
-                              return DropdownMenuItem<String>(
-                                value: day,
-                                child: Text(
-                                  day,
-                                  style: TextStyle(
-                                    fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 14, tablet: 16, desktop: 18),
-                                    color: Theme.of(context).colorScheme.onSurface,
+                      // Horizontal filters row
+                      Row(
+                        children: [
+                          // Day filter
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Kies Dag',
+                                      style: AppTypography.labelMedium.copyWith(
+                                        color: Theme.of(context).colorScheme.onSurface,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    InkWell(
+                                      onTap: () {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Wys menu items vir \'n spesifieke dag van die week'),
+                                            duration: const Duration(seconds: 2),
+                                            behavior: SnackBarBehavior.floating,
+                                            margin: const EdgeInsets.all(16),
+                                          ),
+                                        );
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(4),
+                                        child: Icon(
+                                          Icons.info_outline,
+                                          size: 14,
+                                          color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Theme.of(context).colorScheme.outline),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: selectedDay,
+                                      isExpanded: true,
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                      items: days.map((String day) {
+                                        return DropdownMenuItem<String>(
+                                          value: day,
+                                          child: Text(
+                                            day,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Theme.of(context).colorScheme.onSurface,
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                      onChanged: (String? newValue) {
+                                        if (newValue != null) {
+                                          setState(() {
+                                            selectedDay = newValue;
+                                            _applyFilters();
+                                          });
+                                        }
+                                      },
+                                    ),
                                   ),
                                 ),
-                              );
-                            }).toList(),
-                            onChanged: (String? newValue) {
-                              if (newValue != null) {
-                                setState(() {
-                                  selectedDay = newValue;
-                                  _applyFilters();
-                                });
-                              }
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      
-                      // Diet type filter dropdown
-                      Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Theme.of(context).colorScheme.outline),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: selectedDietType,
-                            isExpanded: true,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20),
-                              vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 8, tablet: 12, desktop: 16),
+                              ],
                             ),
-                            items: dietTypes.map((Map<String, dynamic> diet) {
-                              final dietId = diet['dieet_id']?.toString() ?? '';
-                              final dietName = diet['dieet_naam']?.toString() ?? '';
-                              return DropdownMenuItem<String>(
-                                value: dietId,
-                                child: Text(
-                                  dietName,
-                                  style: TextStyle(
-                                    fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 14, tablet: 16, desktop: 18),
-                                    color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                          
+                          const SizedBox(width: 8),
+                          
+                          // Diet type filter
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Kies Dieet',
+                                      style: AppTypography.labelMedium.copyWith(
+                                        color: Theme.of(context).colorScheme.onSurface,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    InkWell(
+                                      onTap: () {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Filter menu items volgens jou dieet vereistes'),
+                                            duration: const Duration(seconds: 2),
+                                            behavior: SnackBarBehavior.floating,
+                                            margin: const EdgeInsets.all(16),
+                                          ),
+                                        );
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(4),
+                                        child: Icon(
+                                          Icons.info_outline,
+                                          size: 14,
+                                          color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Theme.of(context).colorScheme.outline),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: selectedDietType,
+                                      isExpanded: true,
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                      items: dietTypes.map((Map<String, dynamic> diet) {
+                                        final dietId = diet['dieet_id']?.toString() ?? '';
+                                        final dietName = diet['dieet_naam']?.toString() ?? '';
+                                        return DropdownMenuItem<String>(
+                                          value: dietId,
+                                          child: Text(
+                                            dietName,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Theme.of(context).colorScheme.onSurface,
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                      onChanged: (String? newValue) {
+                                        if (newValue != null) {
+                                          setState(() {
+                                            selectedDietType = newValue;
+                                            // If user selects "My Dieet Vereistes", keep auto-filtering active
+                                            // If they select anything else, disable auto-filtering
+                                            isAutoFiltering = newValue == 'my_dieet_vereistes' && userDietPreferences.isNotEmpty;
+                                            _applyFilters();
+                                          });
+                                        }
+                                      },
+                                    ),
                                   ),
                                 ),
-                              );
-                            }).toList(),
-                            onChanged: (String? newValue) {
-                              if (newValue != null) {
-                                setState(() {
-                                  selectedDietType = newValue;
-                                  // If user selects "My Dieet Vereistes", keep auto-filtering active
-                                  // If they select anything else, disable auto-filtering
-                                  isAutoFiltering = newValue == 'my_dieet_vereistes' && userDietPreferences.isNotEmpty;
-                                  _applyFilters();
-                                });
-                              }
-                            },
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   )
-                : Row(
+                : Column(
                     children: [
-                      // Day filter dropdown
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Theme.of(context).colorScheme.outline),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: selectedDay,
-                              isExpanded: true,
-                              padding: EdgeInsets.symmetric(
-                                horizontal: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20),
-                                vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 8, tablet: 12, desktop: 16),
-                              ),
-                              items: days.map((String day) {
-                                return DropdownMenuItem<String>(
-                                  value: day,
-                                  child: Text(
-                                    day,
-                                    style: TextStyle(
-                                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 14, tablet: 16, desktop: 18),
-                                      color: Theme.of(context).colorScheme.onSurface,
+                      Row(
+                        children: [
+                          // Day filter description and dropdown
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Kies Dag',
+                                      style: AppTypography.labelMedium.copyWith(
+                                        color: Theme.of(context).colorScheme.onSurface,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    InkWell(
+                                      onTap: () {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Wys menu items vir \'n spesifieke dag van die week'),
+                                            duration: const Duration(seconds: 2),
+                                            behavior: SnackBarBehavior.floating,
+                                            margin: const EdgeInsets.all(16),
+                                          ),
+                                        );
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(4),
+                                        child: Icon(
+                                          Icons.info_outline,
+                                          size: 16,
+                                          color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Theme.of(context).colorScheme.outline),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: selectedDay,
+                                      isExpanded: true,
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20),
+                                        vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 8, tablet: 12, desktop: 16),
+                                      ),
+                                      items: days.map((String day) {
+                                        return DropdownMenuItem<String>(
+                                          value: day,
+                                          child: Text(
+                                            day,
+                                            style: TextStyle(
+                                              fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 14, tablet: 16, desktop: 18),
+                                              color: Theme.of(context).colorScheme.onSurface,
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                      onChanged: (String? newValue) {
+                                        if (newValue != null) {
+                                          setState(() {
+                                            selectedDay = newValue;
+                                            _applyFilters();
+                                          });
+                                        }
+                                      },
                                     ),
                                   ),
-                                );
-                              }).toList(),
-                              onChanged: (String? newValue) {
-                                if (newValue != null) {
-                                  setState(() {
-                                    selectedDay = newValue;
-                                    _applyFilters();
-                                  });
-                                }
-                              },
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                      ),
-                      
-                      SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20)),
-                      
-                      // Diet type filter dropdown
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Theme.of(context).colorScheme.outline),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: selectedDietType,
-                              isExpanded: true,
-                              padding: EdgeInsets.symmetric(
-                                horizontal: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20),
-                                vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 8, tablet: 12, desktop: 16),
-                              ),
-                              items: dietTypes.map((Map<String, dynamic> diet) {
-                                final dietId = diet['dieet_id']?.toString() ?? '';
-                                final dietName = diet['dieet_naam']?.toString() ?? '';
-                                return DropdownMenuItem<String>(
-                                  value: dietId,
-                                  child: Text(
-                                    dietName,
-                                    style: TextStyle(
-                                      fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 14, tablet: 16, desktop: 18),
-                                      color: Theme.of(context).colorScheme.onSurface,
+                          
+                          SizedBox(width: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20)),
+                          
+                          // Diet type filter description and dropdown
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Kies Dieet Tipe',
+                                      style: AppTypography.labelMedium.copyWith(
+                                        color: Theme.of(context).colorScheme.onSurface,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    InkWell(
+                                      onTap: () {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Filter menu items volgens jou dieet vereistes'),
+                                            duration: const Duration(seconds: 2),
+                                            behavior: SnackBarBehavior.floating,
+                                            margin: const EdgeInsets.all(16),
+                                          ),
+                                        );
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(4),
+                                        child: Icon(
+                                          Icons.info_outline,
+                                          size: 16,
+                                          color: Theme.of(context).colorScheme.primary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Theme.of(context).colorScheme.outline),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: selectedDietType,
+                                      isExpanded: true,
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: ResponsiveUtils.getResponsiveSpacing(context, mobile: 12, tablet: 16, desktop: 20),
+                                        vertical: ResponsiveUtils.getResponsiveSpacing(context, mobile: 8, tablet: 12, desktop: 16),
+                                      ),
+                                      items: dietTypes.map((Map<String, dynamic> diet) {
+                                        final dietId = diet['dieet_id']?.toString() ?? '';
+                                        final dietName = diet['dieet_naam']?.toString() ?? '';
+                                        return DropdownMenuItem<String>(
+                                          value: dietId,
+                                          child: Text(
+                                            dietName,
+                                            style: TextStyle(
+                                              fontSize: ResponsiveUtils.getResponsiveFontSize(context, mobile: 14, tablet: 16, desktop: 18),
+                                              color: Theme.of(context).colorScheme.onSurface,
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                      onChanged: (String? newValue) {
+                                        if (newValue != null) {
+                                          setState(() {
+                                            selectedDietType = newValue;
+                                            // If user selects "My Dieet Vereistes", keep auto-filtering active
+                                            // If they select anything else, disable auto-filtering
+                                            isAutoFiltering = newValue == 'my_dieet_vereistes' && userDietPreferences.isNotEmpty;
+                                            _applyFilters();
+                                          });
+                                        }
+                                      },
                                     ),
                                   ),
-                                );
-                              }).toList(),
-                              onChanged: (String? newValue) {
-                                if (newValue != null) {
-                                  setState(() {
-                                    selectedDietType = newValue;
-                                    // If user selects "My Dieet Vereistes", keep auto-filtering active
-                                    // If they select anything else, disable auto-filtering
-                                    isAutoFiltering = newValue == 'my_dieet_vereistes' && userDietPreferences.isNotEmpty;
-                                    _applyFilters();
-                                  });
-                                }
-                              },
+                                ),
+                              ],
                             ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
@@ -1110,15 +1306,21 @@ Future<void> _checkAndCleanExpiredCartItems() async {
       builder: (context, value, _) {
         if (value == 0) return const SizedBox.shrink();
         return Container(
-          padding: const EdgeInsets.all(2),
+          padding: EdgeInsets.all(ResponsiveUtils.isSmallScreen(context) ? 1 : 2),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.error,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(ResponsiveUtils.isSmallScreen(context) ? 6 : 8),
           ),
-          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+          constraints: BoxConstraints(
+            minWidth: ResponsiveUtils.isSmallScreen(context) ? 14 : 16, 
+            minHeight: ResponsiveUtils.isSmallScreen(context) ? 14 : 16
+          ),
           child: Text(
             '$value',
-            style: TextStyle(color: Theme.of(context).colorScheme.onError, fontSize: 10),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onError, 
+              fontSize: ResponsiveUtils.isSmallScreen(context) ? 9 : 10
+            ),
           ),
         );
       },
@@ -1128,15 +1330,21 @@ Future<void> _checkAndCleanExpiredCartItems() async {
   Widget _buildBadgeMandjie() {
     if (mandjieCount == 0) return const SizedBox.shrink();
     return Container(
-      padding: const EdgeInsets.all(2),
+      padding: EdgeInsets.all(ResponsiveUtils.isSmallScreen(context) ? 1 : 2),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.error,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(ResponsiveUtils.isSmallScreen(context) ? 6 : 8),
       ),
-      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+      constraints: BoxConstraints(
+        minWidth: ResponsiveUtils.isSmallScreen(context) ? 14 : 16, 
+        minHeight: ResponsiveUtils.isSmallScreen(context) ? 14 : 16
+      ),
       child: Text(
         '$mandjieCount',
-        style: TextStyle(color: Theme.of(context).colorScheme.onError, fontSize: 10),
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onError, 
+          fontSize: ResponsiveUtils.isSmallScreen(context) ? 9 : 10
+        ),
       ),
     );
   }

@@ -9,7 +9,7 @@ import 'package:spys_api_client/src/notification_archive_service.dart';
 import '../../../../shared/services/qr_service.dart';
 import '../../../../shared/services/auth_service.dart';
 import '../../../../shared/providers/theme_provider.dart';
-import '../../../../shared/widgets/simple_otp_dialog.dart';
+import '../../../../shared/widgets/otp_verification_dialog.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -386,7 +386,8 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       // Show OTP dialog after email is sent
       showDialog(
         context: context,
-        builder: (context) => SimpleOtpDialog(
+        barrierDismissible: false,
+        builder: (context) => OtpVerificationDialog(
           email: currentUser.email!,
           onSuccess: () async {
             Navigator.of(context).pop();
@@ -398,6 +399,10 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           },
           onCancel: () {
             Navigator.of(context).pop();
+          },
+          onLogout: () {
+            // User was logged out due to too many failed attempts
+            context.go('/login');
           },
         ),
       );
