@@ -16,10 +16,7 @@ class GebruikersBestuurPage extends ConsumerStatefulWidget {
       _GebruikersBestuurPageState();
 }
 
-class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
+class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage> {
   String searchQuery = '';
   String? filterGebrTipeId;
   String? filterAdminTipeId;
@@ -40,14 +37,7 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadData();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -181,34 +171,20 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
           matchesAktief;
     }).toList();
 
+    // Sort users by gebr_naam (first name)
+    filteredUsers.sort((a, b) {
+      final nameA = (a['gebr_naam'] ?? '').toString().toLowerCase();
+      final nameB = (b['gebr_naam'] ?? '').toString().toLowerCase();
+      return nameA.compareTo(nameB);
+    });
+
     return Scaffold(
       body: Column(
         children: [
           // Custom header matching dashboard_header.dart style
           _buildCustomHeader(),
-          // Tab bar
-          Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).cardColor,
-              border: Border(
-                bottom: BorderSide(color: Theme.of(context).dividerColor),
-              ),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              tabs: const [Tab(text: 'Gebruikers', icon: Icon(Icons.people))],
-            ),
-          ),
-          // Tab content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                // Users Tab only (toelae panel removed)
-                _buildUsersTab(filteredUsers),
-              ],
-            ),
-          ),
+          // Main content
+          Expanded(child: _buildUsersTab(filteredUsers)),
         ],
       ),
     );
@@ -1591,19 +1567,19 @@ class _GebruikersBestuurPageState extends ConsumerState<GebruikersBestuurPage>
                                   Colors.orange,
                                   () => _setUserActive(userId, false),
                                 ),
-                              _buildActionButton(
-                                'Admin Tipe',
-                                Icons.admin_panel_settings,
-                                Colors.blue,
-                                () => _showChangeAdminTypeDialog(u),
-                              ),
-                              _buildActionButton(
-                                'Gebruiker Tipe',
-                                Icons.person,
-                                Colors.purple,
-                                () => _showChangeUserTypeDialog(u),
-                              ),
-                            ]);
+                                _buildActionButton(
+                                  'Admin Tipe',
+                                  Icons.admin_panel_settings,
+                                  Colors.blue,
+                                  () => _showChangeAdminTypeDialog(u),
+                                ),
+                                _buildActionButton(
+                                  'Gebruiker Tipe',
+                                  Icons.person,
+                                  Colors.purple,
+                                  () => _showChangeUserTypeDialog(u),
+                                ),
+                              ]);
                             } else {
                               // User is inactive - show activate button
                               return _buildActionButtons([
