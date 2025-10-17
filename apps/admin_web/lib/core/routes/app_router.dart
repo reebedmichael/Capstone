@@ -85,7 +85,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/templates/kositem',
         name: 'templates_kositem',
-        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: KositemTemplaatPage()), state),
+        pageBuilder: (context, state) {
+          final String? initialEditId = state.uri.queryParameters['edit'];
+          return _noTransitionPage(
+            AdminAccessGuard(child: KositemTemplaatPage(initialEditKosItemId: initialEditId)),
+            state,
+          );
+        },
       ),
       GoRoute(
         path: '/templates/week',
@@ -133,6 +139,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: VerslaePage()), state),
       ),
       GoRoute(
+        path: '/verslae/terugvoer',
+        name: 'verslae_terugvoer',
+        pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: VerslaePage(showTerugvoerOnly: true)), state),
+      ),
+      GoRoute(
         path: '/instellings',
         name: 'instellings',
         pageBuilder: (context, state) => _noTransitionPage(const AdminAccessGuard(child: InstellingsPage()), state),
@@ -156,9 +167,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
-GoRouterWidgetBuilder _builder(Widget child) =>
-    (BuildContext context, GoRouterState state) =>
-        PageScaffold(title: state.name ?? '', child: child);
+// Removed unused _builder helper
 
 // Custom page builder with no transition animation
 Page<dynamic> _noTransitionPage(Widget child, GoRouterState state) {

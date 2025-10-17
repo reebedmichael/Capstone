@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+// import removed: kositem_templaat_page is navigated via go_router query
+import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import 'dart:html' as html;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class VerslaePage extends StatefulWidget {
-  const VerslaePage({super.key});
+  final bool showTerugvoerOnly;
+  const VerslaePage({super.key, this.showTerugvoerOnly = false});
 
   @override
   State<VerslaePage> createState() => _VerslaePageState();
@@ -18,6 +21,7 @@ class _VerslaePageState extends State<VerslaePage> {
   bool _isPrimaryAdmin = false;
   int selectedSalesDays = 7;
   int _topItemsLimit = 10;
+  String _topItemsSortKey = 'Verkope'; // Verkope, Likes, Terugvoer, Verkope/Likes %, Verkope/Terugvoer %
 
   // UI State (Terugvoer add form)
   final TextEditingController _terugNaamController = TextEditingController();
@@ -83,6 +87,8 @@ class _VerslaePageState extends State<VerslaePage> {
     _loadData();
     _checkIsPrimaryAdmin();
   }
+
+  // Removed tab switcher; navigation now handled via sidebar group
 
   Future<void> _checkIsPrimaryAdmin() async {
     try {
@@ -667,6 +673,21 @@ class _VerslaePageState extends State<VerslaePage> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.showTerugvoerOnly) {
+      return Scaffold(
+        body: Column(
+          children: [
+            _buildHeader(context),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: _buildTerugvoerSection(context),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     if (isLoading) {
       return Scaffold(
         body: Column(
@@ -775,8 +796,28 @@ class _VerslaePageState extends State<VerslaePage> {
                   // Kos Items vs Terugvoer (stacked)
                   _buildKosItemTerugvoerChart(context),
                   const SizedBox(height: 24),
-                  // Top Items Chart (includes Likes vir Top Items)
-                  _buildTopItemsChart(context),
+                  // Top Items and Orders per campus side-by-side (stack on narrow)
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      if (constraints.maxWidth > 900) {
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(flex: 7, child: _buildTopItemsChart(context)),
+                            const SizedBox(width: 16),
+                            Expanded(flex: 3, child: _buildOrdersByCampusChart(context)),
+                          ],
+                        );
+                      }
+                      return Column(
+                        children: [
+                          _buildTopItemsChart(context),
+                          const SizedBox(height: 24),
+                          _buildOrdersByCampusChart(context),
+                        ],
+                      );
+                    },
+                  ),
                   const SizedBox(height: 24),
                   LayoutBuilder(
                     builder: (context, constraints) {
@@ -805,12 +846,8 @@ class _VerslaePageState extends State<VerslaePage> {
 
                   // Users by types (removed)
                   // Numerical statistics removed
-
-                  // Orders per campus
-                  _buildOrdersByCampusChart(context),
-                  const SizedBox(height: 24),
-                  // Terugvoer: view and add
-                  _buildTerugvoerSection(context),
+                  // Terugvoer section is only shown on the dedicated Terugvoer page
+                  if (widget.showTerugvoerOnly) _buildTerugvoerSection(context),
                 ],
               ),
             ),
@@ -819,9 +856,6 @@ class _VerslaePageState extends State<VerslaePage> {
       ),
     );
   }
-
-  //TODO: kyk duer die db, en probeer uitvind watter grafieke en statistieke useful sal wees vir 'n admin.
-  //TODO: laat die data as 'n csv file geexporteer kan word.
 
   Widget _buildHeader(BuildContext context) {
     final mediaWidth = MediaQuery.of(context).size.width;
@@ -862,7 +896,7 @@ class _VerslaePageState extends State<VerslaePage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "Verslae Dashboard",
+                            widget.showTerugvoerOnly ? "Terugvoer Opsie Bestuur" : "Statistiek & Grafieke",
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -870,7 +904,7 @@ class _VerslaePageState extends State<VerslaePage> {
                             ),
                           ),
                           Text(
-                            "Analiseer verkope en bestelling data",
+                            widget.showTerugvoerOnly ? "Bestuur en redigeer terugvoer opsies" : "Analiseer verkope en bestelling data",
                             style: TextStyle(
                               fontSize: 12,
                               color: Theme.of(
@@ -890,7 +924,8 @@ class _VerslaePageState extends State<VerslaePage> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    DropdownButton<int>(
+                     if (!widget.showTerugvoerOnly)
+                       DropdownButton<int>(
                       value: selectedSalesDays,
                       items: const [-1, 7, 14, 30]
                           .map(
@@ -912,9 +947,9 @@ class _VerslaePageState extends State<VerslaePage> {
                           _computeAggregations();
                         });
                       },
-                    ),
-                    if (_isPrimaryAdmin)
-                      TextButton.icon(
+                     ),
+                     if (_isPrimaryAdmin && !widget.showTerugvoerOnly)
+                       TextButton.icon(
                         onPressed: isExporting ? null : _exportAllTablesToCsv,
                         icon: isExporting
                             ? const SizedBox(
@@ -958,7 +993,7 @@ class _VerslaePageState extends State<VerslaePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Verslae Dashboard",
+                          widget.showTerugvoerOnly ? "Terugvoer Opsie Bestuur" : "Statistiek & Grafieke",
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -966,7 +1001,7 @@ class _VerslaePageState extends State<VerslaePage> {
                           ),
                         ),
                         Text(
-                          "Analiseer verkope en bestelling data",
+                          widget.showTerugvoerOnly ? "Bestuur en redigeer terugvoer opsies" : "Analiseer verkope en bestelling data",
                           style: TextStyle(
                             color: Theme.of(context).textTheme.bodySmall?.color,
                           ),
@@ -979,12 +1014,14 @@ class _VerslaePageState extends State<VerslaePage> {
                 /// Right section: controls
                 Row(
                   children: [
-                    Text(
-                      'Tydperk',
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                    const SizedBox(width: 8),
-                    DropdownButton<int>(
+                     if (!widget.showTerugvoerOnly)
+                       Text(
+                         'Tydperk',
+                         style: Theme.of(context).textTheme.titleSmall,
+                       ),
+                     if (!widget.showTerugvoerOnly) const SizedBox(width: 8),
+                     if (!widget.showTerugvoerOnly)
+                       DropdownButton<int>(
                       value: selectedSalesDays,
                       items: const [-1, 7, 14, 30]
                           .map(
@@ -1006,10 +1043,10 @@ class _VerslaePageState extends State<VerslaePage> {
                           _computeAggregations();
                         });
                       },
-                    ),
-                    const SizedBox(width: 16),
-                    if (_isPrimaryAdmin)
-                      TextButton.icon(
+                     ),
+                     if (!widget.showTerugvoerOnly) const SizedBox(width: 16),
+                     if (_isPrimaryAdmin && !widget.showTerugvoerOnly)
+                       TextButton.icon(
                         onPressed: isExporting ? null : _exportAllTablesToCsv,
                         icon: isExporting
                             ? const SizedBox(
@@ -1145,7 +1182,7 @@ class _VerslaePageState extends State<VerslaePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              'Bestelling Status vir Tydperk',
+              'Kos Bestelling Status vir Tydperk',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
@@ -1252,19 +1289,9 @@ class _VerslaePageState extends State<VerslaePage> {
         .toList()
       ..sort((a, b) => a.label.compareTo(b.label));
 
-    // Colors for slices
-    final colors = [
-      Colors.blue,
-      Colors.orange,
-      Colors.green,
-      Colors.purple,
-      Colors.red,
-      Colors.teal,
-      Colors.indigo,
-      Colors.brown,
-      Colors.cyan,
-      Colors.deepOrange,
-    ];
+    // Build a shared color map so these colors match the period chart
+    final Set<String> statuses = data.map((e) => e.label).toSet();
+    final Map<String, Color> colorMap = _buildStatusColorMap(statuses);
 
     return Card(
       child: Padding(
@@ -1273,7 +1300,7 @@ class _VerslaePageState extends State<VerslaePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              'Bestelling Status Weeklikse Gemiddeld',
+              'Kos Bestelling Status Weeklikse Gemiddeld',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
@@ -1287,9 +1314,8 @@ class _VerslaePageState extends State<VerslaePage> {
                   ? PieChart(
                       PieChartData(
                         sections: data.asMap().entries.map((entry) {
-                          final idx = entry.key;
                           final d = entry.value;
-                          final color = colors[idx % colors.length];
+                          final Color color = colorMap[d.label] ?? Colors.grey;
                           final double avgPerWeek = totalWeeks > 0 ? (d.count / totalWeeks) : d.count.toDouble();
                           return PieChartSectionData(
                             color: color,
@@ -1323,9 +1349,8 @@ class _VerslaePageState extends State<VerslaePage> {
               Wrap(
                 spacing: 8,
                 children: data.asMap().entries.map((entry) {
-                  final idx = entry.key;
                   final d = entry.value;
-                  final color = colors[idx % colors.length];
+                  final Color color = colorMap[d.label] ?? Colors.grey;
                   return Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1356,6 +1381,28 @@ class _VerslaePageState extends State<VerslaePage> {
         : _getTopItems();
     final topItems = allTopItems.take(_topItemsLimit).toList();
 
+    // Likes per item within the current period
+    final Map<String, int> likesByItem = {};
+    final cutoff = _cutoffDate();
+    final filteredItems = _filteredBestellingItems(cutoff);
+    for (final item in filteredItems) {
+      final kos = item['kos_item'] as Map<String, dynamic>?;
+      if (kos == null) continue;
+      final name = (kos['kos_item_naam'] as String?) ?? 'Onbekend';
+      final liked = item['best_kos_is_liked'] == true;
+      if (liked) {
+        likesByItem[name] = (likesByItem[name] ?? 0) + 1;
+      }
+    }
+
+    // Total terugvoer per item for current cutoff
+    final Map<String, Map<String, int>> perItemFeedback =
+        _computeKosItemTerugvoerData();
+    final Map<String, int> feedbackTotals = {
+      for (final e in perItemFeedback.entries)
+        e.key: e.value.values.fold(0, (a, b) => a + b)
+    };
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1366,7 +1413,7 @@ class _VerslaePageState extends State<VerslaePage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Top Verkoper Items',
+                  'Top Kos Items',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 Row(
@@ -1390,233 +1437,229 @@ class _VerslaePageState extends State<VerslaePage> {
                         });
                       },
                     ),
+                    const SizedBox(width: 16),
+                    Text('Sorteer', style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(width: 8),
+                    DropdownButton<String>(
+                      value: _topItemsSortKey,
+                      items: const [
+                        'Verkope',
+                        'Likes',
+                        'Terugvoer',
+                        'Likes/Verkope %',
+                        'Terugvoer/Verkope %',
+                      ].map((s) => DropdownMenuItem<String>(value: s, child: Text(s))).toList(),
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() {
+                          _topItemsSortKey = v;
+                        });
+                      },
+                    ),
                   ],
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            Container(
-              height: 360,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: topItems.isNotEmpty
-                  ? RepaintBoundary(
-                      child: BarChart(
-                        BarChartData(
-                          alignment: BarChartAlignment.spaceAround,
-                          maxY: topItems.isNotEmpty
-                              ? topItems.first.quantity * 1.2
-                              : 10,
-                          barTouchData: BarTouchData(enabled: true),
-                          titlesData: FlTitlesData(
-                            leftTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 40,
-                                getTitlesWidget: (value, meta) {
-                                  return Text(value.toInt().toString());
-                                },
-                              ),
-                            ),
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 140,
-                                getTitlesWidget: (value, meta) {
-                                  final index = value.toInt();
-                                  if (index >= 0 && index < topItems.length) {
-                                    return SideTitleWidget(
-                                      axisSide: meta.axisSide,
-                                      space: 16,
-                                      child: Transform.translate(
-                                        offset: const Offset(0, 36),
-                                        child: Transform.rotate(
-                                          angle: -1.57,
-                                          child: Text(
-                                            topItems[index].name,
-                                            style: const TextStyle(fontSize: 10),
-                                          ),
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  return const Text('');
-                                },
-                              ),
-                            ),
-                            topTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                            rightTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                          ),
-                          borderData: FlBorderData(show: true),
-                          barGroups: topItems.asMap().entries.map((e) {
-                            return BarChartGroupData(
-                              x: e.key,
-                              barRods: [
-                                BarChartRodData(
-                                  toY: e.value.quantity.toDouble(),
-                                  color: Colors.blue.withOpacity(0.7),
-                                  width: 10,
-                                  borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(4),
-                                  ),
-                                ),
-                              ],
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    )
-                  : const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('Item')), 
+                  DataColumn(label: Text('Verkope')),
+                  DataColumn(label: Text('Likes')),
+                  DataColumn(label: Text('Terugvoer Totaal')),
+                  DataColumn(label: Text('Likes/Verkope (%)')),
+                  DataColumn(label: Text('Terugvoer/Verkope (%)')),
+                  DataColumn(label: Text('Aksies')),
+                ],
+                rows: () {
+                  final rows = topItems.map((t) {
+                    final name = t.name;
+                    final sales = t.quantity;
+                    final likes = likesByItem[name] ?? 0;
+                    final feedback = feedbackTotals[name] ?? 0;
+                    final likesPerSales = sales > 0 ? (likes / sales) : null;
+                    final feedbackPerSales = sales > 0 ? (feedback / sales) : null;
+                    return {
+                      'name': name,
+                      'sales': sales,
+                      'likes': likes,
+                      'feedback': feedback,
+                      'lps': likesPerSales, // ratio
+                      'fps': feedbackPerSales, // ratio
+                    };
+                  }).toList();
+
+                  int cmpNumDesc(num a, num b) => b.compareTo(a);
+                  int cmpNullableRatioDesc(double? a, double? b) {
+                    final av = a ?? -1.0; // nulls last
+                    final bv = b ?? -1.0;
+                    return bv.compareTo(av);
+                  }
+
+                  rows.sort((a, b) {
+                    switch (_topItemsSortKey) {
+                      case 'Likes':
+                        return cmpNumDesc(a['likes'] as int, b['likes'] as int);
+                      case 'Terugvoer':
+                        return cmpNumDesc(a['feedback'] as int, b['feedback'] as int);
+                      case 'Likes/Verkope %':
+                        return cmpNullableRatioDesc(a['lps'] as double?, b['lps'] as double?);
+                      case 'Terugvoer/Verkope %':
+                        return cmpNullableRatioDesc(a['fps'] as double?, b['fps'] as double?);
+                      case 'Verkope':
+                      default:
+                        return cmpNumDesc(a['sales'] as int, b['sales'] as int);
+                    }
+                  });
+
+                  String fmtRatio(double? v) {
+                    if (v == null) return '—';
+                    final num clamped = (v * 100.0).clamp(0.0, 100.0);
+                    return (clamped as double).toStringAsFixed(2) + '%';
+                  }
+
+                  // Build a map from kos item name to id from bestellingItems
+                  final Map<String, String> nameToKosItemId = {};
+                  for (final item in bestellingItems) {
+                    final kos = item['kos_item'] as Map<String, dynamic>?;
+                    if (kos == null) continue;
+                    final n = (kos['kos_item_naam'] as String?) ?? 'Onbekend';
+                    final id = kos['kos_item_id']?.toString();
+                    if (id != null && id.isNotEmpty) {
+                      nameToKosItemId[n] = id;
+                    }
+                  }
+
+                  return rows.map((r) {
+                    return DataRow(cells: [
+                      DataCell(Text(r['name'] as String)),
+                      DataCell(Text((r['sales'] as int).toString())),
+                      DataCell(Text((r['likes'] as int).toString())),
+                      DataCell(Text((r['feedback'] as int).toString())),
+                      DataCell(() {
+                        final double? ratio = r['lps'] as double?;
+                        if (ratio == null) return Text(fmtRatio(ratio));
+                        final double pct = (ratio * 100.0).clamp(0.0, 100.0);
+                        final Color color = Color.lerp(Colors.black, Colors.green, pct / 100.0)!;
+                        return Text(
+                          fmtRatio(ratio),
+                          style: TextStyle(color: color),
+                        );
+                      }()),
+                      DataCell(() {
+                        final double? ratio = r['fps'] as double?;
+                        if (ratio == null) return Text(fmtRatio(ratio));
+                        final double pct = (ratio * 100.0).clamp(0.0, 100.0);
+                        final Color color = Color.lerp(Colors.black, Colors.red, pct / 100.0)!;
+                        return Text(
+                          fmtRatio(ratio),
+                          style: TextStyle(color: color),
+                        );
+                      }()),
+                      DataCell(Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.trending_up, size: 48, color: Colors.grey),
-                          SizedBox(height: 8),
-                          Text(
-                            'Geen data beskikbaar',
-                            style: TextStyle(color: Colors.grey),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.edit, size: 16),
+                            label: const Text('Wysig'),
+                            onPressed: () {
+                              final kosItemId = nameToKosItemId[r['name'] as String];
+                              if (kosItemId == null || kosItemId.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Kon nie item-ID vind om te wysig nie')),
+                                );
+                                return;
+                              }
+                              // Navigate using go_router to the templates page with edit query
+                              // ignore: use_build_context_synchronously
+                              context.go('/templates/kositem?edit=' + kosItemId);
+                            },
+                          ),
+                          if ((r['feedback'] as int) > 0) ...[
+                            const SizedBox(width: 8),
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.info_outline, size: 16),
+                              label: const Text('Sien Terugvoer'),
+                              onPressed: () {
+                                _showItemFeedbackDetails(context, r['name'] as String);
+                              },
+                            ),
+                          ],
+                        ],
+                      )),
+                    ]);
+                  }).toList();
+                }(),
+              ),
                           ),
                         ],
                       ),
                     ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Likes vir Top Items',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 260,
-              child: Builder(
-                builder: (context) {
-                  final Map<String, int> likesByItem = {};
-                  for (final item in bestellingItems) {
-                    final kos = item['kos_item'] as Map<String, dynamic>?;
-                    if (kos == null) continue;
-                    final name =
-                        (kos['kos_item_naam'] as String?) ?? 'Onbekend';
-                    final liked = item['best_kos_is_liked'] == true;
-                    if (liked) {
-                      likesByItem[name] = (likesByItem[name] ?? 0) + 1;
-                    }
-                  }
+    );
+  }
 
-                  final likesInTopOrder = topItems
-                      .map((t) => likesByItem[t.name] ?? 0)
-                      .toList();
-                  final maxLikes = likesInTopOrder.isEmpty
-                      ? 0
-                      : likesInTopOrder.reduce((a, b) => a > b ? a : b);
+  void _showItemFeedbackDetails(BuildContext context, String itemName) {
+    final cutoff = _cutoffDate();
+    final List<Map<String, dynamic>> entries = [];
+    for (final bt in bestellingTerugvoer) {
+      final bestKos = bt['bestelling_kos_item'] as Map<String, dynamic>?;
+      if (bestKos == null) continue;
+      final kos = bestKos['kos_item'] as Map<String, dynamic>?;
+      if (kos == null) continue;
+      final name = (kos['kos_item_naam'] as String?) ?? 'Onbekend';
+      if (name != itemName) continue;
+      final d = DateTime.tryParse(bt['geskep_datum'] as String? ?? '');
+      if (d == null || !d.isAfter(cutoff)) continue;
+      final tv = bt['terugvoer'] as Map<String, dynamic>?;
+      final label = tv != null ? (tv['terug_naam'] as String? ?? 'Terugvoer') : 'Terugvoer';
+      if (label == '_LIKE_') continue; // exclude system like entries
+      entries.add({'label': label, 'date': d});
+    }
 
-                  if (topItems.isEmpty) {
-                    return const Center(child: Text('Geen data beskikbaar'));
-                  }
+    entries.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
 
-                  return BarChart(
-                    BarChartData(
-                      alignment: BarChartAlignment.spaceAround,
-                      maxY: (maxLikes * 1.2)
-                          .clamp(5, double.infinity)
-                          .toDouble(),
-                      gridData: FlGridData(
-                        show: true,
-                        drawVerticalLine: false,
-                        horizontalInterval: () {
-                          final m = maxLikes;
-                          if (m <= 10) return 1.0;
-                          if (m <= 20) return 2.0;
-                          if (m <= 50) return 5.0;
-                          if (m <= 100) return 10.0;
-                          if (m <= 200) return 20.0;
-                          return 50.0;
-                        }(),
-                      ),
-                      titlesData: FlTitlesData(
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 40,
-                            interval: () {
-                              final m = maxLikes;
-                              if (m <= 10) return 1.0;
-                              if (m <= 20) return 2.0;
-                              if (m <= 50) return 5.0;
-                              if (m <= 100) return 10.0;
-                              if (m <= 200) return 20.0;
-                              return 50.0;
-                            }(),
-                            getTitlesWidget: (value, meta) =>
-                                Text(value.toInt().toString()),
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text('Terugvoer vir ' + itemName),
+          content: SizedBox(
+            width: 500,
+            child: entries.isEmpty
+                ? const Text('Geen terugvoer in die periode')
+                : SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: entries.map((e) {
+                        final DateTime dt = e['date'] as DateTime;
+                        final String ds = '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.comment, size: 16),
+                              const SizedBox(width: 6),
+                              Expanded(child: Text(e['label'] as String)),
+                              const SizedBox(width: 12),
+                              Text(ds, style: const TextStyle(color: Colors.grey)),
+                            ],
                           ),
-                        ),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 140,
-                            getTitlesWidget: (value, meta) {
-                              final index = value.toInt();
-                              if (index >= 0 && index < topItems.length) {
-                                return SideTitleWidget(
-                                  axisSide: meta.axisSide,
-                                  space: 16,
-                                  child: Transform.translate(
-                                    offset: const Offset(0, 36),
-                                    child: Transform.rotate(
-                                      angle: -1.57,
-                                      child: Text(
-                                        topItems[index].name,
-                                        style: const TextStyle(fontSize: 10),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }
-                              return const Text('');
-                            },
-                          ),
-                        ),
-                        topTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                        rightTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
-                      ),
-                      borderData: FlBorderData(show: true),
-                      barGroups: likesInTopOrder
-                          .asMap()
-                          .entries
-                          .map(
-                            (e) => BarChartGroupData(
-                              x: e.key,
-                              barRods: [
-                                BarChartRodData(
-                                  toY: e.value.toDouble(),
-                                  color: Colors.pinkAccent.withOpacity(0.8),
-                                  width: 10,
-                                  borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(4),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                          .toList(),
+                        );
+                      }).toList(),
                     ),
-                  );
-                },
-              ),
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Maak toe'),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -1760,17 +1803,21 @@ class _VerslaePageState extends State<VerslaePage> {
                 );
                 final double nameWidth = (usable * 0.35).clamp(160.0, 360.0);
                 final double descWidth = (usable * 0.65).clamp(240.0, 800.0);
-                return DataTable(
-                  columnSpacing: spacing,
-                  dataRowMinHeight: 96,
-                  dataRowMaxHeight: 180,
-                  columns: const [
-                    DataColumn(label: Text('Naam')),
-                    DataColumn(label: Text('Beskrywing')),
-                    DataColumn(label: Text('Aktief')),
-                    DataColumn(label: Text('Aksies')),
-                  ],
-                  rows:
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: DataTable(
+                      columnSpacing: spacing,
+                      dataRowMinHeight: 96,
+                      dataRowMaxHeight: 180,
+                      columns: const [
+                        DataColumn(label: Text('Naam')),
+                        DataColumn(label: Text('Beskrywing')),
+                        DataColumn(label: Text('Aktief')),
+                        DataColumn(label: Text('Aksies')),
+                      ],
+                      rows:
                       (terugvoerTipes..sort(
                             (a, b) => (a['terug_naam'] ?? '')
                                 .toString()
@@ -1883,6 +1930,8 @@ class _VerslaePageState extends State<VerslaePage> {
                             ),
                           )
                           .toList(),
+                    ),
+                  ),
                 );
               },
             ),
@@ -2086,31 +2135,24 @@ class _VerslaePageState extends State<VerslaePage> {
 
     // Dynamic interval based on data range
     double yLabelInterval;
-    double gridInterval;
     if (maxCount <= 10) {
       yLabelInterval = 1.0;
-      gridInterval = 1.0;
     } else if (maxCount <= 50) {
       yLabelInterval = 5.0;
-      gridInterval = 2.5;
+      
     } else if (maxCount <= 100) {
       yLabelInterval = 10.0;
-      gridInterval = 5.0;
+      
     } else if (maxCount <= 500) {
       yLabelInterval = 50.0;
-      gridInterval = 25.0;
+      
     } else {
       yLabelInterval = 100.0;
-      gridInterval = 50.0;
+      
     }
 
     return LineChartData(
-      gridData: FlGridData(
-        show: true,
-        drawVerticalLine: true,
-        horizontalInterval: gridInterval,
-        verticalInterval: gridInterval,
-      ),
+      gridData: const FlGridData(show: true),
       titlesData: FlTitlesData(
         leftTitles: AxisTitles(
           axisNameWidget: const Text('Aantal Items'),
@@ -2176,44 +2218,89 @@ class _VerslaePageState extends State<VerslaePage> {
     );
   }
 
-  List<_StatusData> _getOrderStatusData() {
-    final statusCounts = <String, int>{};
-    final cutoff = _cutoffDate();
-    final filteredItems = _filteredBestellingItems(cutoff);
-    // Count statuses from filtered bestelling items
-    for (final item in filteredItems) {
-      String status = 'Wag vir afhaal'; // Default status
-
-      // Check if item has status information
-      if (item['best_kos_item_statusse'] != null &&
-          item['best_kos_item_statusse'] is List &&
-          (item['best_kos_item_statusse'] as List).isNotEmpty) {
-        final statuses = item['best_kos_item_statusse'] as List;
-        final latestStatus = statuses.last;
-        if (latestStatus['kos_item_statusse'] != null) {
-          status =
-              latestStatus['kos_item_statusse']['kos_stat_naam'] ??
-              'Wag vir afhaal';
-        }
-      }
-
-      statusCounts[status] = (statusCounts[status] ?? 0) + 1;
-    }
-
-    final colors = [
+  // Builds a consistent color mapping for statuses so charts share the same colors
+  Map<String, Color> _buildStatusColorMap(Set<String> statuses) {
+    // Canonical palette used across all status charts
+    final List<Color> palette = [
       Colors.orange,
       Colors.blue,
       Colors.green,
       Colors.red,
       Colors.purple,
+      Colors.teal,
+      Colors.indigo,
+      Colors.brown,
+      Colors.cyan,
+      Colors.deepOrange,
     ];
+
+    // Use a stable ordering for mapping (alphabetical by label)
+    final List<String> ordered = statuses.toList()..sort((a, b) => a.compareTo(b));
+    final Map<String, Color> map = {};
+    for (int i = 0; i < ordered.length; i++) {
+      map[ordered[i]] = palette[i % palette.length];
+    }
+    return map;
+  }
+
+  List<_StatusData> _getOrderStatusData() {
+    final statusCounts = <String, int>{};
+    final cutoff = _cutoffDate();
+    final filteredItems = _filteredBestellingItems(cutoff);
+
+    // Gather all possible statuses from the dataset (for legend completeness)
+    final Set<String> allStatuses = {};
+    for (final item in bestellingItems) {
+      final List list = (item['best_kos_item_statusse'] as List? ?? []);
+      for (final s in list) {
+        final Map<String, dynamic>? statusInfo = s['kos_item_statusse'] as Map<String, dynamic>?;
+        final String statusName = (statusInfo != null ? (statusInfo['kos_stat_naam'] as String?) : null) ?? 'Onbekend';
+        allStatuses.add(statusName);
+      }
+    }
+    if (allStatuses.isEmpty) {
+      allStatuses.addAll({'Wag vir afhaal'});
+    }
+    // Initialize counts to 0 so missing statuses still appear in legend
+    for (final s in allStatuses) {
+      statusCounts[s] = 0;
+    }
+
+    // Count ALL status changes within the selected period
+    for (final item in filteredItems) {
+      final List list = (item['best_kos_item_statusse'] as List? ?? []);
+      bool countedAny = false;
+      for (final s in list) {
+        final String? iso = s['best_kos_wysig_datum'] as String?;
+        if (iso == null) continue;
+        final DateTime? dt = DateTime.tryParse(iso);
+        if (dt == null || !dt.isAfter(cutoff)) continue;
+        final Map<String, dynamic>? statusInfo = s['kos_item_statusse'] as Map<String, dynamic>?;
+        final String statusName = (statusInfo != null ? (statusInfo['kos_stat_naam'] as String?) : null) ?? 'Onbekend';
+        statusCounts[statusName] = (statusCounts[statusName] ?? 0) + 1;
+        countedAny = true;
+      }
+      // If no status change within period, count latest/current to avoid missing active items
+      if (!countedAny) {
+        if (list.isNotEmpty) {
+          final latest = list.last;
+          final Map<String, dynamic>? statusInfo = latest['kos_item_statusse'] as Map<String, dynamic>?;
+          final String statusName = (statusInfo != null ? (statusInfo['kos_stat_naam'] as String?) : null) ?? 'Onbekend';
+          statusCounts[statusName] = (statusCounts[statusName] ?? 0) + 1;
+        } else {
+          statusCounts['Wag vir afhaal'] = (statusCounts['Wag vir afhaal'] ?? 0) + 1;
+        }
+      }
+    }
+
+    // Build shared color map for statuses
+    final Map<String, Color> colorMap = _buildStatusColorMap(allStatuses);
+
     return statusCounts.entries.map((entry) {
-      final colorIndex =
-          statusCounts.keys.toList().indexOf(entry.key) % colors.length;
       return _StatusData(
         label: entry.key,
         value: entry.value.toDouble(),
-        color: colors[colorIndex],
+        color: colorMap[entry.key] ?? Colors.grey,
       );
     }).toList();
   }
@@ -2360,21 +2447,24 @@ class _VerslaePageState extends State<VerslaePage> {
                               getTitlesWidget: (value, meta) {
                                 final index = value.toInt();
                                 if (index >= 0 && index < topItems.length) {
-                                  if (index % 2 == 1) return const SizedBox.shrink();
                                   return SideTitleWidget(
                                     axisSide: meta.axisSide,
                                     space: 16,
+                                    child: Transform.translate(
+                                      offset: const Offset(0, 36),
+                                      child: Transform.rotate(
+                                        angle: -1.57,
                                     child: Text(
                                       topItems[index].key,
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
                                       style: const TextStyle(fontSize: 10),
+                                        ),
+                                      ),
                                     ),
                                   );
                                 }
                                 return const Text('');
                               },
-                              reservedSize: 100,
+                              reservedSize: 140,
                             ),
                           ),
                           topTitles: const AxisTitles(
@@ -2546,16 +2636,21 @@ class _VerslaePageState extends State<VerslaePage> {
               getTitlesWidget: (value, meta) {
                 final index = value.toInt();
                 if (index >= 0 && index < labels.length) {
-                  if (index % 2 == 1) return const SizedBox.shrink();
                   return SideTitleWidget(
                     axisSide: meta.axisSide,
                     space: 16,
-                    child: Text(labels[index], overflow: TextOverflow.ellipsis, maxLines: 1, style: const TextStyle(fontSize: 10)),
+                    child: Transform.translate(
+                      offset: const Offset(0, 36),
+                      child: Transform.rotate(
+                        angle: -1.57,
+                        child: Text(labels[index], style: const TextStyle(fontSize: 10)),
+                      ),
+                    ),
                   );
                 }
                 return const Text('');
               },
-              reservedSize: 100,
+              reservedSize: 140,
             ),
           ),
           topTitles: const AxisTitles(
