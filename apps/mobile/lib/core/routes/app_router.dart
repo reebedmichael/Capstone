@@ -9,6 +9,7 @@ import '../../features/wallet/presentation/pages/wallet_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
+import '../../features/notifications/presentation/pages/notification_settings_page.dart';
 import '../../features/help/presentation/pages/help_page.dart';
 import '../../features/feedback/presentation/pages/feedback_page.dart';
 import '../../features/cart/presentation/pages/cart_page.dart';
@@ -52,6 +53,10 @@ class AppRouter {
       GoRoute(
         path: '/notifications',
         builder: (context, state) => const NotificationsPage(),
+      ),
+      GoRoute(
+        path: '/notification-settings',
+        builder: (context, state) => const NotificationSettingsPage(),
       ),
       GoRoute(path: '/help', builder: (context, state) => const HelpPage()),
       GoRoute(
