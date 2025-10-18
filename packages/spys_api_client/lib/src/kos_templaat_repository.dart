@@ -122,7 +122,7 @@ class KosTemplaatRepository {
     final response = await _sb
         .from('kos_item')
         .select(
-          '*, kos_item_dieet_vereistes(dieet_id, dieet:dieet_id(dieet_naam)), bestelling_kos_item!inner(best_kos_is_liked)',
+          '*, kos_item_dieet_vereistes(dieet_id, dieet:dieet_id(dieet_naam)), bestelling_kos_item!left(best_kos_is_liked)', // Changed to left join
         )
         .eq('is_aktief', true);
 

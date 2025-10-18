@@ -111,6 +111,9 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
         );
       }).toList();
 
+      // Sort templates alphabetically by kos_item_naam
+      templates.sort((a, b) => a.naam.compareTo(b.naam));
+
       applyFilters(); // Apply search and filter criteria
 
       // If requested, open the edit modal for a specific item once
@@ -260,10 +263,10 @@ class _KositemTemplaatPageState extends State<KositemTemplaatPage> {
           kosItemData,
           selectedCategories,
         );
-        suksesBoodskap = 'Templaat suksesvol gewysig';
+        suksesBoodskap = 'Item suksesvol gewysig';
       } else {
         await repo.addKosItem(kosItemData, selectedCategories);
-        suksesBoodskap = 'Templaat suksesvol geskep';
+        suksesBoodskap = 'Item suksesvol geskep';
       }
 
       await laaiTemplates();
