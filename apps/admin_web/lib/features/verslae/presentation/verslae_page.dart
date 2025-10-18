@@ -793,17 +793,14 @@ class _VerslaePageState extends State<VerslaePage> {
                   // Make Verkope (sales) full-width, then show Kos Items vs Terugvoer, then the two pie charts
                   _buildSalesChart(context),
                   const SizedBox(height: 24),
-                  // Kos Items vs Terugvoer (stacked)
-                  _buildKosItemTerugvoerChart(context),
-                  const SizedBox(height: 24),
-                  // Top Items and Orders per campus side-by-side (stack on narrow)
+                  // Kos Items vs Terugvoer and Orders per campus side-by-side (stack on narrow)
                   LayoutBuilder(
                     builder: (context, constraints) {
                       if (constraints.maxWidth > 900) {
                         return Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(flex: 7, child: _buildTopItemsChart(context)),
+                            Expanded(flex: 7, child: _buildKosItemTerugvoerChart(context)),
                             const SizedBox(width: 16),
                             Expanded(flex: 3, child: _buildOrdersByCampusChart(context)),
                           ],
@@ -811,13 +808,16 @@ class _VerslaePageState extends State<VerslaePage> {
                       }
                       return Column(
                         children: [
-                          _buildTopItemsChart(context),
+                          _buildKosItemTerugvoerChart(context),
                           const SizedBox(height: 24),
                           _buildOrdersByCampusChart(context),
                         ],
                       );
                     },
                   ),
+                  const SizedBox(height: 24),
+                  // Top Items table (full width)
+                  _buildTopItemsChart(context),
                   const SizedBox(height: 24),
                   LayoutBuilder(
                     builder: (context, constraints) {
@@ -962,11 +962,12 @@ class _VerslaePageState extends State<VerslaePage> {
                             : const Icon(Icons.download_outlined),
                         label: const Text('Exporteer'),
                       ),
-                    IconButton(
-                      onPressed: _loadData,
-                      icon: const Icon(Icons.refresh),
-                      tooltip: 'Verfris Data',
-                    ),
+                    if (!widget.showTerugvoerOnly)
+                      IconButton(
+                        onPressed: _loadData,
+                        icon: const Icon(Icons.refresh),
+                        tooltip: 'Verfris Data',
+                      ),
                   ],
                 ),
               ],
@@ -1059,13 +1060,15 @@ class _VerslaePageState extends State<VerslaePage> {
                             : const Icon(Icons.download_outlined),
                         label: const Text('Exporteer CSVs'),
                       ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      onPressed: _loadData,
-                      icon: const Icon(Icons.refresh),
-                      tooltip: 'Verfris Data',
-                    ),
-                    const SizedBox(width: 8),
+                    if (!widget.showTerugvoerOnly) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: _loadData,
+                        icon: const Icon(Icons.refresh),
+                        tooltip: 'Verfris Data',
+                      ),
+                      const SizedBox(width: 8),
+                    ],
                   ],
                 ),
               ],
@@ -1461,9 +1464,7 @@ class _VerslaePageState extends State<VerslaePage> {
               ],
             ),
             const SizedBox(height: 12),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
+            DataTable(
                 columns: const [
                   DataColumn(label: Text('Item')), 
                   DataColumn(label: Text('Verkope')),
@@ -1542,7 +1543,8 @@ class _VerslaePageState extends State<VerslaePage> {
                         final double? ratio = r['lps'] as double?;
                         if (ratio == null) return Text(fmtRatio(ratio));
                         final double pct = (ratio * 100.0).clamp(0.0, 100.0);
-                        final Color color = Color.lerp(Colors.black, Colors.green, pct / 100.0)!;
+                        final Color baseColor = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black;
+                        final Color color = Color.lerp(baseColor, Colors.green, pct / 100.0)!;
                         return Text(
                           fmtRatio(ratio),
                           style: TextStyle(color: color),
@@ -1552,7 +1554,8 @@ class _VerslaePageState extends State<VerslaePage> {
                         final double? ratio = r['fps'] as double?;
                         if (ratio == null) return Text(fmtRatio(ratio));
                         final double pct = (ratio * 100.0).clamp(0.0, 100.0);
-                        final Color color = Color.lerp(Colors.black, Colors.red, pct / 100.0)!;
+                        final Color baseColor = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black;
+                        final Color color = Color.lerp(baseColor, Colors.red, pct / 100.0)!;
                         return Text(
                           fmtRatio(ratio),
                           style: TextStyle(color: color),
@@ -1593,7 +1596,6 @@ class _VerslaePageState extends State<VerslaePage> {
                   }).toList();
                 }(),
               ),
-                          ),
                         ],
                       ),
                     ),
@@ -1766,17 +1768,20 @@ class _VerslaePageState extends State<VerslaePage> {
   }
 
   Widget _buildTerugvoerSection(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1200.0),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Terugvoer (beskikbare tipes)',
+                  'Terugvoer Opsies',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 IconButton(
@@ -1809,8 +1814,8 @@ class _VerslaePageState extends State<VerslaePage> {
                     constraints: BoxConstraints(minWidth: constraints.maxWidth),
                     child: DataTable(
                       columnSpacing: spacing,
-                      dataRowMinHeight: 96,
-                      dataRowMaxHeight: 180,
+                      dataRowMinHeight: 48,
+                      dataRowMaxHeight: 80,
                       columns: const [
                         DataColumn(label: Text('Naam')),
                         DataColumn(label: Text('Beskrywing')),
@@ -1835,6 +1840,8 @@ class _VerslaePageState extends State<VerslaePage> {
                                           (tv['terug_naam']?.toString() ?? ''),
                                       decoration: const InputDecoration(
                                         border: OutlineInputBorder(),
+                                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                        isDense: true,
                                       ),
                                       onChanged: (v) {
                                         setState(() {
@@ -1854,10 +1861,12 @@ class _VerslaePageState extends State<VerslaePage> {
                                           _editBeskById[tv['terug_id']] ??
                                           (tv['terug_beskrywing']?.toString() ??
                                               ''),
-                                      minLines: 4,
-                                      maxLines: 8,
+                                      minLines: 2,
+                                      maxLines: 4,
                                       decoration: const InputDecoration(
                                         border: OutlineInputBorder(),
+                                        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                        isDense: true,
                                       ),
                                       onChanged: (v) {
                                         setState(() {
@@ -1996,6 +2005,8 @@ class _VerslaePageState extends State<VerslaePage> {
           ],
         ),
       ),
+    ),
+    ),
     );
   }
 
@@ -2091,7 +2102,7 @@ class _VerslaePageState extends State<VerslaePage> {
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     data[index].day,
-                    style: const TextStyle(fontSize: 10),
+                    style: const TextStyle(fontSize: 8),
                   ),
                 );
               }
@@ -2184,7 +2195,7 @@ class _VerslaePageState extends State<VerslaePage> {
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     data[index].day,
-                    style: const TextStyle(fontSize: 10),
+                    style: const TextStyle(fontSize: 8),
                   ),
                 );
               }
