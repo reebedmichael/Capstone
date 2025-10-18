@@ -152,15 +152,36 @@ class _WagwoordHerstelPageState extends ConsumerState<WagwoordHerstelPage> {
     }
   }
 
+  // Helper that returns the full-screen gradient container wrapping the given child
+  Widget _fullBackgroundScaffold({required Widget child}) {
+    return Scaffold(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              AppColors.primary.withValues(alpha: 0.05),
+              AppColors.secondary.withValues(alpha: 0.05),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: child,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLoading = ref.watch(authLoadingProvider);
     final isFormValid = ref.watch(passwordFormValidProvider);
 
     if (_isCheckingSession) {
-      // Show loading while checking the session
-      return Scaffold(
-        body: Center(
+      // Show loading while checking the session with full background
+      return _fullBackgroundScaffold(
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -179,9 +200,9 @@ class _WagwoordHerstelPageState extends ConsumerState<WagwoordHerstelPage> {
     }
 
     if (!_isPasswordVerified) {
-      // Show loading while verifying the session
-      return Scaffold(
-        body: Center(
+      // Show message while verifying the session with full background
+      return _fullBackgroundScaffold(
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -199,182 +220,164 @@ class _WagwoordHerstelPageState extends ConsumerState<WagwoordHerstelPage> {
       );
     }
 
-    return Scaffold(
-      body: Center(
-        child: Container(
-          width: 600.0,
-          height: double.infinity,
-          padding: const EdgeInsets.all(Spacing.screenHPad),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.primary.withValues(alpha: 0.05),
-                AppColors.secondary.withValues(alpha: 0.05),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Center(
-            child: SingleChildScrollView(
-              child: Card(
-                elevation: 8,
-                shadowColor: AppColors.shadow,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(Spacing.screenHPad * 1.5),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Spacing.vGap16,
+    return _fullBackgroundScaffold(
+      child: Center(
+        child: SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: Card(
+              elevation: 8,
+              shadowColor: AppColors.shadow,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(Spacing.screenHPad * 1.5),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Spacing.vGap16,
 
-                      // avatar / icon
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: AppColors.secondary.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.lock_reset,
-                          size: 32,
-                          color: AppColors.secondary,
-                        ),
+                    // avatar / icon
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
                       ),
-
-                      Spacing.vGap16,
-
-                      // Title
-                      Text(
-                        'Stel Nuwe Wagwoord',
-                        style: AppTypography.headlineMedium.copyWith(
-                          color: Theme.of(
-                            context,
-                          ).textTheme.headlineMedium?.color,
-                        ),
-                        textAlign: TextAlign.center,
+                      child: const Icon(
+                        Icons.lock_reset,
+                        size: 32,
+                        color: AppColors.secondary,
                       ),
+                    ),
 
-                      Spacing.vGap8,
+                    Spacing.vGap16,
 
-                      Text(
-                        'Kies \'n sterk wagwoord vir $_email',
-                        style: AppTypography.bodyMedium.copyWith(
-                          color: Theme.of(context).textTheme.bodyMedium?.color,
-                        ),
-                        textAlign: TextAlign.center,
+                    // Title
+                    Text(
+                      'Stel Nuwe Wagwoord',
+                      style: AppTypography.headlineMedium.copyWith(
+                        color: Theme.of(
+                          context,
+                        ).textTheme.headlineMedium?.color,
                       ),
+                      textAlign: TextAlign.center,
+                    ),
 
-                      Spacing.vGap24,
+                    Spacing.vGap8,
 
-                      // Password fields
-                      const PasswordField(),
-                      Spacing.vGap16,
-                      const PasswordField(isConfirmPassword: true),
-
-                      Spacing.vGap24,
-
-                      // Security tips
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.blue.withOpacity(0.3),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.security,
-                                  color: Colors.blue,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Sekuriteit Wenke',
-                                  style: AppTypography.labelLarge.copyWith(
-                                    color: Colors.blue,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '• Gebruik ten minste 8 karakters\n'
-                              '• Insluit groot letters, klein letters en syfers\n'
-                              '• Maak gebruik van spesiaal karakters indien moontlik\n'
-                              '• Vermy algemene woorde of persoonlike inligting',
-                              style: AppTypography.bodySmall.copyWith(
-                                color: Colors.blue,
-                              ),
-                            ),
-                          ],
-                        ),
+                    Text(
+                      'Kies \'n sterk wagwoord vir $_email',
+                      style: AppTypography.bodyMedium.copyWith(
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
                       ),
+                      textAlign: TextAlign.center,
+                    ),
 
-                      Spacing.vGap24,
+                    Spacing.vGap24,
 
-                      // Action buttons
-                      Row(
+                    // Password fields
+                    const PasswordField(),
+                    Spacing.vGap16,
+                    const PasswordField(isConfirmPassword: true),
+
+                    Spacing.vGap24,
+
+                    // Security tips
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: isLoading
-                                  ? null
-                                  : () => context.go('/teken_in'),
-                              style: OutlinedButton.styleFrom(
-                                side: BorderSide(
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.security,
+                                color: Colors.blue,
+                                size: 20,
                               ),
-                              child: Text(
-                                'Kanselleer',
+                              const SizedBox(width: 8),
+                              Text(
+                                'Sekuriteit Wenke',
                                 style: AppTypography.labelLarge.copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            ),
+                            ],
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: SpysPrimaryButton(
-                              text: "Opdateer Wagwoord",
-                              isLoading: isLoading,
-                              onPressed: isFormValid
-                                  ? () => _handlePasswordUpdate(context, ref)
-                                  : null,
+                          const SizedBox(height: 8),
+                          Text(
+                            '• Gebruik ten minste 8 karakters\n'
+                            '• Insluit groot letters, klein letters en syfers\n'
+                            '• Maak gebruik van spesiaal karakters indien moontlik\n'
+                            '• Vermy algemene woorde of persoonlike inligting',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: Colors.blue,
                             ),
                           ),
                         ],
                       ),
+                    ),
 
-                      Spacing.vGap24,
+                    Spacing.vGap24,
 
-                      // Help text
-                      Text(
-                        "Jy sal na die aanmeld bladsy geredigeer word na suksesvolle opdatering",
-                        style: AppTypography.bodySmall.copyWith(
-                          color: Theme.of(context).textTheme.bodySmall?.color,
+                    // Action buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: isLoading
+                                ? null
+                                : () => context.go('/teken_in'),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                            child: Text(
+                              'Kanselleer',
+                              style: AppTypography.labelLarge.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ),
                         ),
-                        textAlign: TextAlign.center,
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: SpysPrimaryButton(
+                            text: "Opdateer Wagwoord",
+                            isLoading: isLoading,
+                            onPressed: isFormValid
+                                ? () => _handlePasswordUpdate(context, ref)
+                                : null,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    Spacing.vGap24,
+
+                    // Help text
+                    Text(
+                      "Jy sal na die aanmeld bladsy geredigeer word na suksesvolle opdatering",
+                      style: AppTypography.bodySmall.copyWith(
+                        color: Theme.of(context).textTheme.bodySmall?.color,
                       ),
-                    ],
-                  ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               ),
             ),
